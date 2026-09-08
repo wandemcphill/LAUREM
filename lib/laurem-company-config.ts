@@ -1,0 +1,42 @@
+export const lauremCompany = {
+  legalName: 'Laurem Caregroup Ltd',
+  tradingName: 'Laurem Caregroup',
+  website: 'https://lauremcare.com',
+  locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
+  publicEmails: {
+    recruitment: 'recruitment@lauremcare.com',
+    general: 'info@lauremcare.com',
+    manager: 'manager@lauremcare.com',
+  },
+  recruitment: {
+    pathways: ['uk', 'international'] as const,
+    sponsorship: {
+      nurse: true,
+      seniorSupportWorker: false,
+      supportWorker: false,
+      healthcareAssistant: false,
+    },
+    roles: [
+      'Registered Nurse',
+      'Senior Support Worker',
+      'Support Worker',
+      'Healthcare Assistant',
+    ],
+  },
+} as const;
+
+export type LauremRole = (typeof lauremCompany.recruitment.roles)[number];
+export type LauremPathway = (typeof lauremCompany.recruitment.pathways)[number];
+
+export function normaliseRole(role: string | null | undefined): string {
+  return (role || '').trim().toLowerCase();
+}
+
+export function isNurseRole(role: string | null | undefined): boolean {
+  const value = normaliseRole(role);
+  return value.includes('nurse') || value.includes('registered nurse');
+}
+
+export function supportsInternationalNurseRecruitment(role: string | null | undefined): boolean {
+  return isNurseRole(role) && lauremCompany.recruitment.sponsorship.nurse;
+}
