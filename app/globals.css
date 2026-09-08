@@ -1,0 +1,15 @@
+:root {
+  --ink: #18372f;
+  --muted: #64746e;
+  --line: #dfe8e4;
+  --paper: #ffffff;
+  --soft: #f5f9f7;
+  --accent: #2c6d5c;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+body { background: var(--soft); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+a { color: inherit; }
+.wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 10px 30px rgba(24,55,47,.05); }
