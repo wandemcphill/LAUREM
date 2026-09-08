@@ -56,8 +56,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         )}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 30 }}>
-          <Link href={`/nurse-interview?job=${encodeURIComponent(job.id)}`} style={{ background: 'var(--accent)', color: 'white', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 800 }}>
-            Start application
+          <Link href={`/admin?inviteRole=${encodeURIComponent(job.title)}`} style={{ background: 'var(--accent)', color: 'white', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 800 }}>
+            Apply via recruitment invitation
           </Link>
           <Link href="/jobs" style={{ border: '1px solid var(--line)', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 700 }}>View other roles</Link>
         </div>
