@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { buildOnboardingTasks, calculateOnboardingStatus, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
+import { hashToken, makeToken } from '@/lib/token';
 
 export async function POST(request: NextRequest) {
   const session = readAdminSession(request);
@@ -47,15 +48,24 @@ export async function POST(request: NextRequest) {
 
     const staffId = staff.id;
     let { data: packageRow } = await client.from('staff_onboarding_packages').select('*').eq('staff_id', staffId).maybeSingle();
+    let rawAccessToken: string | null = null;
     if (!packageRow) {
+      rawAccessToken = makeToken();
       const { data: createdPackage, error } = await client.from('staff_onboarding_packages').insert({
         staff_id: staffId,
         audience,
         title: audience === 'international_nurse' ? 'International Nurse Onboarding & Welcome Programme' : audience === 'sponsored_hca' ? 'Sponsored Healthcare Assistant Onboarding Programme' : 'Laurem Staff Onboarding Programme',
         status: 'pending',
+        access_token_hash: hashToken(rawAccessToken),
+        access_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       }).select('*').single();
       if (error) throw error;
       packageRow = createdPackage;
+    } else if (!packageRow.access_token_hash) {
+      rawAccessToken = makeToken();
+      const { data: refreshedPackage, error } = await client.from('staff_onboarding_packages').update({ access_token_hash: hashToken(rawAccessToken), access_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }).eq('id', packageRow.id).select('*').single();
+      if (error) throw error;
+      packageRow = refreshedPackage;
     }
 
     const { data: existingTasks, error: taskReadError } = await client.from('staff_onboarding_tasks').select('task_key,status,required').eq('package_id', packageRow.id);
@@ -75,7 +85,8 @@ export async function POST(request: NextRequest) {
     await client.from('recruitment_status_history').insert({ application_id: applicationId, from_status: 'Onboarding', to_status: 'Hired', changed_by: session.email, note: `Staff onboarding package ${packageRow.id} created for ${staff.employee_number || 'staff member'}` });
 
     const { data: finalTasks } = await client.from('staff_onboarding_tasks').select('*').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
-    return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
+    const onboardingLink = rawAccessToken ? `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/onboarding/${rawAccessToken}` : null;
+    return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.create_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to complete onboarding.' }, { status: 500 });
