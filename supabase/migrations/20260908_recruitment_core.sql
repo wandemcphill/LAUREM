@@ -45,10 +45,12 @@ create table if not exists recruitment_applications (
   consent boolean not null default false,
   status text not null default 'Submitted',
   interview_responses jsonb not null default '{}'::jsonb,
+  application_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table recruitment_applications add column if not exists application_data jsonb not null default '{}'::jsonb;
 create index if not exists recruitment_applications_status_idx on recruitment_applications(status);
 create index if not exists recruitment_applications_email_idx on recruitment_applications(lower(email));
 create index if not exists recruitment_applications_role_idx on recruitment_applications(role_applied);
@@ -87,7 +89,6 @@ alter table recruitment_invites enable row level security;
 alter table recruitment_applications enable row level security;
 alter table recruitment_interviews enable row level security;
 alter table recruitment_second_interviews enable row level security;
-
 revoke all on recruitment_invites, recruitment_applications, recruitment_interviews, recruitment_second_interviews from anon, authenticated;
 
 create or replace function create_recruitment_application(p_token_hash text, p_payload jsonb)
@@ -96,9 +97,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  invite_row recruitment_invites;
-  application_row recruitment_applications;
+declare invite_row recruitment_invites; application_row recruitment_applications;
 begin
   select * into invite_row from recruitment_invites where token_hash = p_token_hash for update;
   if not found then raise exception using errcode='P0001', message='INVITATION_NOT_FOUND'; end if;
@@ -106,28 +105,22 @@ begin
   if invite_row.expires_at is not null and invite_row.expires_at <= now() then raise exception using errcode='P0001', message='INVITATION_EXPIRED'; end if;
 
   insert into recruitment_applications (
-    invite_id, full_name, preferred_name, email, phone, date_of_birth, nationality,
-    country_of_residence, address, role_applied, employment_type, availability, start_date,
-    driving_licence, vehicle_access, care_experience, qualifications, training,
-    professional_experience, employment_history, employment_gaps, professional_references,
-    living_in_uk, current_country, work_permission, requires_sponsorship,
-    international_experience, relocation_readiness, supporting_documents, consent,
-    interview_responses, updated_at
+    invite_id, full_name, preferred_name, email, phone, date_of_birth, nationality, country_of_residence, address,
+    role_applied, employment_type, availability, start_date, driving_licence, vehicle_access, care_experience,
+    qualifications, training, professional_experience, employment_history, employment_gaps, professional_references,
+    living_in_uk, current_country, work_permission, requires_sponsorship, international_experience, relocation_readiness,
+    supporting_documents, consent, interview_responses, application_data, updated_at
   ) values (
-    invite_row.id,
-    p_payload->>'full_name', p_payload->>'preferred_name', p_payload->>'email', p_payload->>'phone',
-    nullif(p_payload->>'date_of_birth','')::date, p_payload->>'nationality', p_payload->>'country_of_residence',
-    p_payload->>'address', p_payload->>'role_applied', p_payload->>'employment_type',
-    coalesce(p_payload->'availability','{}'::jsonb), nullif(p_payload->>'start_date','')::date,
-    p_payload->>'driving_licence', p_payload->>'vehicle_access', p_payload->>'care_experience',
+    invite_row.id, p_payload->>'full_name', p_payload->>'preferred_name', p_payload->>'email', p_payload->>'phone',
+    nullif(p_payload->>'date_of_birth','')::date, p_payload->>'nationality', p_payload->>'country_of_residence', p_payload->>'address',
+    p_payload->>'role_applied', p_payload->>'employment_type', coalesce(p_payload->'availability','{}'::jsonb),
+    nullif(p_payload->>'start_date','')::date, p_payload->>'driving_licence', p_payload->>'vehicle_access', p_payload->>'care_experience',
     p_payload->>'qualifications', coalesce(p_payload->'training','{}'::jsonb), p_payload->>'professional_experience',
-    coalesce(p_payload->'employment_history','[]'::jsonb), coalesce(p_payload->'employment_gaps','[]'::jsonb),
-    coalesce(p_payload->'professional_references','[]'::jsonb), p_payload->>'living_in_uk',
-    p_payload->>'current_country', p_payload->>'work_permission', p_payload->>'requires_sponsorship',
-    p_payload->>'international_experience', p_payload->>'relocation_readiness',
-    coalesce(p_payload->'supporting_documents','[]'::jsonb), true, coalesce(p_payload->'interview_responses','{}'::jsonb), now()
+    coalesce(p_payload->'employment_history','[]'::jsonb), coalesce(p_payload->'employment_gaps','[]'::jsonb), coalesce(p_payload->'references','[]'::jsonb),
+    p_payload->>'living_in_uk', p_payload->>'current_country', p_payload->>'work_permission', p_payload->>'requires_sponsorship',
+    p_payload->>'international_experience', p_payload->>'relocation_readiness', coalesce(p_payload->'supporting_documents','[]'::jsonb),
+    true, coalesce(p_payload->'interview_responses','{}'::jsonb), p_payload, now()
   ) returning * into application_row;
-
   update recruitment_invites set used_at=now() where id=invite_row.id and used_at is null;
   return application_row;
 end;
