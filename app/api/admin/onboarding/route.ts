@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'The employment contract must be accepted before staff onboarding can begin.' }, { status: 409 });
     }
 
-    const { data: existing } = await client.from('staff_profiles').select('id,employee_number,contract_id').eq('application_id', applicationId).maybeSingle();
+    const { data: existing, error: existingError } = await client.from('staff_profiles').select('id,employee_number,contract_id').eq('application_id', applicationId).maybeSingle();
+    if (existingError) throw existingError;
+
     const applicationData = (app.application_data && typeof app.application_data === 'object') ? app.application_data as Record<string, unknown> : {};
     const nmc = typeof applicationData.nmc_number === 'string' ? applicationData.nmc_number : null;
     const location = typeof body?.location === 'string' ? body.location : null;
@@ -30,15 +32,31 @@ export async function POST(request: NextRequest) {
     const audience = inferLauremOnboardingAudience(app.role_applied, app.living_in_uk);
     const tasks = buildOnboardingTasks(audience);
 
-    let staff = existing;
-    if (!staff) {
+    let staffId: string;
+    if (existing) {
+      staffId = existing.id;
+    } else {
       const employeeNumber = `LAU-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-      const { data: createdStaff, error } = await client.from('staff_profiles').insert({ application_id: applicationId, employee_number: employeeNumber, full_name: app.full_name, email: app.email, phone: app.phone, job_title: app.role_applied, employment_status: 'pending', start_date: app.start_date, location, nmc_number: nmc || app.nmc_number || null, right_to_work_verified: Boolean(body?.rightToWorkVerified), dbs_verified: Boolean(body?.dbsVerified), contract_id: contractId }).select('*').single();
+      const { data: createdStaff, error } = await client.from('staff_profiles').insert({
+        application_id: applicationId,
+        employee_number: employeeNumber,
+        full_name: app.full_name,
+        email: app.email,
+        phone: app.phone,
+        job_title: app.role_applied,
+        employment_status: 'pending',
+        start_date: app.start_date,
+        location,
+        nmc_number: nmc || app.nmc_number || null,
+        right_to_work_verified: Boolean(body?.rightToWorkVerified),
+        dbs_verified: Boolean(body?.dbsVerified),
+        contract_id: contractId,
+      }).select('*').single();
       if (error) throw error;
-      staff = createdStaff;
+      if (!createdStaff) throw new Error('Staff profile creation returned no row.');
+      staffId = createdStaff.id;
     }
 
-    const staffId = staff.id;
     let { data: packageRow } = await client.from('staff_onboarding_packages').select('*').eq('staff_id', staffId).maybeSingle();
     let rawAccessToken: string | null = null;
     if (!packageRow) {
@@ -71,6 +89,7 @@ export async function POST(request: NextRequest) {
 
     const { data: finalTasks } = await client.from('staff_onboarding_tasks').select('*').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
     const onboardingLink = rawAccessToken ? `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/onboarding/${rawAccessToken}` : null;
+    const staff = existing ?? { id: staffId, employee_number: null, contract_id: contractId };
     return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.create_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
