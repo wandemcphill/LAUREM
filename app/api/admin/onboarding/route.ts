@@ -17,12 +17,22 @@ export async function POST(request: NextRequest) {
     if (!app) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
 
     const { data: existing } = await client.from('staff_profiles').select('id,employee_number,contract_id').eq('application_id', applicationId).maybeSingle();
+    const { data: contract, error: contractError } = await client.from('recruitment_contracts').select('id,status').eq('application_id', applicationId).maybeSingle();
+    if (contractError) throw contractError;
+    const effectiveContractId = typeof body?.contractId === 'string' ? body.contractId : contract?.id || null;
+    if (!contract || contract.status !== 'accepted') {
+      return NextResponse.json({ error: 'The employment contract must be accepted before the candidate can be converted into a staff record.' }, { status: 409 });
+    }
+
     const applicationData = (app.application_data && typeof app.application_data === 'object') ? app.application_data as Record<string, unknown> : {};
     const nmc = typeof applicationData.nmc_number === 'string' ? applicationData.nmc_number : null;
     const location = typeof body?.location === 'string' ? body.location : null;
-    const contractId = typeof body?.contractId === 'string' ? body.contractId : null;
+    const rightToWorkVerified = Boolean(body?.rightToWorkVerified);
+    const dbsVerified = Boolean(body?.dbsVerified);
     const audience = inferLauremOnboardingAudience(app.role_applied, app.living_in_uk);
     const tasks = buildOnboardingTasks(audience);
+    const registeredNmc = nmc || app.nmc_number || null;
+    const canBeActive = rightToWorkVerified && (audience !== 'international_nurse' || Boolean(registeredNmc));
 
     let staff = existing;
     if (!staff) {
@@ -34,16 +44,20 @@ export async function POST(request: NextRequest) {
         email: app.email,
         phone: app.phone,
         job_title: app.role_applied,
-        employment_status: 'active',
+        employment_status: canBeActive ? 'active' : 'pending',
         start_date: app.start_date,
         location,
-        nmc_number: nmc || app.nmc_number || null,
-        right_to_work_verified: Boolean(body?.rightToWorkVerified),
-        dbs_verified: Boolean(body?.dbsVerified),
-        contract_id: contractId,
+        nmc_number: registeredNmc,
+        right_to_work_verified: rightToWorkVerified,
+        dbs_verified: dbsVerified,
+        contract_id: effectiveContractId,
       }).select('*').single();
       if (error) throw error;
       staff = createdStaff;
+    } else {
+      const { data: refreshedStaff, error } = await client.from('staff_profiles').update({ contract_id: effectiveContractId || staff.contract_id, right_to_work_verified: rightToWorkVerified, dbs_verified: dbsVerified, nmc_number: registeredNmc, employment_status: canBeActive ? 'active' : 'pending', location, updated_at: new Date().toISOString() }).eq('id', staff.id).select('*').single();
+      if (error) throw error;
+      staff = refreshedStaff;
     }
 
     const staffId = staff.id;
