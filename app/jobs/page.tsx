@@ -1,13 +1,10 @@
 import Link from 'next/link';
 import { lauremCompany } from '@/lib/laurem-company-config';
-
-const jobs = lauremCompany.recruitment.roles.map((role) => ({
-  role,
-  locations: lauremCompany.locations,
-  international: role === 'Registered Nurse' && lauremCompany.recruitment.sponsorship.nurse,
-}));
+import { getActiveLauremJobs } from '@/lib/laurem-jobs';
 
 export default function JobsPage() {
+  const jobs = getActiveLauremJobs();
+
   return (
     <main className="wrap" style={{ padding: '48px 0 80px' }}>
       <Link href="/" style={{ textDecoration: 'none', color: 'var(--muted)' }}>← Recruitment portal</Link>
@@ -17,15 +14,16 @@ export default function JobsPage() {
       </p>
       <div style={{ display: 'grid', gap: 16, marginTop: 28 }}>
         {jobs.map((job) => (
-          <article className="card" key={job.role} style={{ padding: 24 }}>
+          <article className="card" key={job.id} style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
               <div>
-                <h2 style={{ margin: 0 }}>{job.role}</h2>
-                <p style={{ color: 'var(--muted)' }}>{job.locations.join(' · ')}</p>
+                <div style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 800, letterSpacing: '.07em' }}>{job.category.toUpperCase()}</div>
+                <h2 style={{ margin: '6px 0 0' }}>{job.title}</h2>
+                <p style={{ color: 'var(--muted)', marginBottom: 0 }}>{job.locations.join(' · ')}</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {job.international && <span style={{ padding: '7px 10px', borderRadius: 999, background: '#eaf5f0', color: 'var(--accent)', fontSize: 12, fontWeight: 700 }}>INTERNATIONAL NURSE PATHWAY</span>}
-                <Link href={job.role === 'Registered Nurse' ? '/nurse-interview' : '/jobs'} style={{ border: '1px solid var(--line)', padding: '11px 14px', borderRadius: 9, textDecoration: 'none', fontWeight: 700 }}>Explore</Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {job.sponsorshipAvailable && <span style={{ padding: '7px 10px', borderRadius: 999, background: '#eaf5f0', color: 'var(--accent)', fontSize: 12, fontWeight: 700 }}>SPONSORSHIP PATHWAY</span>}
+                <Link href={`/jobs/${job.id}`} style={{ border: '1px solid var(--line)', padding: '11px 14px', borderRadius: 9, textDecoration: 'none', fontWeight: 700 }}>Explore role</Link>
               </div>
             </div>
           </article>
