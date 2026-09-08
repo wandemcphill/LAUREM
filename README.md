@@ -13,6 +13,7 @@ A Laurem Caregroup recruitment-to-workforce platform, designed from the proven B
 - Staff onboarding and workforce operations
 - Standard staff employment contract generation
 - Dedicated international registered nurse employment contract generation and acceptance
+- Role-specific handbooks and overseas welcome package
 
 ## Communication routing
 
@@ -36,6 +37,21 @@ Any salary entered into an international nurse contract must be checked against 
 
 Repayment terms must be transparent, proportionate, time-limited and flexible. Employer-liable recruitment and sponsorship costs are excluded from employee-repayable costs, and any permitted expenses must be genuine, evidenced and auditable.
 
+## Handbooks and overseas welcome package
+
+Laurem now has two role-specific handbooks:
+
+- `docs/handbooks/laurem-sponsored-hca-handbook.md` for Healthcare Assistants who are lawfully eligible for the applicable sponsored/in-country route.
+- `docs/handbooks/laurem-overseas-nurse-handbook.md` for internationally recruited Registered Nurses joining Scotland.
+
+International nurses also receive a dedicated `docs/handbooks/laurem-overseas-nurse-welcome-package.md`, covering pre-arrival preparation, travel, airport arrival, temporary accommodation, local orientation, bank account and payroll onboarding, National Insurance signposting, UKVI/eVisa and right-to-work, GP and healthcare access, transport, workplace culture, NMC registration support, buddy/mentor support, family/dependant considerations, community networks, anti-exploitation guidance and a 30-day settlement checklist.
+
+The handbook configuration is defined in `lib/laurem-handbook-config.ts` so the portal can select the correct package by recruitment pathway and keep required acknowledgements machine-readable.
+
+### Important HCA sponsorship rule
+
+The HCA handbook deliberately does **not** present Healthcare Assistant sponsorship as an overseas recruitment route. Since 22 July 2025, care worker and senior care worker entry-clearance applications from overseas have been closed. Certain in-country applications remain possible during the transitional period where the worker already meets the immigration conditions, including the required lawful employment period with the sponsor. Laurem must verify the current Immigration Rules before offering or sponsoring any HCA role.
+
 ## Source of truth
 
-Laurem's existing recruitment documents and current public employment/immigration guidance are being converted into structured, configurable workflows rather than static PDFs. Contract wording should receive employer/HR/legal approval before production issue.
+Laurem's existing recruitment documents and current public employment/immigration guidance are being converted into structured, configurable workflows rather than static PDFs. Contract and handbook wording should receive employer/HR/legal approval before production issue, and links/checklists should be refreshed when official guidance changes.
