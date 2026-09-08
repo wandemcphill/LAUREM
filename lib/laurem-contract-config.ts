@@ -1,6 +1,7 @@
 export const lauremEmploymentContract = {
   title: 'Contract of Employment (Guaranteed Minimum Hours)',
   employerName: 'Laurem Caregroup Ltd',
+  platformName: 'Laurem Recruitment & Workforce Platform',
   sections: [
     'Commencement of Employment',
     'Job Title and Description of Work',
@@ -42,13 +43,6 @@ export const lauremEmploymentContract = {
     'noticePeriodEmployer',
     'holidayEntitlement',
     'pensionScheme',
-  ] as const,
-  legacyReferencesToReplace: [
-    'HealthForceGo',
-    'Newcross Healthcare',
-    'static.healthforcego.com',
-    'Any previous employer/client name or address',
-    'Employee-specific dates, rates and personal details',
   ] as const,
 } as const;
 
