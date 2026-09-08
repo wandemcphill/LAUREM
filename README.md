@@ -14,6 +14,7 @@ A Laurem Caregroup recruitment-to-workforce platform, designed from the proven B
 - Standard staff employment contract generation
 - Dedicated international registered nurse employment contract generation and acceptance
 - Role-specific handbooks and overseas welcome package
+- Pathway-aware onboarding packages with employee acknowledgement tracking
 
 ## Communication routing
 
@@ -47,6 +48,14 @@ Laurem now has two role-specific handbooks:
 International nurses also receive a dedicated `docs/handbooks/laurem-overseas-nurse-welcome-package.md`, covering pre-arrival preparation, travel, airport arrival, temporary accommodation, local orientation, bank account and payroll onboarding, National Insurance signposting, UKVI/eVisa and right-to-work, GP and healthcare access, transport, workplace culture, NMC registration support, buddy/mentor support, family/dependant considerations, community networks, anti-exploitation guidance and a 30-day settlement checklist.
 
 The handbook configuration is defined in `lib/laurem-handbook-config.ts` so the portal can select the correct package by recruitment pathway and keep required acknowledgements machine-readable.
+
+## Pathway-aware onboarding
+
+When a recruiter converts an accepted candidate into a staff record, LAUREM automatically determines the onboarding audience and creates the corresponding onboarding package. An international Registered Nurse receives the Overseas Nurse Handbook, the UK/Scotland Welcome Package, sponsorship acknowledgement, NMC action-plan task, arrival/settlement checks, clinical induction, buddy/mentor and NMC registration confirmation tasks. A Healthcare Assistant receives the Sponsored HCA Handbook together with role-specific safeguarding, mandatory-training, PVG/disclosure and competency tasks.
+
+Each package has a secure employee access link. Employees can read the assigned handbook or welcome package inside the onboarding portal and electronically acknowledge required items using their full name. Completion is stored against the staff onboarding package and individual task records. Recruiters have a separate onboarding workspace to complete operational/compliance tasks and can see package progress.
+
+Staff conversion is gated behind an accepted employment contract. International nurses are kept in pending workforce status until the required right-to-work and NMC conditions are recorded, rather than being treated as fully deployable by default.
 
 ### Important HCA sponsorship rule
 
