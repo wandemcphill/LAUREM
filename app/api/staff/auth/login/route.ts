@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyPassword, createStaffSession, setStaffSession } from '@/lib/laurem-staff-auth';
 
+const IDENTIFIER = /^[A-Z0-9-]{3,64}$/;
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const id = typeof body?.laurem_id === 'string' ? body.laurem_id.trim().toUpperCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
   if (!id || !password) return NextResponse.json({ error: 'LAUREM ID and password are required.' }, { status: 400 });
+  if (!IDENTIFIER.test(id)) return NextResponse.json({ error: 'Invalid LAUREM ID or password.' }, { status: 401 });
 
   const { data: staff } = await db().from('staff_profiles')
     .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,session_version')
