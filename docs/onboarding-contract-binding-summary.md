@@ -1,0 +1,1 @@
+The staff conversion flow is bound to the accepted employment contract associated with the candidate. Caller-supplied contract IDs do not select a different contract. A waived readiness check does not set verification flags.
