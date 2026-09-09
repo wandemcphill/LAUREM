@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { LEAVE_TYPES, inclusiveCalendarDays } from '@/lib/laurem-workforce-policy';
 
-function inclusiveDays(start: string, end: string) {
-  const a = new Date(`${start}T00:00:00Z`).getTime();
-  const b = new Date(`${end}T00:00:00Z`).getTime();
-  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
-  return Number(((b - a) / 86400000 + 1).toFixed(2));
+function dbConflictMessage(error: { code?: string; message?: string } | null) {
+  if (error?.code === '23P01' || error?.message?.includes('STAFF')) {
+    return 'The requested leave dates conflict with an existing leave request or scheduled assignment.';
+  }
+  return null;
 }
 
 export async function GET(req: NextRequest) {
@@ -29,11 +30,61 @@ export async function POST(req: NextRequest) {
   const startDate = typeof input.startDate === 'string' ? input.startDate : '';
   const endDate = typeof input.endDate === 'string' ? input.endDate : '';
   const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
-  if (!['annual', 'sick', 'family', 'unpaid', 'other'].includes(leaveType)) return NextResponse.json({ error: 'Invalid leave type.' }, { status: 400 });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return NextResponse.json({ error: 'Valid start and end dates are required.' }, { status: 400 });
-  const totalDays = inclusiveDays(startDate, endDate);
-  if (totalDays === null) return NextResponse.json({ error: 'End date must be on or after start date.' }, { status: 400 });
-  const { data, error } = await db().from('staff_leave_requests').insert({ staff_id: session.staff_id, leave_type: leaveType, start_date: startDate, end_date: endDate, total_days: totalDays, reason: reason || null, status: 'pending' }).select('*').single();
-  if (error || !data) return NextResponse.json({ error: 'Unable to submit leave request.' }, { status: 500 });
+  if (!LEAVE_TYPES.includes(leaveType as (typeof LEAVE_TYPES)[number])) return NextResponse.json({ error: 'Invalid leave type.' }, { status: 400 });
+  const totalDays = inclusiveCalendarDays(startDate, endDate);
+  if (totalDays === null) return NextResponse.json({ error: 'Valid start and end dates are required, and end date must be on or after start date.' }, { status: 400 });
+
+  const { data, error } = await db().from('staff_leave_requests').insert({
+    staff_id: session.staff_id,
+    leave_type: leaveType,
+    start_date: startDate,
+    end_date: endDate,
+    total_days: totalDays,
+    reason: reason || null,
+    status: 'pending',
+  }).select('*').single();
+  if (error || !data) {
+    const conflict = dbConflictMessage(error);
+    if (conflict) return NextResponse.json({ error: conflict }, { status: 409 });
+    return NextResponse.json({ error: 'Unable to submit leave request.' }, { status: 500 });
+  }
   return NextResponse.json({ request: data }, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getStaffSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  const id = new URL(req.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Leave request id is required.' }, { status: 400 });
+
+  const { data: current, error: readError } = await db().from('staff_leave_requests')
+    .select('id,status,staff_id').eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
+  if (readError) return NextResponse.json({ error: 'Unable to load leave request.' }, { status: 500 });
+  if (!current) return NextResponse.json({ error: 'Leave request not found.' }, { status: 404 });
+  if (!['pending', 'approved'].includes(current.status)) return NextResponse.json({ error: 'This leave request can no longer be cancelled.' }, { status: 409 });
+
+  const now = new Date().toISOString();
+  const { data, error } = await db().from('staff_leave_requests').update({
+    status: 'cancelled',
+    reviewed_by: session.staff_id,
+    reviewed_at: now,
+    review_note: 'Cancelled by staff member.',
+    updated_at: now,
+  }).eq('id', id).eq('staff_id', session.staff_id).select('*').single();
+  if (error || !data) {
+    const conflict = dbConflictMessage(error);
+    if (conflict) return NextResponse.json({ error: conflict }, { status: 409 });
+    return NextResponse.json({ error: 'Unable to cancel leave request.' }, { status: 500 });
+  }
+
+  await db().from('workforce_audit_events').insert({
+    staff_id: session.staff_id,
+    entity_type: 'leave_request',
+    entity_id: id,
+    event_type: 'leave.cancelled_by_staff',
+    actor: session.staff_id,
+    details: { from: current.status, to: 'cancelled' },
+  });
+
+  return NextResponse.json({ request: data });
 }
