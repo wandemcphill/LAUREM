@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { ensureLauremOnboardingReadiness, getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
+import { readinessKeyForEvidenceType } from '@/lib/laurem-evidence';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -18,9 +19,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
     if (error) throw error;
     if (!application) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
-
-    const readiness = await getLauremOnboardingReadiness(client, application);
-    return NextResponse.json(readiness);
+    return NextResponse.json(await getLauremOnboardingReadiness(client, application));
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.readiness_get_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to load onboarding readiness.' }, { status: 500 });
@@ -54,13 +53,30 @@ export async function PATCH(request: NextRequest) {
     await ensureLauremOnboardingReadiness(client, application);
     const { data: item, error: itemError } = await client
       .from('recruitment_onboarding_checklist')
-      .select('id,required')
+      .select('id,required,status')
       .eq('application_id', applicationId)
       .eq('item_key', itemKey)
       .maybeSingle();
     if (itemError) throw itemError;
     if (!item) return NextResponse.json({ error: 'Readiness item not found.' }, { status: 404 });
     if (status === 'waived' && !item.required) return NextResponse.json({ error: 'Optional readiness items cannot be waived.' }, { status: 400 });
+
+    const { data: evidenceRows, error: evidenceError } = await client
+      .from('recruitment_evidence_reviews')
+      .select('id,evidence_type,status,expires_at,created_at')
+      .eq('application_id', applicationId)
+      .in('status', ['pending', 'approved', 'waived'])
+      .order('created_at', { ascending: false });
+    if (evidenceError) throw evidenceError;
+    const hasAuthoritativeEvidence = (evidenceRows || []).some((review) => {
+      const key = readinessKeyForEvidenceType(review.evidence_type);
+      return key === itemKey;
+    });
+    if (hasAuthoritativeEvidence) {
+      return NextResponse.json({
+        error: 'This readiness item is controlled by the recruitment evidence lifecycle. Review or replace the underlying evidence instead of editing the checklist directly.',
+      }, { status: 409 });
+    }
 
     const completedAt = status === 'completed' ? new Date().toISOString() : null;
     const completedBy = status === 'completed' || status === 'waived' ? session.email : null;
@@ -74,13 +90,13 @@ export async function PATCH(request: NextRequest) {
 
     await client.from('recruitment_status_history').insert({
       application_id: applicationId,
-      to_status: application.role_applied ? 'Onboarding' : 'Onboarding',
+      from_status: application.status || null,
+      to_status: application.status || 'Onboarding',
       changed_by: session.email,
-      note: `Onboarding readiness item ${itemKey} set to ${status}`,
+      note: `Onboarding readiness item ${itemKey} changed from ${item.status} to ${status}`,
     });
 
-    const readiness = await getLauremOnboardingReadiness(client, application);
-    return NextResponse.json({ item: data, ...readiness });
+    return NextResponse.json({ item: data, ...(await getLauremOnboardingReadiness(client, application)) });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.readiness_update_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to update onboarding readiness.' }, { status: 500 });
