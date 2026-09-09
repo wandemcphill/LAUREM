@@ -23,6 +23,3 @@ create index if not exists staff_assignments_status_time_idx
 
 create index if not exists staff_timesheets_status_work_date_idx
   on staff_timesheets(status, work_date desc);
-
-create index if not exists recruitment_audit_created_at_idx
-  on recruitment_audit(created_at desc);
