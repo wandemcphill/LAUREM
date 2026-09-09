@@ -1,1 +1,0 @@
-Payroll and leave hardening is intentionally limited to database invariants and indexes. Payroll remains calculation-only; payment rails and disbursement are out of scope.
