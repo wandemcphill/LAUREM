@@ -20,7 +20,17 @@ create index if not exists recruitment_onboarding_checklist_application_idx
 alter table recruitment_onboarding_checklist enable row level security;
 revoke all on recruitment_onboarding_checklist from anon, authenticated;
 
+create or replace function public.laurem_onboarding_checklist_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 drop trigger if exists recruitment_onboarding_checklist_updated_at on recruitment_onboarding_checklist;
 create trigger recruitment_onboarding_checklist_updated_at
 before update on recruitment_onboarding_checklist
-for each row execute function public.set_updated_at();
+for each row execute function public.laurem_onboarding_checklist_set_updated_at();
