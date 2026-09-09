@@ -10,24 +10,39 @@ The LAUREM server client in `lib/db.ts` keeps the application's logical table na
 
 Unknown table names and Supabase operations are passed through unchanged. LAUREM therefore cannot silently take over BIMED-only tables through the LAUREM name map.
 
+## Data ownership
+
+LAUREM is a brand-new portal. Its production recruitment namespace starts empty.
+
+Existing applicants, invites, interviews, second interviews, contract signatures and other recruitment records in the shared `recruitment_*` namespace belong to BIMED's existing portal. They are not LAUREM records and must not be copied into LAUREM.
+
+The corrective cutover migration removes any records previously copied into the LAUREM namespace and leaves the shared source tables untouched.
+
 ## Migration rule
 
 Never rename, drop, truncate, or repurpose the existing shared BIMED tables to satisfy LAUREM migrations.
 
-The isolation migration is additive. It creates LAUREM-owned tables, creates the required private storage bucket, and copies the legacy recruitment records into the isolated LAUREM namespace. The source rows remain untouched so BIMED can continue operating without a schema cut-over.
+LAUREM migrations create and evolve only the `laurem_*` physical namespace and LAUREM-owned storage. New LAUREM candidate activity should create records only in that namespace.
 
-The copied historical application payload is retained inside `application_data.legacy_shared_application` for auditability where the source schema cannot be mapped one-to-one.
+## Production baseline
 
-## Data currently preserved
+After correction, production contains:
 
-The production migration was verified after execution with matching source and destination counts for 59 invites, 15 applications, 4 interviews, 9 second interviews and 6 legacy contract signatures.
+- LAUREM invites: 0
+- LAUREM applications: 0
+- LAUREM interviews: 0
+- LAUREM second interviews: 0
+- LAUREM archived legacy contract signatures: 0
+
+The existing BIMED/shared counts remain unchanged: 59 invites, 15 applications, 4 interviews, 9 second interviews and 6 contract signatures.
 
 ## Deployment sequence
 
-1. Apply the shared isolation migration.
-2. Deploy the LAUREM application containing the `lib/db.ts` routing layer.
-3. Run the authenticated LAUREM system health check.
-4. Confirm new LAUREM application writes are landing in `laurem_*` tables.
-5. Keep BIMED on its existing shared tables. No BIMED migration is required for this LAUREM cut-over.
+1. Apply the LAUREM schema/isolation migrations.
+2. Confirm the LAUREM namespace is empty at first launch.
+3. Deploy the LAUREM application containing the `lib/db.ts` routing layer.
+4. Run the authenticated LAUREM system health check.
+5. Confirm new LAUREM application writes are landing in `laurem_*` tables.
+6. Keep BIMED on its existing shared tables. No BIMED migration is required for the LAUREM cut-over.
 
 This architecture intentionally favours additive isolation over a risky in-place rename or schema replacement.
