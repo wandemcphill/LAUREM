@@ -1,1 +1,0 @@
-Payroll and leave hardening is database-only and calculation-only. Leave totals are normalized server-side and workforce indexes support operational review. Payroll disbursement remains outside this portal layer.
