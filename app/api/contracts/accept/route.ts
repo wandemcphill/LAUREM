@@ -16,6 +16,20 @@ async function loadContract(request: NextRequest) {
   return { client, tokenRow, contract } as const;
 }
 
+function rpcErrorResponse(code: string) {
+  switch (code) {
+    case 'TOKEN_NOT_FOUND': return NextResponse.json({ error: 'Contract link not found.' }, { status: 404 });
+    case 'TOKEN_EXPIRED': return NextResponse.json({ error: 'This contract link has expired.' }, { status: 410 });
+    case 'TOKEN_USED': return NextResponse.json({ error: 'This contract link has already been used.' }, { status: 409 });
+    case 'CONTRACT_NOT_FOUND': return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
+    case 'CONTRACT_UNAVAILABLE': return NextResponse.json({ error: 'This contract is not available for acceptance.' }, { status: 409 });
+    case 'NAME_REQUIRED': return NextResponse.json({ error: 'Your full name is required to accept the contract.' }, { status: 400 });
+    case 'INVALID_ACTION': return NextResponse.json({ error: 'Invalid contract action.' }, { status: 400 });
+    case 'TOKEN_CONSUMPTION_RACE': return NextResponse.json({ error: 'This contract link has already been processed.' }, { status: 409 });
+    default: return NextResponse.json({ error: 'Unable to process the contract request.' }, { status: 409 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const loaded = await loadContract(request);
@@ -35,23 +49,20 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Contract token is required.' }, { status: 400 });
   const body = await request.json().catch(() => null) as { accepted?: boolean; acceptedByName?: string; declineReason?: string } | null;
   try {
-    const loaded = await loadContract(request);
-    if ('error' in loaded) return loaded.error;
-    if (loaded.tokenRow.used_at) return NextResponse.json({ error: 'This contract link has already been used.' }, { status: 409 });
-    if (!['issued', 'viewed'].includes(loaded.contract.status)) return NextResponse.json({ error: 'This contract is not available for acceptance.' }, { status: 409 });
-    if (body?.accepted) {
-      const name = typeof body.acceptedByName === 'string' ? body.acceptedByName.trim() : '';
-      if (!name) return NextResponse.json({ error: 'Your full name is required to accept the contract.' }, { status: 400 });
-      const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by_name: name, accepted_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null, acceptance_user_agent: request.headers.get('user-agent') || null, viewed_at: loaded.contract.viewed_at || new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loaded.contract.id);
-      if (error) throw error;
-      await loaded.client.from('recruitment_contract_tokens').update({ used_at: new Date().toISOString() }).eq('id', loaded.tokenRow.id);
-      return NextResponse.json({ ok: true, status: 'accepted' });
-    }
-    const reason = typeof body?.declineReason === 'string' ? body.declineReason.trim() : '';
-    const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'declined', declined_at: new Date().toISOString(), decline_reason: reason || null, viewed_at: loaded.contract.viewed_at || new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loaded.contract.id);
+    const client = db();
+    const action = body?.accepted ? 'accept' : 'decline';
+    const { data, error } = await client.rpc('consume_recruitment_contract_token', {
+      p_token_hash: hashToken(token),
+      p_action: action,
+      p_accepted_by_name: typeof body?.acceptedByName === 'string' ? body.acceptedByName : null,
+      p_decline_reason: typeof body?.declineReason === 'string' ? body.declineReason : null,
+      p_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+      p_user_agent: request.headers.get('user-agent') || null,
+    });
     if (error) throw error;
-    await loaded.client.from('recruitment_contract_tokens').update({ used_at: new Date().toISOString() }).eq('id', loaded.tokenRow.id);
-    return NextResponse.json({ ok: true, status: 'declined' });
+    const result = (Array.isArray(data) ? data[0] : data) as { ok?: boolean; code?: string; status?: string } | null;
+    if (!result?.ok) return rpcErrorResponse(result?.code || 'UNKNOWN');
+    return NextResponse.json({ ok: true, status: result.status });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.acceptance_failed', reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to process contract acceptance.' }, { status: 500 });
