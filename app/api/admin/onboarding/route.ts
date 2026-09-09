@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { buildOnboardingTasks, calculateOnboardingStatus, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
+import { getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
+import { lauremRoleSlug } from '@/lib/laurem-role-policy';
 import { hashToken, makeToken } from '@/lib/token';
 
 export async function POST(request: NextRequest) {
@@ -10,20 +12,52 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const applicationId = typeof body?.applicationId === 'string' ? body.applicationId : '';
   if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
+
   try {
     const client = db();
-    const { data: app, error: appError } = await client.from('recruitment_applications').select('id,full_name,email,phone,role_applied,start_date,living_in_uk,nmc_number,application_data,status').eq('id', applicationId).maybeSingle();
+    const { data: app, error: appError } = await client
+      .from('recruitment_applications')
+      .select('id,full_name,email,phone,role_applied,start_date,living_in_uk,nmc_number,application_data,status')
+      .eq('id', applicationId)
+      .maybeSingle();
     if (appError) throw appError;
     if (!app) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
 
-    const { data: contract, error: contractError } = await client.from('recruitment_contracts').select('id,status,accepted_at').eq('application_id', applicationId).maybeSingle();
+    const { data: contract, error: contractError } = await client
+      .from('recruitment_contracts')
+      .select('id,status,accepted_at,job_title,start_date')
+      .eq('application_id', applicationId)
+      .maybeSingle();
     if (contractError) throw contractError;
     if (!contract || contract.status !== 'accepted' || !contract.accepted_at) {
       return NextResponse.json({ error: 'The employment contract must be accepted before staff onboarding can begin.' }, { status: 409 });
     }
 
-    const { data: existing, error: existingError } = await client.from('staff_profiles').select('id,employee_number,contract_id').eq('application_id', applicationId).maybeSingle();
+    const applicationRole = lauremRoleSlug(app.role_applied);
+    const contractRole = lauremRoleSlug(contract.job_title);
+    if (!applicationRole || !contractRole) {
+      return NextResponse.json({ error: 'The application or contract contains an invalid recruitment role.' }, { status: 409 });
+    }
+    if (applicationRole !== contractRole) {
+      return NextResponse.json({ error: 'The accepted contract role does not match the candidate\'s applied role.' }, { status: 409 });
+    }
+
+    const { data: existing, error: existingError } = await client
+      .from('staff_profiles')
+      .select('id,employee_number,contract_id')
+      .eq('application_id', applicationId)
+      .maybeSingle();
     if (existingError) throw existingError;
+
+    if (!existing) {
+      const readiness = await getLauremOnboardingReadiness(client, app);
+      if (!readiness.ready) {
+        return NextResponse.json({
+          error: `Onboarding readiness is incomplete. Complete the following before staff creation: ${readiness.missing.map((item) => item.title).join(', ')}`,
+          readiness,
+        }, { status: 409 });
+      }
+    }
 
     const applicationData = (app.application_data && typeof app.application_data === 'object') ? app.application_data as Record<string, unknown> : {};
     const nmc = typeof applicationData.nmc_number === 'string' ? applicationData.nmc_number : null;
@@ -41,14 +75,14 @@ export async function POST(request: NextRequest) {
         application_id: applicationId,
         employee_number: employeeNumber,
         full_name: app.full_name,
-        email: app.email,
+        email: app.email.trim().toLowerCase(),
         phone: app.phone,
         job_title: app.role_applied,
         employment_status: 'pending',
-        start_date: app.start_date,
+        start_date: contract.start_date || app.start_date,
         location,
         nmc_number: nmc || app.nmc_number || null,
-        right_to_work_verified: Boolean(body?.rightToWorkVerified),
+        right_to_work_verified: true,
         dbs_verified: Boolean(body?.dbsVerified),
         contract_id: contractId,
       }).select('*').single();
