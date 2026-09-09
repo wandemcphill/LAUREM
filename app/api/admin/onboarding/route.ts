@@ -116,14 +116,15 @@ export async function POST(request: NextRequest) {
     if (packageUpdateError) throw packageUpdateError;
 
     if (application.status !== 'Onboarding') {
-      await client.from('recruitment_applications').update({ status: 'Onboarding', updated_at: new Date().toISOString() }).eq('id', applicationId);
-      await client.from('recruitment_status_history').insert({
-        application_id: applicationId,
-        from_status: application.status,
-        to_status: 'Onboarding',
-        changed_by: session.email,
-        note: `Staff onboarding package ${packageRow.id} created`,
+      const { error: transitionError } = await client.rpc('laurem_transition_application_status', {
+        p_application_id: applicationId,
+        p_to_status: 'Onboarding',
+        p_actor: session.email,
+        p_note: `Staff onboarding package ${packageRow.id} created`,
+        p_override: false,
+        p_override_reason: null,
       });
+      if (transitionError) throw transitionError;
     }
 
     let portal: Awaited<ReturnType<typeof provisionLauremStaffPortal>> | null = null;
