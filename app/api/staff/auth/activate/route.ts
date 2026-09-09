@@ -14,17 +14,15 @@ export async function POST(req: NextRequest) {
 
   const client = db();
   const { data: updated, error } = await client.rpc('laurem_activate_staff_account', {
-    p_token_hash: hashActivationToken(token),
     p_email: email,
+    p_token_hash: hashActivationToken(token),
     p_password_hash: hashPassword(password),
-    p_ip: requestIp(req),
+    p_ip_address: requestIp(req),
     p_user_agent: req.headers.get('user-agent'),
   });
   if (error || !updated) {
     const reason = error?.message || '';
-    if (reason.includes('STAFF_ACTIVATION_EXPIRED')) return NextResponse.json({ error: 'This activation link has expired.' }, { status: 400 });
-    if (reason.includes('STAFF_ACTIVATION_USED')) return NextResponse.json({ error: 'This activation link has already been used.' }, { status: 409 });
-    if (reason.includes('STAFF_ACTIVATION_INVALID')) return NextResponse.json({ error: 'This activation link is invalid.' }, { status: 400 });
+    if (reason.includes('ACTIVATION_INVALID')) return NextResponse.json({ error: 'This activation link is invalid or expired.' }, { status: 400 });
     return NextResponse.json({ error: 'Unable to activate staff account.' }, { status: 500 });
   }
 
