@@ -1,0 +1,1 @@
+Staff conversion binds to the accepted candidate contract. A waived readiness check is not evidence of verification.
