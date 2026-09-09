@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { readAdminSession } from '@/lib/admin-auth';
 import { buildOnboardingTasks, calculateOnboardingStatus, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
+import { readAdminSession } from '@/lib/admin-auth';
 import { getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
 import { lauremRoleSlug } from '@/lib/laurem-role-policy';
 import { hashToken, makeToken } from '@/lib/token';
@@ -50,22 +50,24 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (existingError) throw existingError;
 
-    if (!existing) {
-      const readiness = await getLauremOnboardingReadiness(client, app);
-      if (!readiness.ready) {
-        return NextResponse.json({
-          error: `Onboarding readiness is incomplete. Complete the following before staff creation: ${readiness.missing.map((item) => item.title).join(', ')}`,
-          readiness,
-        }, { status: 409 });
-      }
+    const readiness = await getLauremOnboardingReadiness(client, app);
+    if (!readiness.ready) {
+      return NextResponse.json({
+        error: `Onboarding readiness is incomplete. Complete the following before staff onboarding: ${readiness.missing.map((item) => item.title).join(', ')}`,
+        readiness,
+      }, { status: 409 });
+    }
+
+    if (existing?.contract_id && existing.contract_id !== contract.id) {
+      return NextResponse.json({ error: 'The existing staff profile is linked to a different employment contract.' }, { status: 409 });
     }
 
     const applicationData = (app.application_data && typeof app.application_data === 'object') ? app.application_data as Record<string, unknown> : {};
     const nmc = typeof applicationData.nmc_number === 'string' ? applicationData.nmc_number : null;
-    const location = typeof body?.location === 'string' ? body.location : null;
-    const contractId = typeof body?.contractId === 'string' ? body.contractId : contract.id;
+    const location = typeof body?.location === 'string' ? body.location.trim() : null;
     const audience = inferLauremOnboardingAudience(app.role_applied, app.living_in_uk);
     const tasks = buildOnboardingTasks(audience);
+    const verifiedRightToWork = readiness.items.find((item) => item.item_key === 'right_to_work_verified')?.status === 'completed';
 
     let staffId: string;
     if (existing) {
@@ -81,11 +83,11 @@ export async function POST(request: NextRequest) {
         job_title: app.role_applied,
         employment_status: 'pending',
         start_date: contract.start_date || app.start_date,
-        location,
+        location: location || null,
         nmc_number: nmc || app.nmc_number || null,
-        right_to_work_verified: true,
+        right_to_work_verified: verifiedRightToWork,
         dbs_verified: Boolean(body?.dbsVerified),
-        contract_id: contractId,
+        contract_id: contract.id,
       }).select('*').single();
       if (error) throw error;
       if (!createdStaff) throw new Error('Staff profile creation returned no row.');
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     const { data: finalTasks } = await client.from('staff_onboarding_tasks').select('*').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
     const onboardingLink = rawAccessToken ? `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/onboarding/${rawAccessToken}` : null;
-    const staff = existing ?? (portal ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id } : { id: staffId, employee_number: null, contract_id: contractId });
+    const staff = existing ?? (portal ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id } : { id: staffId, employee_number: null, contract_id: contract.id });
     return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, portal: portal ? { laurem_id: portal.staff.laurem_id || portal.staff.employee_number, address: `${portal.mailbox.handle}@${portal.mailbox.namespace}`, activation: portal.activation } : null, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.create_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
