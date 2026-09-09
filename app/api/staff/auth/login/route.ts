@@ -6,7 +6,7 @@ const IDENTIFIER = /^[A-Z0-9-]{3,64}$/;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
-  const id = typeof body?.laurem_id === 'string' ? body.laur​​em_id.trim().toUpperCase() : '';
+  const id = typeof body?.laurem_id === 'string' ? body.laurem_id.trim().toUpperCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
   if (!id || !password) return NextResponse.json({ error: 'LAUREM ID and password are required.' }, { status: 400 });
   if (!IDENTIFIER.test(id)) return NextResponse.json({ error: 'Invalid LAUREM ID or password.' }, { status: 401 });
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid LAUREM ID or password.' }, { status: 401 });
   }
 
-  const token = createStaffSession({ id: staff.id, laurem_id: staff.laur​​em_id || staff.employee_number, email: staff.email, session_version: staff.session_version });
+  const token = createStaffSession({ id: staff.id, laurem_id: staff.laurem_id || staff.employee_number, email: staff.email, session_version: staff.session_version });
   const expiresAt = new Date(Date.now() + STAFF_SESSION_TTL_SECONDS * 1000).toISOString();
   const { error: sessionError } = await client.from('staff_portal_sessions').insert({ staff_id: staff.id, token_hash: hashActivationToken(token), expires_at: expiresAt, ip_address: ip, user_agent: req.headers.get('user-agent') });
   if (sessionError) return NextResponse.json({ error: 'Unable to create staff session.' }, { status: 500 });
