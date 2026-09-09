@@ -1,1 +1,0 @@
-Staff onboarding uses the candidate's accepted contract and readiness gate. Caller-supplied contract IDs are ignored by the hardened route.
