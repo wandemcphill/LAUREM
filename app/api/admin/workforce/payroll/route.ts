@@ -26,30 +26,55 @@ export async function POST(request: NextRequest) {
   const payDate = typeof body?.payDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.payDate) ? body.payDate : null;
   const notes = typeof body?.notes === 'string' ? body.notes.trim() : null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return NextResponse.json({ error: 'Valid period start and end dates are required.' }, { status: 400 });
-  const client = db();
-  const { data: period, error } = await client.from('payroll_periods').insert({ period_start:start, period_end:end, pay_date:payDate, notes:notes||null, created_by:session.email }).select('id,period_start,period_end,pay_date,status,notes,created_by,created_at,updated_at').single();
-  if (error || !period) return NextResponse.json({ error: error?.code === '23505' ? 'That payroll period already exists.' : 'Unable to create payroll period.' }, { status: 500 });
 
+  const client = db();
   const { data: timesheets, error: tsError } = await client.from('staff_timesheets').select('staff_id,total_hours').gte('work_date',start).lte('work_date',end).eq('status','approved');
-  if (tsError) return NextResponse.json({ error: 'Payroll period created, but approved timesheets could not be read.' }, { status: 500 });
+  if (tsError) return NextResponse.json({ error: 'Approved timesheets could not be read.' }, { status: 500 });
+
   const totals = new Map<string, number>();
-  for (const row of timesheets || []) totals.set(row.staff_id, (totals.get(row.staff_id) || 0) + Number(row.total_hours || 0));
+  for (const row of timesheets || []) {
+    const hours = Number(row.total_hours);
+    if (!Number.isFinite(hours) || hours <= 0) continue;
+    totals.set(row.staff_id, (totals.get(row.staff_id) || 0) + hours);
+  }
   const staffIds = [...totals.keys()];
+  const staffById = new Map<string, { id: string; contract_id: string | null }>();
   if (staffIds.length) {
-    const { data: staffRows } = await client.from('staff_profiles').select('id,contract_id').in('id',staffIds);
-    const contractIds = (staffRows||[]).map(s=>s.contract_id).filter((v): v is string=>Boolean(v));
-    const { data: contracts } = contractIds.length ? await client.from('recruitment_contracts').select('id,hourly_rate').in('id',contractIds) : { data: [] as {id:string;hourly_rate:number|null}[] };
-    const rateByContract = new Map((contracts||[]).map(c=>[c.id,Number(c.hourly_rate||0)]));
-    const staffById = new Map((staffRows||[]).map(s=>[s.id,s]));
-    for (const staffId of staffIds) {
-      const hours = Number((totals.get(staffId)||0).toFixed(2));
-      const contractId = staffById.get(staffId)?.contract_id || null;
-      const rate = contractId ? Number((rateByContract.get(contractId)||0).toFixed(2)) : 0;
-      await client.from('payroll_entries').upsert({ payroll_period_id:period.id, staff_id:staffId, approved_hours:hours, hourly_rate:rate || null, gross_amount:rate ? Number((hours*rate).toFixed(2)) : null, status:'draft' }, { onConflict:'payroll_period_id,staff_id' });
+    const { data: staffRows, error: staffError } = await client.from('staff_profiles').select('id,contract_id').in('id',staffIds);
+    if (staffError) return NextResponse.json({ error: 'Staff payroll records could not be read.' }, { status: 500 });
+    for (const row of staffRows || []) staffById.set(row.id, row as { id:string; contract_id:string|null });
+  }
+  const contractIds = [...staffById.values()].map(s=>s.contract_id).filter((v): v is string=>Boolean(v));
+  const rateByContract = new Map<string, number>();
+  if (contractIds.length) {
+    const { data: contracts, error: contractError } = await client.from('recruitment_contracts').select('id,hourly_rate').in('id',contractIds);
+    if (contractError) return NextResponse.json({ error: 'Contract pay rates could not be read.' }, { status: 500 });
+    for (const contract of contracts || []) {
+      const rate = Number(contract.hourly_rate);
+      if (Number.isFinite(rate) && rate > 0) rateByContract.set(contract.id, rate);
     }
   }
-  await client.from('workforce_audit_events').insert({ event_type:'payroll.period_created', actor:session.email, details:{ periodId:period.id, periodStart:start, periodEnd:end, generatedStaffCount:staffIds.length } });
-  return NextResponse.json({ period, generatedEntries:staffIds.length }, { status:201 });
+
+  const { data: period, error: periodError } = await client.from('payroll_periods').insert({ period_start:start, period_end:end, pay_date:payDate, notes:notes||null, created_by:session.email }).select('id,period_start,period_end,pay_date,status,notes,created_by,created_at,updated_at').single();
+  if (periodError || !period) return NextResponse.json({ error: periodError?.code === '23505' ? 'That payroll period already exists.' : 'Unable to create payroll period.' }, { status: 500 });
+
+  for (const staffId of staffIds) {
+    const hours = Number((totals.get(staffId)||0).toFixed(2));
+    const contractId = staffById.get(staffId)?.contract_id || null;
+    const rate = contractId ? Number((rateByContract.get(contractId)||0).toFixed(2)) : 0;
+    const { error: entryError } = await client.from('payroll_entries').upsert({ payroll_period_id:period.id, staff_id:staffId, approved_hours:hours, hourly_rate:rate || null, gross_amount:rate ? Number((hours*rate).toFixed(2)) : null, status:'draft' }, { onConflict:'payroll_period_id,staff_id' });
+    if (entryError) {
+      await client.from('workforce_audit_events').insert({ event_type:'payroll.generation_failed', actor:session.email, details:{ periodId:period.id, staffId, reason:'payroll entry write failed' } });
+      return NextResponse.json({ error: 'Payroll period was created, but one or more payroll entries could not be generated.' }, { status: 500 });
+    }
+  }
+
+  const missingRates = staffIds.filter((staffId) => {
+    const contractId = staffById.get(staffId)?.contract_id;
+    return !contractId || !rateByContract.has(contractId);
+  });
+  await client.from('workforce_audit_events').insert({ event_type:'payroll.period_created', actor:session.email, details:{ periodId:period.id, periodStart:start, periodEnd:end, generatedStaffCount:staffIds.length, missingRates } });
+  return NextResponse.json({ period, generatedEntries:staffIds.length, missingRates }, { status:201 });
 }
 
 export async function PATCH(request: NextRequest) {

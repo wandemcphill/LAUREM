@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 
+const transitions: Record<string, string[]> = {
+  draft: ['submitted'],
+  submitted: ['approved', 'rejected'],
+  approved: ['paid'],
+  rejected: ['submitted'],
+  paid: [],
+};
+
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
@@ -23,11 +31,14 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Timesheet id is required.' }, { status: 400 });
   if (!['approved', 'rejected', 'paid'].includes(nextStatus)) return NextResponse.json({ error: 'Invalid timesheet status.' }, { status: 400 });
   const now = new Date().toISOString();
-  const { data: current, error: readError } = await db().from('staff_timesheets').select('id,status').eq('id', id).maybeSingle();
+  const { data: current, error: readError } = await db().from('staff_timesheets').select('id,status,total_hours').eq('id', id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load timesheet.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Timesheet not found.' }, { status: 404 });
-  if (nextStatus === 'paid' && current.status !== 'approved') return NextResponse.json({ error: 'Only an approved timesheet can be marked paid.' }, { status: 409 });
-  const { data, error } = await db().from('staff_timesheets').update({ status: nextStatus, approved_by: session.email, approved_at: now, notes: note || undefined, updated_at: now }).eq('id', id).select('*').single();
+  if (!transitions[current.status]?.includes(nextStatus)) return NextResponse.json({ error: `Transition from ${current.status} to ${nextStatus} is not allowed.` }, { status: 409 });
+  if (nextStatus === 'approved' && (current.total_hours === null || Number(current.total_hours) <= 0)) {
+    return NextResponse.json({ error: 'Only a timesheet with positive recorded hours can be approved.' }, { status: 409 });
+  }
+  const { data, error } = await db().from('staff_timesheets').update({ status: nextStatus, approved_by: session.email, approved_at: nextStatus === 'approved' || nextStatus === 'paid' ? now : null, notes: note || undefined, updated_at: now }).eq('id', id).select('*').single();
   if (error || !data) return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
   return NextResponse.json({ timesheet: data });
 }
