@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashToken } from '@/lib/token';
+import { provisionLauremStaffAfterContract } from '@/lib/laurem-staff-provision';
 
 async function loadContract(request: NextRequest) {
   const token = request.headers.get('x-contract-token') || new URL(request.url).searchParams.get('token') || '';
@@ -42,15 +43,19 @@ export async function POST(request: NextRequest) {
     if (body?.accepted) {
       const name = typeof body.acceptedByName === 'string' ? body.acceptedByName.trim() : '';
       if (!name) return NextResponse.json({ error: 'Your full name is required to accept the contract.' }, { status: 400 });
-      const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by_name: name, accepted_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null, acceptance_user_agent: request.headers.get('user-agent') || null, viewed_at: loaded.contract.viewed_at || new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loaded.contract.id);
+      const now = new Date().toISOString();
+      const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'accepted', accepted_at: now, accepted_by_name: name, accepted_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null, acceptance_user_agent: request.headers.get('user-agent') || null, viewed_at: loaded.contract.viewed_at || now, updated_at: now }).eq('id', loaded.contract.id);
       if (error) throw error;
-      await loaded.client.from('recruitment_contract_tokens').update({ used_at: new Date().toISOString() }).eq('id', loaded.tokenRow.id);
-      return NextResponse.json({ ok: true, status: 'accepted' });
+      await loaded.client.from('recruitment_contract_tokens').update({ used_at: now }).eq('id', loaded.tokenRow.id);
+      let staffPortal = null;
+      try { const provisioned = await provisionLauremStaffAfterContract(loaded.contract.application_id); staffPortal = { laurem_id: provisioned.staff.laurem_id || provisioned.staff.employee_number, address: `${provisioned.mailbox.handle}@${provisioned.mailbox.namespace}`, activation: provisioned.activation }; } catch (provisionError) { console.error(JSON.stringify({ level:'error',event:'staff_portal.provision_failed',reason:provisionError instanceof Error?provisionError.message:'unknown' })); }
+      return NextResponse.json({ ok: true, status: 'accepted', staffPortal });
     }
     const reason = typeof body?.declineReason === 'string' ? body.declineReason.trim() : '';
-    const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'declined', declined_at: new Date().toISOString(), decline_reason: reason || null, viewed_at: loaded.contract.viewed_at || new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loaded.contract.id);
+    const now = new Date().toISOString();
+    const { error } = await loaded.client.from('recruitment_contracts').update({ status: 'declined', declined_at: now, decline_reason: reason || null, viewed_at: loaded.contract.viewed_at || now, updated_at: now }).eq('id', loaded.contract.id);
     if (error) throw error;
-    await loaded.client.from('recruitment_contract_tokens').update({ used_at: new Date().toISOString() }).eq('id', loaded.tokenRow.id);
+    await loaded.client.from('recruitment_contract_tokens').update({ used_at: now }).eq('id', loaded.tokenRow.id);
     return NextResponse.json({ ok: true, status: 'declined' });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.acceptance_failed', reason: error instanceof Error ? error.message : 'unknown' }));
