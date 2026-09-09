@@ -1,1 +1,0 @@
-The portal binds staff records to the accepted employment contract associated with the application and treats waived readiness checks as distinct from verified evidence.
