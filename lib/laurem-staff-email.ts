@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ensureLauremMailbox } from './laurem-messaging';
+import { hashActivationToken } from './laurem-staff-auth';
+import { sendLauremEmail } from './laurem-email';
 
 function esc(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
@@ -11,8 +13,6 @@ export async function sendLauremStaffActivation(client: SupabaseClient, staff: R
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
   const activationUrl = `${appUrl}/staff/activate?token=${encodeURIComponent(token)}&email=${encodeURIComponent(staff.email)}`;
 
-  if (!process.env.RESEND_API_KEY) return { status: 'not_configured' as const, address, url: activationUrl };
-
   const from = process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>';
   const payload = {
     from,
@@ -22,17 +22,18 @@ export async function sendLauremStaffActivation(client: SupabaseClient, staff: R
     text: `Your LAUREM Care Personal Portal is ready. LAUREM ID: ${staff.laurem_id || staff.employee_number}. Address: ${address}. Activate: ${activationUrl}`,
   };
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) return { status: 'failed' as const, address, url: activationUrl, error: typeof result?.message === 'string' ? result.message : 'Resend rejected the activation email.' };
-    return { status: 'sent' as const, address, url: activationUrl, error: null };
-  } catch (error) {
-    return { status: 'failed' as const, address, url: activationUrl, error: error instanceof Error ? error.message : 'Unable to send activation email.' };
+  if (!process.env.RESEND_API_KEY) {
+    return { status: 'not_configured' as const, address, url: activationUrl, deliveryId: null };
   }
+
+  const result = await sendLauremEmail(client, {
+    eventType: 'staff.activation',
+    entityId: staff.id,
+    idempotencyKey: `staff.activation/${staff.id}/${hashActivationToken(token)}`,
+    payload,
+  });
+
+  if (result.status === 'sent') return { status: 'sent' as const, address, url: activationUrl, error: null, deliveryId: result.deliveryId };
+  if (result.status === 'not_configured') return { status: 'not_configured' as const, address, url: activationUrl, deliveryId: result.deliveryId };
+  return { status: 'failed' as const, address, url: activationUrl, error: result.error, deliveryId: result.deliveryId };
 }
