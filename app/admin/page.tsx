@@ -21,12 +21,8 @@ export default function AdminPage() {
 
   async function logout() {
     setLoggingOut(true);
-    try {
-      await fetch('/api/admin/logout', { method: 'POST' });
-    } finally {
-      router.replace('/admin/login');
-      router.refresh();
-    }
+    try { await fetch('/api/admin/logout', { method: 'POST' }); }
+    finally { router.replace('/admin/login'); router.refresh(); }
   }
 
   useEffect(() => { void load(); }, []);
@@ -34,7 +30,7 @@ export default function AdminPage() {
   const counts = applications.reduce<Record<string, number>>((acc, app) => { acc[app.status] = (acc[app.status] || 0) + 1; return acc; }, {});
 
   return <main className="wrap" style={{ padding: '40px 0 80px' }}>
-    <div style={{ display:'flex', justifyContent:'space-between', gap:20, alignItems:'end', flexWrap:'wrap' }}><div><p style={{ color:'var(--accent)', fontWeight:800, letterSpacing:'.08em' }}>{lauremCompany.tradingName.toUpperCase()} RECRUITMENT</p><h1 style={{ margin:'4px 0 8px', fontSize:42 }}>Recruiter workspace</h1><p style={{ color:'var(--muted)' }}>Applications, screening and hiring pipeline.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href="/admin/workforce" style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700 }}>Workforce operations</Link><Link href="/jobs" style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700 }}>View careers page</Link><button type="button" onClick={logout} disabled={loggingOut} style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700, background:'white', cursor: loggingOut ? 'wait' : 'pointer' }}>{loggingOut ? 'Signing out…' : 'Sign out'}</button></div></div>
+    <div style={{ display:'flex', justifyContent:'space-between', gap:20, alignItems:'end', flexWrap:'wrap' }}><div><p style={{ color:'var(--accent)', fontWeight:800, letterSpacing:'.08em' }}>{lauremCompany.tradingName.toUpperCase()} RECRUITMENT</p><h1 style={{ margin:'4px 0 8px', fontSize:42 }}>Recruiter workspace</h1><p style={{ color:'var(--muted)' }}>Applications, screening and hiring pipeline.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href="/admin/workforce" style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700 }}>Workforce operations</Link><Link href="/admin/system/health" style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700 }}>System health</Link><Link href="/jobs" style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700 }}>View careers page</Link><button type="button" onClick={logout} disabled={loggingOut} style={{ textDecoration:'none', border:'1px solid var(--line)', padding:'10px 14px', borderRadius:9, fontWeight:700, background:'white', cursor: loggingOut ? 'wait' : 'pointer' }}>{loggingOut ? 'Signing out…' : 'Sign out'}</button></div></div>
     {error && <div role="alert" className="card" style={{ marginTop:18, padding:16, color:'#8a2323' }}>{error}</div>}
     <div style={{ display:'flex', gap:10, flexWrap:'wrap', margin:'26px 0' }}>{Object.entries(counts).map(([status,count]) => <button key={status} type="button" onClick={() => setQuery(status)} className="card" style={{ padding:'12px 16px', cursor:'pointer', border:'1px solid var(--line)', background:'white' }}><strong>{count}</strong><span style={{ marginLeft:8, color:'var(--muted)' }}>{status}</span></button>)}</div>
     <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search applicants, roles, location or status" style={{ width:'100%', padding:13, border:'1px solid var(--line)', borderRadius:10, marginBottom:14 }} />
