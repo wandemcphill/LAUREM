@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const client = db();
     const { data: application, error } = await client
       .from('recruitment_applications')
-      .select('id,role_applied,living_in_uk')
+      .select('id,status,role_applied,living_in_uk')
       .eq('id', applicationId)
       .maybeSingle();
     if (error) throw error;
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest) {
     const client = db();
     const { data: application, error: appError } = await client
       .from('recruitment_applications')
-      .select('id,role_applied,living_in_uk')
+      .select('id,status,role_applied,living_in_uk')
       .eq('id', applicationId)
       .maybeSingle();
     if (appError) throw appError;
@@ -68,10 +68,7 @@ export async function PATCH(request: NextRequest) {
       .in('status', ['pending', 'approved', 'waived'])
       .order('created_at', { ascending: false });
     if (evidenceError) throw evidenceError;
-    const hasAuthoritativeEvidence = (evidenceRows || []).some((review) => {
-      const key = readinessKeyForEvidenceType(review.evidence_type);
-      return key === itemKey;
-    });
+    const hasAuthoritativeEvidence = (evidenceRows || []).some((review) => readinessKeyForEvidenceType(review.evidence_type) === itemKey);
     if (hasAuthoritativeEvidence) {
       return NextResponse.json({
         error: 'This readiness item is controlled by the recruitment evidence lifecycle. Review or replace the underlying evidence instead of editing the checklist directly.',
