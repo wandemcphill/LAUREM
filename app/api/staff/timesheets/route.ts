@@ -25,18 +25,19 @@ export async function POST(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
-  const workDate = typeof body?.workDate === 'string' ? body.workDate : '';
-  const clockIn = typeof body?.clockIn === 'string' ? body.clockIn : '';
-  const clockOut = typeof body?.clockOut === 'string' ? body.clockOut : '';
-  const breakMinutes = Number.isInteger(body?.breakMinutes) ? Number(body.breakMinutes) : 0;
-  const notes = typeof body?.notes === 'string' ? body.notes.trim() : '';
+  const input = body ?? {};
+  const workDate = typeof input.workDate === 'string' ? input.workDate : '';
+  const clockIn = typeof input.clockIn === 'string' ? input.clockIn : '';
+  const clockOut = typeof input.clockOut === 'string' ? input.clockOut : '';
+  const breakMinutes = Number.isInteger(input.breakMinutes) ? Number(input.breakMinutes) : 0;
+  const notes = typeof input.notes === 'string' ? input.notes.trim() : '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate) || !clockIn || !clockOut || breakMinutes < 0 || breakMinutes > 480) {
     return NextResponse.json({ error: 'Work date, clock-in, clock-out and a valid break duration are required.' }, { status: 400 });
   }
   const totalHours = hoursBetween(clockIn, clockOut, breakMinutes);
   if (totalHours === null) return NextResponse.json({ error: 'Clock-out must be later than clock-in.' }, { status: 400 });
 
-  const assignmentId = typeof body?.assignmentId === 'string' ? body.assignmentId : null;
+  const assignmentId = typeof input.assignmentId === 'string' ? input.assignmentId : null;
   const client = db();
   if (assignmentId) {
     const { data: assignment } = await client.from('staff_assignments').select('id').eq('id', assignmentId).eq('staff_id', session.staff_id).maybeSingle();
