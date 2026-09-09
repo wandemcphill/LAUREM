@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const applicationId = new URL(request.url).searchParams.get('applicationId');
   if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
   try {
-    const { data, error } = await db().from('recruitment_documents').select('*').eq('application_id', applicationId).order('uploaded_at', { ascending: false });
+    const { data, error } = await db().from('recruitment_documents').select('id,application_id,document_request_id,document_type,original_filename,mime_type,file_size_bytes,status,uploaded_by,uploaded_at,reviewed_by,reviewed_at,review_note').eq('application_id', applicationId).order('uploaded_at', { ascending: false });
     if (error) throw error;
     return NextResponse.json({ documents: data || [] });
   } catch (error) {
@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
   if (!['pending','approved','rejected'].includes(status)) return NextResponse.json({ error: 'Invalid document status.' }, { status: 400 });
   try {
     const client = db();
-    const { data, error } = await client.from('recruitment_documents').update({ status, reviewed_by: session.email, reviewed_at: new Date().toISOString(), review_note: typeof body?.reviewNote === 'string' ? body.reviewNote : null }).eq('id', id).select('*').maybeSingle();
+    const { data, error } = await client.from('recruitment_documents').update({ status, reviewed_by: session.email, reviewed_at: new Date().toISOString(), review_note: typeof body?.reviewNote === 'string' ? body.reviewNote : null }).eq('id', id).select('id,application_id,document_request_id,document_type,original_filename,mime_type,file_size_bytes,status,uploaded_by,uploaded_at,reviewed_by,reviewed_at,review_note').maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
     if (data.document_request_id) await client.from('recruitment_document_requests').update({ status: status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'uploaded', reviewed_by: session.email, reviewed_at: new Date().toISOString(), review_note: typeof body?.reviewNote === 'string' ? body.reviewNote : null }).eq('id', data.document_request_id);
