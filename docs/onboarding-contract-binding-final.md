@@ -1,0 +1,1 @@
+Staff conversion binds to the accepted candidate contract. A waived right-to-work readiness check does not set the verified flag.
