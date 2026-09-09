@@ -5,6 +5,7 @@ import { buildOnboardingTasks, calculateOnboardingStatus, inferLauremOnboardingA
 import { getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
 import { lauremRoleSlug } from '@/lib/laurem-role-policy';
 import { hashToken, makeToken } from '@/lib/token';
+import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 
 export async function POST(request: NextRequest) {
   const session = readAdminSession(request);
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existing, error: existingError } = await client
       .from('staff_profiles')
-      .select('id,employee_number,contract_id')
+      .select('id,employee_number,contract_id,activated_at,activation_token_hash')
       .eq('application_id', applicationId)
       .maybeSingle();
     if (existingError) throw existingError;
@@ -121,10 +122,15 @@ export async function POST(request: NextRequest) {
     await client.from('recruitment_applications').update({ status: 'Onboarding', updated_at: new Date().toISOString() }).eq('id', applicationId);
     await client.from('recruitment_status_history').insert({ application_id: applicationId, from_status: app.status, to_status: 'Onboarding', changed_by: session.email, note: `Staff onboarding package ${packageRow.id} created` });
 
+    let portal: Awaited<ReturnType<typeof provisionLauremStaffPortal>> | null = null;
+    if (!existing || (!existing.activated_at && !existing.activation_token_hash)) {
+      portal = await provisionLauremStaffPortal(applicationId);
+    }
+
     const { data: finalTasks } = await client.from('staff_onboarding_tasks').select('*').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
     const onboardingLink = rawAccessToken ? `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/onboarding/${rawAccessToken}` : null;
-    const staff = existing ?? { id: staffId, employee_number: null, contract_id: contractId };
-    return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
+    const staff = existing ?? (portal ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id } : { id: staffId, employee_number: null, contract_id: contractId });
+    return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, portal: portal ? { laurem_id: portal.staff.laurem_id || portal.staff.employee_number, address: `${portal.mailbox.handle}@${portal.mailbox.namespace}`, activation: portal.activation } : null, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.create_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to complete onboarding.' }, { status: 500 });
