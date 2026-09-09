@@ -83,14 +83,23 @@ export async function PATCH(request: NextRequest) {
     const d = parseDate(body.scheduledEnd); if (!d) return NextResponse.json({ error: 'Invalid end time.' }, { status: 400 }); patch.scheduled_end = d.toISOString();
   }
   const client = db();
-  const { data: existing } = await client.from('staff_assignments').select('id,staff_id,scheduled_start,scheduled_end').eq('id', id).maybeSingle();
+  const { data: existing } = await client.from('staff_assignments').select('id,staff_id,scheduled_start,scheduled_end,status').eq('id', id).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Assignment not found.' }, { status: 404 });
+
+  const { data: staff } = await client.from('staff_profiles').select('id,employment_status').eq('id', existing.staff_id).maybeSingle();
+  if (!staff) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
+  const nextStatus = String(patch.status ?? existing.status);
+  if ((nextStatus === 'scheduled' || nextStatus === 'confirmed') && staff.employment_status !== 'active') {
+    return NextResponse.json({ error: 'Only active staff can hold scheduled or confirmed assignments.' }, { status: 409 });
+  }
+
   const finalStart = patch.scheduled_start ? new Date(String(patch.scheduled_start)) : new Date(existing.scheduled_start);
   const finalEnd = patch.scheduled_end ? new Date(String(patch.scheduled_end)) : new Date(existing.scheduled_end);
   if (finalEnd <= finalStart) return NextResponse.json({ error: 'Scheduled end must be later than scheduled start.' }, { status: 400 });
-  if (patch.status === 'scheduled' || patch.status === 'confirmed' || (!patch.status && finalEnd > new Date())) {
-    const { data: overlap } = await client.from('staff_assignments').select('id').eq('staff_id', existing.staff_id).neq('id', id)
+  if (nextStatus === 'scheduled' || nextStatus === 'confirmed') {
+    const { data: overlap, error: overlapError } = await client.from('staff_assignments').select('id').eq('staff_id', existing.staff_id).neq('id', id)
       .in('status', ['scheduled','confirmed']).lt('scheduled_start', finalEnd.toISOString()).gt('scheduled_end', finalStart.toISOString()).limit(1);
+    if (overlapError) return NextResponse.json({ error: 'Unable to validate assignment overlap.' }, { status: 500 });
     if (overlap?.length) return NextResponse.json({ error: 'The updated assignment overlaps another scheduled assignment.' }, { status: 409 });
   }
   const { data: updated, error } = await client.from('staff_assignments').update(patch).eq('id', id)
