@@ -7,9 +7,8 @@ create index if not exists recruitment_evidence_reviews_expiry_idx
   on recruitment_evidence_reviews(expires_at)
   where status = 'approved' and expires_at is not null;
 
--- One canonical write path for evidence review, document review metadata and
--- readiness synchronization. Keeping these operations in one function prevents
--- a successful evidence review from leaving the readiness checklist stale.
+drop function if exists laurem_record_evidence_review(uuid,text,uuid,text,text,text,jsonb);
+
 create or replace function laurem_record_evidence_review(
   p_application_id uuid,
   p_evidence_type text,
@@ -31,6 +30,9 @@ declare
   result_row recruitment_evidence_reviews;
   checklist_status text;
 begin
+  if nullif(trim(coalesce(p_evidence_type, '')), '') is null then
+    raise exception using errcode='P0001', message='EVIDENCE_TYPE_REQUIRED';
+  end if;
   if p_status not in ('pending','approved','rejected','waived','expired','superseded') then
     raise exception using errcode='P0001', message='INVALID_EVIDENCE_STATUS';
   end if;
@@ -67,11 +69,8 @@ begin
     update recruitment_evidence_reviews
       set status = 'superseded', updated_at = now()
     where id = current_row.id;
-    insert into recruitment_evidence_audit(
-      application_id, evidence_review_id, action, actor, previous_status, new_status, note
-    ) values (
-      p_application_id, current_row.id, 'superseded', p_actor, current_row.status, 'superseded', p_note
-    );
+    insert into recruitment_evidence_audit(application_id, evidence_review_id, action, actor, previous_status, new_status, note)
+      values (p_application_id, current_row.id, 'superseded', p_actor, current_row.status, 'superseded', p_note);
   end if;
 
   insert into recruitment_evidence_reviews(
@@ -89,12 +88,8 @@ begin
     p_expires_at
   ) returning * into result_row;
 
-  insert into recruitment_evidence_audit(
-    application_id, evidence_review_id, action, actor, previous_status, new_status, note
-  ) values (
-    p_application_id, result_row.id, 'status_changed', p_actor,
-    current_row.status, p_status, p_note
-  );
+  insert into recruitment_evidence_audit(application_id, evidence_review_id, action, actor, previous_status, new_status, note)
+    values (p_application_id, result_row.id, 'status_changed', p_actor, current_row.status, p_status, p_note);
 
   if p_document_id is not null and p_status in ('pending','approved','rejected') then
     update recruitment_documents
@@ -107,18 +102,12 @@ begin
 
   if p_document_id is not null and p_status = 'approved' then
     update recruitment_documents
-      set superseded_at = null,
-          superseded_by = null
+      set superseded_at = null, superseded_by = null
     where id = p_document_id and application_id = p_application_id;
   end if;
 
   if p_readiness_item_key is not null then
-    checklist_status := case
-      when p_status = 'approved' then 'completed'
-      when p_status = 'waived' then 'waived'
-      else 'pending'
-    end;
-
+    checklist_status := case when p_status = 'approved' then 'completed' when p_status = 'waived' then 'waived' else 'pending' end;
     update recruitment_onboarding_checklist
       set status = checklist_status,
           completed_at = case when checklist_status in ('completed','waived') then now() else null end,
@@ -135,9 +124,6 @@ $$;
 revoke all on function laurem_record_evidence_review(uuid,text,uuid,text,text,text,jsonb,text,timestamptz) from public, anon, authenticated;
 grant execute on function laurem_record_evidence_review(uuid,text,uuid,text,text,text,jsonb,text,timestamptz) to service_role;
 
--- Candidate replacement is explicit: the newest uploaded document becomes the
--- active document for a document type and the previous file is retained as
--- historical evidence rather than silently disappearing.
 create or replace function laurem_supersede_previous_candidate_document()
 returns trigger
 language plpgsql
@@ -158,8 +144,7 @@ begin
 
   if previous_document.id is not null then
     update recruitment_documents
-      set superseded_at = now(), superseded_by = new.id,
-          status = case when status = 'approved' then 'rejected' else status end
+      set superseded_at = now(), superseded_by = new.id
     where id = previous_document.id;
 
     update recruitment_evidence_reviews
