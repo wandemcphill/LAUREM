@@ -26,7 +26,10 @@ describe('LAUREM release health contract', () => {
     expect(REQUIRED_PRIVATE_BUCKET).toBe('laurem-private-documents');
   });
 
-  it('contains no secrets in the health contract itself', () => {
-    expect(JSON.stringify({ EXPECTED_PORTAL_TABLES, REQUIRED_ENVIRONMENT, REQUIRED_PRIVATE_BUCKET })).not.toMatch(/password|secret[_-]?key/i);
+  it('does not define secret values or candidate fields in the health contract', () => {
+    const source = JSON.stringify({ EXPECTED_PORTAL_TABLES, REQUIRED_ENVIRONMENT, REQUIRED_PRIVATE_BUCKET });
+    expect(source).not.toMatch(/BEGIN (RSA|OPENSSH|PGP) PRIVATE KEY/);
+    expect(source).not.toMatch(/Bearer\s+[A-Za-z0-9._-]{20,}/i);
+    expect(EXPECTED_PORTAL_TABLES.join(',')).not.toMatch(/(email|phone|address|dob|document_body|html|payload)/i);
   });
 });
