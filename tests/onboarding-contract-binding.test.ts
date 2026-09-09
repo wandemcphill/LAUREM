@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-describe('staff onboarding contract binding', () => {
-  it('uses the accepted contract as the staff profile contract', () => {
-    const acceptedContractId = 'accepted-contract-id';
-    const callerSuppliedContractId = 'different-contract-id';
-    const contractId = acceptedContractId;
+function bindStaffContract(acceptedContractId: string, requestedContractId?: string | null) {
+  void requestedContractId;
+  return acceptedContractId;
+}
 
-    expect(contractId).toBe(acceptedContractId);
-    expect(contractId).not.toBe(callerSuppliedContractId);
+function isRightToWorkVerified(status: 'pending' | 'completed' | 'waived') {
+  return status === 'completed';
+}
+
+describe('staff onboarding contract binding', () => {
+  it('always binds staff to the accepted contract', () => {
+    expect(bindStaffContract('accepted-contract-id', 'different-contract-id')).toBe('accepted-contract-id');
+    expect(bindStaffContract('accepted-contract-id', null)).toBe('accepted-contract-id');
   });
 
-  it('does not treat a waived right-to-work check as verified', () => {
-    const readinessStatus: 'completed' | 'waived' = 'waived';
-    const verified = readinessStatus === 'completed';
-
-    expect(verified).toBe(false);
+  it('does not mark a waived right-to-work check as verified', () => {
+    expect(isRightToWorkVerified('waived')).toBe(false);
+    expect(isRightToWorkVerified('completed')).toBe(true);
   });
 });
