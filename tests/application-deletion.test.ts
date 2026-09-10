@@ -8,7 +8,7 @@ const candidatePage = readFileSync(resolve(process.cwd(), 'app/admin/application
 describe('admin application deletion', () => {
   it('provides an admin-only DELETE endpoint with explicit confirmation', () => {
     expect(apiRoute).toContain('export async function DELETE');
-    expect(apiRoute).toContain('if(!session)return NextResponse.json({error:\'Unauthorised\'},{status:401})');
+    expect(apiRoute).toContain('readAdminSession(request)');
     expect(apiRoute).toContain("body.confirmation!=='DELETE APPLICATION'");
     expect(apiRoute).toContain("client.from('recruitment_applications').delete().eq('id',id)");
   });
