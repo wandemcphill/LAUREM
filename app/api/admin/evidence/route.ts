@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
-import { readinessKeyForEvidenceType } from '@/lib/laurem-evidence';
 
 const allowedStatuses = new Set(['pending', 'approved', 'rejected', 'waived', 'expired', 'superseded']);
-
-function parseExpiry(value: unknown) {
-  if (value === null || value === undefined || value === '') return null;
-  if (typeof value !== 'string') return undefined;
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : undefined;
-}
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -31,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const { data: reviews, error } = await client
       .from('recruitment_evidence_reviews')
-      .select('id,application_id,evidence_type,document_id,status,reviewed_by,reviewed_at,review_note,metadata,expires_at,created_at,updated_at')
+      .select('id,application_id,evidence_type,document_id,status,reviewed_by,reviewed_at,review_note,metadata,created_at,updated_at')
       .eq('application_id', applicationId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -51,11 +43,9 @@ export async function POST(request: NextRequest) {
   const documentId = typeof body?.documentId === 'string' ? body.documentId : null;
   const status = typeof body?.status === 'string' ? body.status : '';
   const note = typeof body?.note === 'string' ? body.note.trim() : '';
-  const parsedExpiry = parseExpiry(body?.expiresAt);
   if (!applicationId || !evidenceType || !allowedStatuses.has(status)) {
     return NextResponse.json({ error: 'applicationId, evidenceType and a valid status are required.' }, { status: 400 });
   }
-  if (parsedExpiry === undefined) return NextResponse.json({ error: 'Invalid expiresAt value.' }, { status: 400 });
   if (['rejected', 'waived'].includes(status) && !note) {
     return NextResponse.json({ error: 'A review note is required for rejected or waived evidence.' }, { status: 400 });
   }
@@ -88,8 +78,6 @@ export async function POST(request: NextRequest) {
       p_actor: session.email,
       p_note: note || null,
       p_metadata: typeof body?.metadata === 'object' && body.metadata !== null ? body.metadata : {},
-      p_readiness_item_key: readinessKeyForEvidenceType(evidenceType),
-      p_expires_at: parsedExpiry,
     });
     if (reviewError) throw reviewError;
 
@@ -100,7 +88,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.evidence.review_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     const message = error instanceof Error ? error.message : '';
-    if (message.includes('EVIDENCE_EXPIRY_MUST_BE_FUTURE')) return NextResponse.json({ error: 'Approved evidence expiry must be in the future.' }, { status: 409 });
     if (message.includes('EVIDENCE_DOCUMENT_APPLICATION_MISMATCH')) return NextResponse.json({ error: 'Evidence document does not belong to this application.' }, { status: 409 });
     return NextResponse.json({ error: 'Unable to record evidence review.' }, { status: 500 });
   }
