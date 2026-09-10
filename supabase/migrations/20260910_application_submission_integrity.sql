@@ -49,7 +49,7 @@ begin
       message = 'INVITATION_ROLE_MISMATCH';
   end if;
 
-  payload_consent := coalesce((p_payload->>'consent')::boolean, false);
+  payload_consent := lower(coalesce(p_payload->>'consent', 'false')) = 'true';
   if not payload_consent then
     raise exception using errcode = 'P0001', message = 'CONSENT_REQUIRED';
   end if;
@@ -64,7 +64,7 @@ begin
     relocation_readiness, supporting_documents, consent, interview_responses,
     application_data, submitted_at, updated_at
   ) values (
-    nullif(invite_row.id, null),
+    invite_row.id,
     p_payload->>'full_name',
     p_payload->>'preferred_name',
     p_payload->>'email',
