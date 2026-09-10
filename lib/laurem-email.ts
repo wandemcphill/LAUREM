@@ -12,7 +12,7 @@ export type LauremEmailPayload = {
 export type LauremEmailResult =
   | { status: 'sent'; providerId: string | null; attempts: number; deliveryId: string }
   | { status: 'failed'; providerId: string | null; attempts: number; deliveryId: string; error: string }
-  | { status: 'not_configured'; attempts: 0; deliveryId: string };
+  | { status: 'not_configured'; providerId: null; attempts: 0; deliveryId: string };
 
 function normaliseRecipients(values: string[]) {
   return [...new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean))].sort();
@@ -64,7 +64,7 @@ export async function sendLauremEmail(
 
   if (!process.env.RESEND_API_KEY) {
     await client.from('notification_deliveries').update({ status: 'not_configured', updated_at: new Date().toISOString() }).eq('id', delivery.id);
-    return { status: 'not_configured', attempts: 0, deliveryId: delivery.id };
+    return { status: 'not_configured', providerId: null, attempts: 0, deliveryId: delivery.id };
   }
 
   let lastError = 'Unable to send email.';
