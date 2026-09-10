@@ -73,6 +73,22 @@ const grid: React.CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
   gap: 14,
 };
+const statusTransitions: Record<string, string[]> = {
+  Enquiry: ['Invited', 'Rejected', 'Withdrawn'],
+  Invited: ['Application', 'Rejected', 'Withdrawn'],
+  Application: ['Screening', 'Rejected', 'Withdrawn'],
+  Screening: ['Interview', 'Documents', 'Rejected', 'Withdrawn'],
+  Interview: ['Second Interview', 'Documents', 'Offer', 'Rejected', 'Withdrawn'],
+  'Second Interview': ['Documents', 'Offer', 'Rejected', 'Withdrawn'],
+  Documents: ['Sponsorship', 'Offer', 'Onboarding', 'Rejected', 'Withdrawn'],
+  Sponsorship: ['Offer', 'Rejected', 'Withdrawn'],
+  Offer: ['Onboarding', 'Rejected', 'Withdrawn'],
+  Onboarding: ['Hired', 'Rejected', 'Withdrawn'],
+  Hired: [],
+  Rejected: [],
+  Withdrawn: [],
+};
+
 const pre: React.CSSProperties = {
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
@@ -294,6 +310,9 @@ export default function Candidate360Page() {
   const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';
   const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);
   const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;
+  const availableStatuses = [application.status, ...(statusTransitions[application.status] || [])].filter((status, index, values) => values.indexOf(status) === index);
+  const applicationData = application.application_data && typeof application.application_data === 'object' ? application.application_data : {};
+  const pathway = String((applicationData as any).pathway || (application.living_in_uk === 'Yes' ? 'uk' : application.living_in_uk === 'No' ? 'international' : ''));
 
   return (
     <main style={{ minHeight: '100vh', background: '#f4f7fb', color: '#102a43', fontFamily: 'system-ui', padding: '26px 18px 70px' }}>
@@ -318,6 +337,7 @@ export default function Candidate360Page() {
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginTop: 18 }}>
           <Metric label="Readiness blockers" value={requiredOpen} />
           <Metric label="Approved documents" value={approvedDocs} />
+          <Metric label="First interviews" value={data.interviews.length} />
           <Metric label="Second interviews" value={data.secondInterviews.length} />
           <Metric label="Contracts" value={data.contracts.length} />
         </section>
@@ -328,20 +348,36 @@ export default function Candidate360Page() {
               <h2 style={{ margin: '0 0 5px' }}>Recruitment controls</h2>
               <div style={muted}>Every lifecycle change is recorded against this candidate.</div>
             </div>
-            <select value={application.status} disabled={busy} onChange={(event) => void changeStatus(event.target.value)} style={{ padding: 11, border: '1px solid #d9e2ec', borderRadius: 9, fontWeight: 700 }}>
-              {recruitmentConfig.statusFlow.map((status: string) => <option key={status}>{status}</option>)}
+            <select value={application.status} disabled={busy} onChange={(event) => void changeStatus(event.target.value)} aria-label="Recruitment status" style={{ padding: 11, border: '1px solid #d9e2ec', borderRadius: 9, fontWeight: 700 }}>
+              {availableStatuses.map((status) => <option key={status}>{status}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-            {canSendSecondInterview ? (
-              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>
-            ) : (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14, alignItems: 'stretch' }}>
+            {application.status === 'Application' && (
+              <button disabled={busy} onClick={() => void changeStatus('Screening')} style={primary}>Move to screening</button>
+            )}
+            {application.status === 'Screening' && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
-                <div style={{ fontWeight: 800 }}>Second interview locked</div>
-                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{isRegisteredNurse ? 'A completed first interview is required before the second interview can be sent.' : 'Second interviews are currently available only for Registered Nurse candidates after a completed first interview.'}</div>
+                <div style={{ fontWeight: 800 }}>Ready for first interview</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Review the application, then schedule the first interview. Do not skip straight to a second interview.</div>
               </div>
             )}
-            <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>
+            {canSendSecondInterview ? (
+              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>
+            ) : isRegisteredNurse && application.status === 'Interview' ? (
+              <div style={{ ...subcard, flex: '1 1 320px' }}>
+                <div style={{ fontWeight: 800 }}>First interview still required</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Complete the first interview before sending the second interview invitation.</div>
+              </div>
+            ) : !isRegisteredNurse ? (
+              <div style={{ ...subcard, flex: '1 1 320px' }}>
+                <div style={{ fontWeight: 800 }}>Single interview pathway</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{application.role_applied || 'This role'} does not use the Registered Nurse second-interview stage.</div>
+              </div>
+            ) : null}
+            {['Offer', 'Onboarding', 'Hired'].includes(application.status) && (
+              <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>
+            )}
             <Link href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>Readiness gate</Link>
           </div>
         </section>
@@ -377,7 +413,11 @@ export default function Candidate360Page() {
         </section>
 
         <section style={{ ...card, marginTop: 16 }}>
-          <h2 style={{ marginTop: 0 }}>UK / international pathway</h2>
+          <h2 style={{ marginTop: 0 }}>Application pathway</h2>
+          <div style={{ ...subcard, marginBottom: 14 }}>
+            <div style={{ fontWeight: 800 }}>{pathway === 'international' ? 'International applicant' : pathway === 'uk' ? 'UK-based applicant' : 'Pathway not recorded'}</div>
+            <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>This is taken from the candidate's submitted application pathway, not inferred from their role.</div>
+          </div>
           <div style={grid}>
             <Info label="Living in UK" value={application.living_in_uk} />
             <Info label="Living in Ireland" value={application.living_in_ireland} />
