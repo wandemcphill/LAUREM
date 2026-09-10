@@ -14,6 +14,7 @@ const LAUREM_TABLES = new Set([
   'recruitment_evidence_reviews',
   'recruitment_evidence_audit',
   'recruitment_admin_actions',
+  'interview_attempts',
   'laurem_interview_attempts',
   'recruitment_onboarding_checklist',
   'legacy_contract_signatures',
