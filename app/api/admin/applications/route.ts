@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { db } from '@/lib/db';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
+import { hashToken, makeToken } from '@/lib/token';
+import { normalizeLauremRole } from '@/lib/laurem-role-policy';
+import { selectRound1Questions } from '@/lib/laurem-interview-engine';
+import { ROUND1_PASS_PERCENT, ROUND1_QUESTIONS_PER_ATTEMPT } from '@/lib/laurem-interview-banks';
 
 const allowedStatus = new Set(['Enquiry','Invited','Application','Screening','Interview','Second Interview','Documents','Sponsorship','Offer','Onboarding','Hired','Rejected','Withdrawn']);
 function adminOrUnauthorized(request:NextRequest){return readAdminSession(request);}
 function escapeHtml(value:string){return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
+function appUrl(){return(process.env.NEXT_PUBLIC_APP_URL||'https://recruitment.lauremcare.com').replace(/\/$/,'');}
 
 export async function GET(request:NextRequest){
   const session=adminOrUnauthorized(request);
@@ -32,15 +37,47 @@ export async function PATCH(request:NextRequest){
   if(override&&!overrideReason)return NextResponse.json({error:'An override reason is required.'},{status:400});
   try{
     const client=db();
-    const {data:current,error:currentError}=await client.from('recruitment_applications').select('id,full_name,email,status,role_applied').eq('id',id).maybeSingle();
+    const {data:current,error:currentError}=await client.from('recruitment_applications').select('id,full_name,email,status,role_applied,living_in_uk').eq('id',id).maybeSingle();
     if(currentError)throw currentError;
     if(!current)return NextResponse.json({error:'Application not found.'},{status:404});
     if(current.status===status&&!note&&!override)return NextResponse.json({application:current,overridden:false,statusEmail:{status:'skipped',reason:'unchanged'}});
     const {data,error}=await client.rpc('laurem_transition_application_status',{p_application_id:id,p_to_status:status,p_actor:session.email,p_note:note,p_override:override,p_override_reason:overrideReason});
     if(error||!data){const message=error?.message||'';if(message.includes('APPLICATION_NOT_FOUND'))return NextResponse.json({error:'Application not found.'},{status:404});if(message.includes('STATUS_TRANSITION_BLOCKED'))return NextResponse.json({error:error?.details||'The requested transition is blocked by the current lifecycle controls.'},{status:409});if(message.includes('OVERRIDE_REASON_REQUIRED'))return NextResponse.json({error:'An override reason is required.'},{status:400});if(message.includes('INVALID_RECRUITMENT_STATUS'))return NextResponse.json({error:'Invalid recruitment status.'},{status:400});return NextResponse.json({error:'Unable to update application status.'},{status:500});}
+
+    let assessmentEmail:{status:string;attempts:number;providerId:string|null;deliveryId:string|null;error?:string}={status:'skipped',attempts:0,providerId:null,deliveryId:null};
+    if(status==='Interview'){
+      const role=normalizeLauremRole(current.role_applied||'');
+      if(!role)return NextResponse.json({error:'Application role is invalid.'},{status:409});
+      const pathway=current.living_in_uk==='No'?'international':'uk';
+      let {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,status,invite_id,question_snapshot,question_ids,total_questions,pass_percent').eq('application_id',id).eq('round',1).maybeSingle();
+      if(attemptError)throw attemptError;
+
+      const token=makeToken();
+      const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
+      const {data:newInvite,error:newInviteError}=await client.from('recruitment_invites').insert({candidate_name:current.full_name,candidate_email:current.email,role,token_hash:hashToken(token),expires_at:expiresAt,used_at:new Date().toISOString()}).select('id,candidate_name,candidate_email,role,expires_at').single();
+      if(newInviteError||!newInvite)throw newInviteError||new Error('Unable to create interview invitation.');
+
+      if(!attempt){
+        const selected=selectRound1Questions(role);
+        if(selected.length!==ROUND1_QUESTIONS_PER_ATTEMPT)throw new Error('ROUND1_SELECTION_FAILED');
+        const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,options:q.options,correctIndex:q.correctIndex}));
+        const {data:created,error:createError}=await client.from('interview_attempts').insert({application_id:id,invite_id:newInvite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:ROUND1_QUESTIONS_PER_ATTEMPT,pass_percent:ROUND1_PASS_PERCENT}).select('id,status,invite_id').single();
+        if(createError||!created)throw createError||new Error('Unable to create first assessment.');
+        attempt=created;
+      }else if(attempt.status==='in_progress'){
+        const {error:updateAttemptError}=await client.from('interview_attempts').update({invite_id:newInvite.id,updated_at:new Date().toISOString()}).eq('id',attempt.id).eq('status','in_progress');
+        if(updateAttemptError)throw updateAttemptError;
+      }
+
+      const link=`${appUrl()}/interview/${token}`;
+      const safeName=escapeHtml(current.full_name);const safeRole=escapeHtml(role);const safeLink=escapeHtml(link);
+      const email=await sendLauremEmail(client,{eventType:'round1_assessment_invitation',entityId:id,idempotencyKey:`round1-assessment:admin:${id}:${newInvite.id}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[current.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Your first assessment with ${lauremCompany.tradingName}`,text:`Dear ${current.full_name},\n\nYou have been invited to the first-stage assessment for ${role}.\n\nStart here:\n${link}\n\nThis private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your first assessment is ready</h1><p>Dear ${safeName},</p><p>Your first-stage assessment for <strong>${safeRole}</strong> is ready.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Start the assessment</a></p><p style="font-size:13px;color:#5c6c67">This private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
+      assessmentEmail={status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}: {})};
+    }
+
     const safeName=escapeHtml(current.full_name);const safeRole=escapeHtml(current.role_applied||'your application');const safeStatus=escapeHtml(status);const transitionKey=typeof data?.updated_at==='string'?data.updated_at:new Date().toISOString();
-    const email=await sendLauremEmail(client,{eventType:'application_status_change',entityId:id,idempotencyKey:`application-status:${id}:${status}:${transitionKey}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[current.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Recruitment update from ${lauremCompany.tradingName}`,text:`Dear ${current.full_name},\n\nYour recruitment application for ${current.role_applied||'the position'} has been updated to: ${status}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Recruitment status update</h1><p>Dear ${safeName},</p><p>Your application for <strong>${safeRole}</strong> has been updated.</p><p style="font-size:18px"><strong>Current status:</strong> ${safeStatus}</p><p>If you have been asked to take an action, please use the private link previously provided to you.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
-    console.info(JSON.stringify({level:'info',event:'admin.application.status_changed',actor:session.email,applicationId:id,fromStatus:current.status,status,override}));
-    return NextResponse.json({application:data,overridden:override,statusEmail:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}:{}),...(email.status==='not_configured'?{reason:'not_configured'}:{})}});
+    const email=await sendLauremEmail(client,{eventType:'application_status_change',entityId:id,idempotencyKey:`application-status:${id}:${status}:${transitionKey}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[current.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Recruitment update from ${lauremCompany.tradingName}`,text:`Dear ${current.full_name},\n\nYour recruitment application for ${current.role_applied||'the position'} has been updated to: ${status}.\n\n${status==='Interview'?'Your first-stage assessment link has been sent separately.':''}\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Recruitment status update</h1><p>Dear ${safeName},</p><p>Your application for <strong>${safeRole}</strong> has been updated.</p><p style="font-size:18px"><strong>Current status:</strong> ${safeStatus}</p>${status==='Interview'?'<p>Your private first-stage assessment link has been sent in a separate email.</p>':'<p>If you have been asked to take an action, please use the private link previously provided to you.</p>'}<p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
+    console.info(JSON.stringify({level:'info',event:'admin.application.status_changed',actor:session.email,applicationId:id,fromStatus:current.status,status,override,assessmentEmailStatus:assessmentEmail.status}));
+    return NextResponse.json({application:data,overridden:override,statusEmail:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}:{}),...(email.status==='not_configured'?{reason:'not_configured'}:{})},assessmentEmail});
   }catch(error){console.error(JSON.stringify({level:'error',event:'admin.application.status_change_failed',actor:session.email,reason:error instanceof Error?error.message:'unknown'}));return NextResponse.json({error:'Unable to update application status.'},{status:500});}
 }
