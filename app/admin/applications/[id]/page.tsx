@@ -291,6 +291,9 @@ export default function Candidate360Page() {
 
   const application = data.application;
   const nurseAnswers = data.nurseInterview?.answers;
+  const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';
+  const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);
+  const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;
 
   return (
     <main style={{ minHeight: '100vh', background: '#f4f7fb', color: '#102a43', fontFamily: 'system-ui', padding: '26px 18px 70px' }}>
@@ -330,7 +333,14 @@ export default function Candidate360Page() {
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-            <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>
+            {canSendSecondInterview ? (
+              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>
+            ) : (
+              <div style={{ ...subcard, flex: '1 1 320px' }}>
+                <div style={{ fontWeight: 800 }}>Second interview locked</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{isRegisteredNurse ? 'A completed first interview is required before the second interview can be sent.' : 'Second interviews are currently available only for Registered Nurse candidates after a completed first interview.'}</div>
+              </div>
+            )}
             <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>
             <Link href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>Readiness gate</Link>
           </div>
