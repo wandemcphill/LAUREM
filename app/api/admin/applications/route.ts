@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
-import { sendLauremEmail } from '@/lib/laurem-email';
-import { lauremCompany } from '@/lib/laurem-company-config';
 import { hashToken, makeToken } from '@/lib/token';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { selectRound1Questions } from '@/lib/laurem-interview-engine';
 import { ROUND1_PASS_PERCENT, ROUND1_QUESTIONS_PER_ATTEMPT } from '@/lib/laurem-interview-banks';
+import { sendLauremEmail } from '@/lib/laurem-email';
+import { lauremCompany } from '@/lib/laurem-company-config';
 
 const allowedStatus = new Set(['Enquiry','Invited','Application','Screening','Interview','Second Interview','Documents','Sponsorship','Offer','Onboarding','Hired','Rejected','Withdrawn']);
 function adminOrUnauthorized(request:NextRequest){return readAdminSession(request);}
@@ -21,6 +21,38 @@ export async function GET(request:NextRequest){
     if(error)throw error;
     return NextResponse.json({applications:data||[],recruiter:session.email});
   }catch(error){console.error(JSON.stringify({level:'error',event:'admin.applications.list_failed',reason:error instanceof Error?error.message:'unknown'}));return NextResponse.json({error:'Unable to load applications.'},{status:500});}
+}
+
+export async function DELETE(request:NextRequest){
+  const session=adminOrUnauthorized(request);
+  if(!session)return NextResponse.json({error:'Unauthorised'},{status:401});
+  const id=new URL(request.url).searchParams.get('id')?.trim()||'';
+  if(!id)return NextResponse.json({error:'Application id is required.'},{status:400});
+  const raw=await request.text();
+  if(new TextEncoder().encode(raw).byteLength>8000)return NextResponse.json({error:'Request payload is too large.'},{status:413});
+  let body:{confirmation?:string};
+  try{body=JSON.parse(raw||'{}') as typeof body;}catch{return NextResponse.json({error:'Invalid request.'},{status:400});}
+  if(body.confirmation!=='DELETE APPLICATION')return NextResponse.json({error:'Type DELETE APPLICATION to confirm permanent deletion.'},{status:400});
+  try{
+    const client=db();
+    const {data:application,error:applicationError}=await client.from('recruitment_applications').select('id,full_name,email,status').eq('id',id).maybeSingle();
+    if(applicationError)throw applicationError;
+    if(!application)return NextResponse.json({error:'Application not found.'},{status:404});
+
+    const {data:staff,error:staffError}=await client.from('staff_profiles').select('id,employment_status').eq('application_id',id).maybeSingle();
+    if(staffError)throw staffError;
+    if(staff&&['active','on_leave','suspended'].includes(String(staff.employment_status||'').toLowerCase())){
+      return NextResponse.json({error:'This application is linked to an active workforce record and cannot be permanently deleted.'},{status:409});
+    }
+
+    const {error:deleteError}=await client.from('recruitment_applications').delete().eq('id',id);
+    if(deleteError)throw deleteError;
+    console.info(JSON.stringify({level:'info',event:'admin.application.deleted',actor:session.email,applicationId:id,candidateName:application.full_name,statusAtDeletion:application.status}));
+    return NextResponse.json({ok:true,deleted:true,applicationId:id});
+  }catch(error){
+    console.error(JSON.stringify({level:'error',event:'admin.application.delete_failed',actor:session.email,applicationId:id,reason:error instanceof Error?error.message:'unknown'}));
+    return NextResponse.json({error:'Unable to delete application.'},{status:500});
+  }
 }
 
 export async function PATCH(request:NextRequest){
