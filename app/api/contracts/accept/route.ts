@@ -10,9 +10,13 @@ async function loadContract(request: NextRequest) {
   if (error) throw error;
   if (!tokenRow) return { error: NextResponse.json({ error: 'Contract link not found.' }, { status: 404 }) } as const;
   if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) return { error: NextResponse.json({ error: 'This contract link has expired.' }, { status: 410 }) } as const;
+  if (tokenRow.used_at) return { error: NextResponse.json({ error: 'This contract link has already been used.' }, { status: 409 }) } as const;
   const { data: contract, error: contractError } = await client.from('recruitment_contracts').select('*').eq('id', tokenRow.contract_id).maybeSingle();
   if (contractError) throw contractError;
   if (!contract) return { error: NextResponse.json({ error: 'Contract not found.' }, { status: 404 }) } as const;
+  if (!['issued', 'viewed'].includes(String(contract.status))) {
+    return { error: NextResponse.json({ error: 'This contract is not yet available for candidate review.' }, { status: 409 }) } as const;
+  }
   return { client, tokenRow, contract } as const;
 }
 
@@ -56,13 +60,14 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Contract token is required.' }, { status: 400 });
   const body = await request.json().catch(() => null) as { accepted?: boolean; acceptedByName?: string; declineReason?: string } | null;
   try {
-    const client = db();
+    const loaded = await loadContract(request);
+    if ('error' in loaded) return loaded.error;
     const action = body?.accepted ? 'accept' : 'decline';
-    const { data, error } = await client.rpc('consume_recruitment_contract_token', {
+    const { data, error } = await loaded.client.rpc('consume_recruitment_contract_token', {
       p_token_hash: hashToken(token),
       p_action: action,
-      p_accepted_by_name: typeof body?.acceptedByName === 'string' ? body.acceptedByName : null,
-      p_decline_reason: typeof body?.declineReason === 'string' ? body.declineReason : null,
+      p_accepted_by_name: typeof body?.acceptedByName === 'string' ? body.acceptedByName.trim() : null,
+      p_decline_reason: typeof body?.declineReason === 'string' ? body.declineReason.trim() : null,
       p_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
       p_user_agent: request.headers.get('user-agent') || null,
     });
