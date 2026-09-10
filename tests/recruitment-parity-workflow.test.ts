@@ -29,13 +29,20 @@ describe('LAUREM recruitment parity workflow', () => {
     expect(route).toContain('Invalid JSON.');
   });
 
-  it('emails second-interview invitations and prevents duplicate active links', () => {
+  it('creates second-interview invitations atomically and prevents duplicate active links', () => {
     const route = read('app/api/admin/second-interviews/route.ts');
+    const migration = read('supabase/migrations/20260910_laurem_atomic_second_interview_invitation.sql');
     expect(route).toContain("An active second-interview invitation already exists for this candidate.");
+    expect(route).toContain("client.rpc('laurem_create_second_interview_invitation'");
+    expect(route).toContain("status:409");
     expect(route).toContain("import { sendLauremEmail } from '@/lib/laurem-email';");
     expect(route).toContain('second-interview:${data.id}');
     expect(route).toContain('Please do not forward it.');
     expect(route).toContain('Invalid JSON.');
+    expect(migration).toContain('for update');
+    expect(migration).toContain("raise exception 'active_second_interview_exists'");
+    expect(migration).toContain('revoke all on function public.laurem_create_second_interview_invitation');
+    expect(migration).toContain('from public, anon, authenticated');
   });
 
   it('hardens candidate document upload validation', () => {
