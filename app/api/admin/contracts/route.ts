@@ -1,25 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
-import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
-import { renderLauremContract } from '@/lib/laurem-contract';
+import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
+import { lauremCompany } from '@/lib/laurem-company-config';
+import { sendLauremEmail } from '@/lib/laurem-email';
+
+function appUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
+}
+
+function isInternationalNurseApplication(app: Record<string, any>) {
+  return normalizeLauremRole(typeof app.role_applied === 'string' ? app.role_applied : '') === 'Registered Nurse'
+    && app.living_in_uk === 'No';
+}
+
+function escapeHtml(value: string) {
+  return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+}
 
 export async function POST(request: NextRequest) {
   const session = readAdminSession(request);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const applicationId = typeof body?.applicationId === 'string' ? body.applicationId : '';
+  const applicationId = typeof body?.applicationId === 'string' ? body.applicationId.trim() : '';
   if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
   try {
     const client = db();
     const { data: app, error: appError } = await client.from('recruitment_applications').select('*').eq('id', applicationId).maybeSingle();
     if (appError) throw appError;
     if (!app) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+    if (!isInternationalNurseApplication(app)) {
+      return NextResponse.json({ error: 'Employment contract generation is currently available only for international Registered Nurse applications.' }, { status: 409 });
+    }
 
     const { data: existingContract, error: contractLookupError } = await client
       .from('recruitment_contracts')
-      .select('id,status,version,accepted_at,accepted_by_name')
+      .select('id,status,version,accepted_at,accepted_by_name,contract_type')
       .eq('application_id', applicationId)
       .maybeSingle();
     if (contractLookupError) throw contractLookupError;
@@ -27,82 +44,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'An employment contract has already been accepted for this application. A new contract cannot overwrite the accepted record.' }, { status: 409 });
     }
 
-    const isInternationalNurse =
-      app.role_applied === 'Registered Nurse - International Recruitment' ||
-      (app.role_applied === 'Registered Nurse' && app.living_in_uk === 'No');
     const workLocations = Array.isArray(body?.workLocations)
-      ? body.workLocations.filter((v): v is string => typeof v === 'string')
+      ? body.workLocations.filter((v): v is string => typeof v === 'string').map((v) => v.trim()).filter(Boolean)
       : [];
-
-    const contractContent = isInternationalNurse
-      ? renderLauremInternationalNurseContract({
-          employeeName: app.full_name,
-          employeeAddress: app.address,
-          jobTitle: 'Registered Nurse',
-          startDate: app.start_date,
-          contractEndDate: typeof body?.contractEndDate === 'string' ? body.contractEndDate : null,
-          annualSalary: typeof body?.annualSalary === 'number' ? body.annualSalary : null,
-          weeklyHours: typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5,
-          workLocations,
-          probation: typeof body?.probation === 'string' ? body.probation : null,
-          noticePeriodEmployee: typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null,
-          noticePeriodEmployer: typeof body?.noticePeriodEmployer === 'string' ? body.noticePeriodEmployer : null,
-          holidayEntitlement: typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null,
-          pensionScheme: typeof body?.pensionScheme === 'string' ? body.pensionScheme : null,
-          visaRoute: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-          sponsorshipOccupationCode: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
-          nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
-          registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
-          preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
-          postRegistrationSalary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : (typeof body?.annualSalary === 'number' ? body.annualSalary : null),
-          relocationSupport: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
-          repayableCosts: typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
-          repaymentSchedule: typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
-        })
-      : renderLauremContract({
-          employeeName: app.full_name,
-          employeeAddress: app.address,
-          jobTitle: app.role_applied,
-          startDate: app.start_date,
-          contractEndDate: typeof body?.contractEndDate === 'string' ? body.contractEndDate : null,
-          minimumWeeklyHours: typeof body?.minimumWeeklyHours === 'number' ? body.minimumWeeklyHours : null,
-          hourlyRate: typeof body?.hourlyRate === 'number' ? body.hourlyRate : null,
-          workLocations,
-          clientOrAssignmentDetails: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
-          noticePeriodEmployee: typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null,
-          noticePeriodEmployer: typeof body?.noticePeriodEmployer === 'string' ? body.noticePeriodEmployer : null,
-          holidayEntitlement: typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null,
-          pensionScheme: typeof body?.pensionScheme === 'string' ? body.pensionScheme : null,
-        });
+    const contractContent = renderLauremInternationalNurseContract({
+      employeeName: app.full_name,
+      employeeAddress: app.address,
+      jobTitle: 'Registered Nurse',
+      startDate: app.start_date,
+      contractEndDate: typeof body?.contractEndDate === 'string' ? body.contractEndDate : null,
+      annualSalary: typeof body?.annualSalary === 'number' ? body.annualSalary : null,
+      weeklyHours: typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5,
+      workLocations,
+      probation: typeof body?.probation === 'string' ? body.probation : null,
+      noticePeriodEmployee: typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null,
+      noticePeriodEmployer: typeof body?.noticePeriodEmployer === 'string' ? body.noticePeriodEmployer : null,
+      holidayEntitlement: typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null,
+      pensionScheme: typeof body?.pensionScheme === 'string' ? body.pensionScheme : null,
+      visaRoute: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
+      sponsorshipOccupationCode: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
+      nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
+      registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
+      preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
+      postRegistrationSalary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : (typeof body?.annualSalary === 'number' ? body.annualSalary : null),
+      relocationSupport: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
+      repayableCosts: typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
+      repaymentSchedule: typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
+    });
 
     const nextVersion = Number(existingContract?.version || 0) + 1;
     const payload = {
       application_id: applicationId,
       version: nextVersion,
-      contract_type: isInternationalNurse ? 'international_nurse' : 'standard',
-      job_title: isInternationalNurse ? 'Registered Nurse' : app.role_applied,
+      contract_type: 'international_nurse',
+      job_title: 'Registered Nurse',
       start_date: app.start_date,
       contract_end_date: typeof body?.contractEndDate === 'string' ? body.contractEndDate : null,
-      minimum_weekly_hours: typeof body?.minimumWeeklyHours === 'number' ? body.minimumWeeklyHours : (isInternationalNurse ? 37.5 : null),
-      weekly_hours: typeof body?.weeklyHours === 'number' ? body.weeklyHours : (isInternationalNurse ? 37.5 : null),
-      hourly_rate: typeof body?.hourlyRate === 'number' ? body.hourlyRate : null,
+      minimum_weekly_hours: typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5,
+      weekly_hours: typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5,
+      hourly_rate: null,
       annual_salary: typeof body?.annualSalary === 'number' ? body.annualSalary : null,
       work_locations: workLocations,
-      client_or_assignment_details: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
+      client_or_assignment_details: null,
       notice_period_employee: typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null,
       notice_period_employer: typeof body?.noticePeriodEmployer === 'string' ? body.noticePeriodEmployer : null,
       holiday_entitlement: typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null,
       pension_scheme: typeof body?.pensionScheme === 'string' ? body.pensionScheme : null,
-      visa_route: isInternationalNurse && typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-      sponsorship_occupation_code: isInternationalNurse && typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
-      nmc_status: isInternationalNurse && typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
-      registration_deadline: isInternationalNurse && typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
-      pre_registration_salary: isInternationalNurse && typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
-      post_registration_salary: isInternationalNurse && typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : (isInternationalNurse && typeof body?.annualSalary === 'number' ? body.annualSalary : null),
-      relocation_support: isInternationalNurse && typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
-      repayable_costs: isInternationalNurse && typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
-      repayment_schedule: isInternationalNurse && typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
-      contract_source: isInternationalNurse ? 'Laurem international nurse template informed by GOV.UK and Scottish Code of Practice' : 'Laurem standard employment template',
+      visa_route: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
+      sponsorship_occupation_code: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
+      nmc_status: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
+      registration_deadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
+      pre_registration_salary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
+      post_registration_salary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : (typeof body?.annualSalary === 'number' ? body.annualSalary : null),
+      relocation_support: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
+      repayable_costs: typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
+      repayment_schedule: typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
+      contract_source: 'Laurem international nurse template informed by GOV.UK and Scottish Code of Practice',
       contract_content: contractContent,
       status: 'draft',
       created_by: session.email,
@@ -113,12 +110,12 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     const token = makeToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: contract.id, token_hash: hashToken(token), expires_at: expiresAt });
+    const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: contract.id, token_hash: hashToken(token), expires_at: expiresAt, used_at: null });
     if (tokenError) throw tokenError;
     return NextResponse.json({
       contract,
       contractType: contract.contract_type,
-      acceptanceLink: `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/contracts/accept/${token}`,
+      acceptanceLink: `${appUrl()}/contracts/accept/${token}`,
     }, { status: 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.contract.generate_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
@@ -133,19 +130,53 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Contract id is required.' }, { status: 400 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const status = typeof body?.status === 'string' ? body.status : '';
-  if (!['draft','issued'].includes(status)) return NextResponse.json({ error: 'Only draft or issued status can be set by recruiter.' }, { status: 400 });
+  if (status !== 'issued') return NextResponse.json({ error: 'Only issuing a draft contract is permitted here.' }, { status: 400 });
   const client = db();
   const { data: current, error: readError } = await client.from('recruitment_contracts')
-    .select('id,status,accepted_at').eq('id', id).maybeSingle();
+    .select('id,application_id,status,accepted_at,job_title,contract_type').eq('id', id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load contract.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
-  if (current.status === 'accepted' && current.accepted_at) {
-    return NextResponse.json({ error: 'An accepted employment contract is immutable and cannot be reopened or edited.' }, { status: 409 });
+  if (current.contract_type !== 'international_nurse' || current.job_title !== 'Registered Nurse') {
+    return NextResponse.json({ error: 'Only an international Registered Nurse contract can be issued.' }, { status: 409 });
   }
-  const { data, error } = await client.from('recruitment_contracts')
-    .update({ status, issued_at: status === 'issued' ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
-    .eq('id', id).eq('status', current.status).select('*').maybeSingle();
-  if (error) return NextResponse.json({ error: 'Unable to update contract.' }, { status: 500 });
-  if (!data) return NextResponse.json({ error: 'Contract changed concurrently. Refresh and try again.' }, { status: 409 });
-  return NextResponse.json({ contract: data });
+  const { data: app, error: appError } = await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk').eq('id', current.application_id).maybeSingle();
+  if (appError) return NextResponse.json({ error: 'Unable to load contract application.' }, { status: 500 });
+  if (!app || !isInternationalNurseApplication(app)) return NextResponse.json({ error: 'Contract is not eligible for issue.' }, { status: 409 });
+  if (current.accepted_at) return NextResponse.json({ error: 'An accepted contract is immutable.' }, { status: 409 });
+
+  const { data: updated, error: updateError } = await client.from('recruitment_contracts')
+    .update({ status: 'issued', issued_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id).in('status', ['draft','issued']).select('*').maybeSingle();
+  if (updateError) return NextResponse.json({ error: 'Unable to issue contract.' }, { status: 500 });
+  if (!updated) return NextResponse.json({ error: 'Contract changed concurrently. Refresh and try again.' }, { status: 409 });
+
+  let { data: tokenRow, error: tokenLookupError } = await client.from('recruitment_contract_tokens')
+    .select('id,token_hash,expires_at,used_at,created_at').eq('contract_id', id).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (tokenLookupError) return NextResponse.json({ error: 'Unable to prepare contract acceptance link.' }, { status: 500 });
+  let rawToken: string | null = null;
+  if (!tokenRow) {
+    rawToken = makeToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: createdToken, error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: id, token_hash: hashToken(rawToken), expires_at: expiresAt, used_at: null }).select('id,expires_at').single();
+    if (tokenError || !createdToken) return NextResponse.json({ error: 'Unable to create contract acceptance link.' }, { status: 500 });
+    tokenRow = { id: createdToken.id, token_hash: hashToken(rawToken), expires_at: createdToken.expires_at, used_at: null, created_at: new Date().toISOString() };
+  }
+  if (!rawToken) {
+    return NextResponse.json({ contract: updated, acceptanceLink: null, email: { status: 'not_available', message: 'The existing acceptance token is stored hashed and cannot be reconstructed. Generate a new draft to issue a fresh link.' } }, { status: 200 });
+  }
+
+  const link = `${appUrl()}/contracts/accept/${rawToken}`;
+  const safeName = escapeHtml(app.full_name);
+  const safeLink = escapeHtml(link);
+  const email = await sendLauremEmail(client, {
+    eventType: 'contract_issued', entityId: id, idempotencyKey: `contract:issued:${id}:${new Date(updated.issued_at || Date.now()).toISOString()}`,
+    payload: {
+      from: lauremCompany.candidateCommunications.senderAddress,
+      to: [app.email], reply_to: lauremCompany.candidateCommunications.replyToAddress,
+      subject: `Your employment contract from ${lauremCompany.tradingName}`,
+      text: `Dear ${app.full_name},\n\nYour international Registered Nurse employment contract is ready for review.\n\nReview and respond here:\n${link}\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your employment contract is ready</h1><p>Dear ${safeName},</p><p>Your international Registered Nurse employment contract is ready for review.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Review contract</a></p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`,
+    },
+  });
+  return NextResponse.json({ contract: updated, acceptanceLink: link, email: { status: email.status, attempts: email.attempts, providerId: 'providerId' in email ? email.providerId : null, deliveryId: email.deliveryId, ...(email.status === 'failed' ? { error: email.error } : {}) } });
 }
