@@ -17,6 +17,16 @@ export async function POST(request: NextRequest) {
     if (appError) throw appError;
     if (!app) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
 
+    const { data: existingContract, error: contractLookupError } = await client
+      .from('recruitment_contracts')
+      .select('id,status,version,accepted_at,accepted_by_name')
+      .eq('application_id', applicationId)
+      .maybeSingle();
+    if (contractLookupError) throw contractLookupError;
+    if (existingContract?.status === 'accepted' && existingContract.accepted_at) {
+      return NextResponse.json({ error: 'An employment contract has already been accepted for this application. A new contract cannot overwrite the accepted record.' }, { status: 409 });
+    }
+
     const isInternationalNurse =
       app.role_applied === 'Registered Nurse - International Recruitment' ||
       (app.role_applied === 'Registered Nurse' && app.living_in_uk === 'No');
@@ -65,9 +75,10 @@ export async function POST(request: NextRequest) {
           pensionScheme: typeof body?.pensionScheme === 'string' ? body.pensionScheme : null,
         });
 
+    const nextVersion = Number(existingContract?.version || 0) + 1;
     const payload = {
       application_id: applicationId,
-      version: 1,
+      version: nextVersion,
       contract_type: isInternationalNurse ? 'international_nurse' : 'standard',
       job_title: isInternationalNurse ? 'Registered Nurse' : app.role_applied,
       start_date: app.start_date,
