@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { hashToken } from '@/lib/token';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { selectRound1Questions } from '@/lib/laurem-interview-engine';
 import { ROUND1_PASS_PERCENT, ROUND1_QUESTIONS_PER_ATTEMPT } from '@/lib/laurem-interview-banks';
+import { db } from '@/lib/db';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 
@@ -20,12 +20,12 @@ export async function POST(request: NextRequest) {
   try { payload = JSON.parse(raw) as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Invalid JSON.' }, { status: 400 }); }
 
   const fullName = typeof payload.full_name === 'string' ? payload.full_name.trim() : '';
-  const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+  const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
   const role = typeof payload.role_applied === 'string' ? payload.role_applied.trim() : '';
   const pathway = payload.pathway === 'uk' || payload.pathway === 'international' ? payload.pathway : '';
   if (!fullName || !email || !role) return NextResponse.json({ error: 'Full name, email and role are required.' }, { status: 400 });
   if (!pathway) return NextResponse.json({ error: 'Please choose your application pathway.' }, { status: 400 });
-  if (pathway === 'international' && (!payload.current_country || !payload.relocation_readiness)) return NextResponse.json({ error: 'Current country and relocation readiness are required for international applicants.' }, { status: 400 });
+  if (pathway === 'international' && (!String(payload.current_country || '').trim() || !String(payload.relocation_readiness || '').trim())) return NextResponse.json({ error: 'Current country and relocation readiness are required for international applicants.' }, { status: 400 });
 
   try {
     const client = db();
@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
       if (message === 'INVITATION_EXPIRED') return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
       if (message === 'INVITATION_NOT_FOUND') return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 });
       if (message === 'INVITATION_ROLE_MISMATCH') return NextResponse.json({ error: 'This invitation is for a different role.' }, { status: 409 });
-      if (message === 'CARE_ROLE_IN_COUNTRY_ONLY') return NextResponse.json({ error: 'This care role can only be sponsored through an eligible in-country visa switch route. Applicants must already be in the UK.' }, { status: 409 });
+      if (message === 'CARE_ROLE_IN_COUNTRY_ONLY' || message === 'ROLE_PATHWAY_UNAVAILABLE') return NextResponse.json({ error: 'This role is only available through the UK pathway. Please select the UK pathway to continue.' }, { status: 409 });
+      if (message === 'INTERNATIONAL_NURSE_DETAILS_REQUIRED') return NextResponse.json({ error: 'Current country and relocation readiness are required for an international Registered Nurse application.' }, { status: 400 });
+      if (message === 'RIGHT_TO_WORK_STATUS_REQUIRED') return NextResponse.json({ error: 'Right-to-work status is required for a UK-pathway application.' }, { status: 400 });
       if (message === 'ROLE_REQUIRED') return NextResponse.json({ error: 'The application role is required.' }, { status: 400 });
       if (message === 'PATHWAY_REQUIRED') return NextResponse.json({ error: 'Please choose your application pathway.' }, { status: 400 });
       if (message === 'CONSENT_REQUIRED') return NextResponse.json({ error: 'You must provide consent before submitting the application.' }, { status: 400 });
