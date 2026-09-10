@@ -4,15 +4,17 @@ import { resolve } from 'node:path';
 
 describe('LAUREM readiness schema alignment', () => {
   const source = readFileSync(resolve(process.cwd(), 'lib/laurem-onboarding-readiness.ts'), 'utf8');
-  const evidenceMigration = readFileSync(
-    resolve(process.cwd(), 'supabase/migrations/20260909_evidence_lifecycle.sql'),
+  const isolationMigration = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/20260909_shared_supabase_isolation.sql'),
     'utf8',
   );
 
-  it('does not select an evidence-review column that the schema does not define', () => {
+  it('does not select an evidence-review column that the LAUREM schema does not define', () => {
     expect(source).not.toContain('metadata,expires_at,created_at,updated_at');
     expect(source).not.toContain('review.expires_at');
-    expect(evidenceMigration).not.toContain('expires_at timestamptz');
+    const match = isolationMigration.match(/create table if not exists public\.laurem_recruitment_evidence_reviews \(([\s\S]*?)\n\);/i);
+    expect(match?.[1]).toBeTruthy();
+    expect(match?.[1]).not.toContain('expires_at');
   });
 
   it('continues to use evidence review status as the readiness authority', () => {
