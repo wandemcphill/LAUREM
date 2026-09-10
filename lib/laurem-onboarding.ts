@@ -18,19 +18,20 @@ export function inferLauremOnboardingAudience(role: string, livingInUk?: string 
   return 'standard_staff';
 }
 
-function commonTasks(): OnboardingTaskSeed[] {
-  return [
-    { task_key: 'employment_contract', category: 'Employment', title: 'Employment contract accepted', description: 'Confirm the employee has accepted the final employment contract electronically.', required: true, acknowledgement_required: true, sort_order: 10 },
+function commonTasks(includePlatformContract: boolean): OnboardingTaskSeed[] {
+  const tasks: OnboardingTaskSeed[] = [
     { task_key: 'identity_and_rtw', category: 'Compliance', title: 'Identity and right-to-work verified', description: 'Complete and record the legally required identity and right-to-work verification.', required: true, acknowledgement_required: false, sort_order: 20 },
     { task_key: 'safeguarding', category: 'Training', title: 'Safeguarding induction', description: 'Complete Laurem safeguarding induction and confirm understanding of escalation routes.', required: true, acknowledgement_required: true, sort_order: 30 },
     { task_key: 'mandatory_training', category: 'Training', title: 'Mandatory training plan completed', description: 'Complete the role-specific mandatory training programme and record certificates.', required: true, acknowledgement_required: true, sort_order: 40 },
     { task_key: 'workforce_platform', category: 'Workforce', title: 'Workforce platform orientation', description: 'Complete orientation to rota, attendance, assignments, timesheets and staff communications.', required: true, acknowledgement_required: true, sort_order: 50 },
     { task_key: 'emergency_contacts', category: 'Support', title: 'Emergency and support contacts confirmed', description: 'Confirm the employee knows the correct Laurem emergency, safeguarding and management contacts.', required: true, acknowledgement_required: true, sort_order: 60 },
   ];
+  if (includePlatformContract) tasks.unshift({ task_key: 'employment_contract', category: 'Employment', title: 'Employment contract accepted', description: 'Confirm the employee has accepted the final employment contract electronically.', required: true, acknowledgement_required: true, sort_order: 10 });
+  return tasks;
 }
 
 export function buildOnboardingTasks(audience: LauremHandbookAudience | 'standard_staff'): OnboardingTaskSeed[] {
-  const tasks = commonTasks();
+  const tasks = commonTasks(audience === 'international_nurse');
 
   if (audience === 'sponsored_hca') {
     tasks.push(
