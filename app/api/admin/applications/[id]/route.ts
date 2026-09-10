@@ -10,8 +10,8 @@ function describeError(error: unknown) {
   return String(error);
 }
 
-async function checked<T extends { data: any; error: any }>(label: string, query: PromiseLike<T>) {
-  const result = await query;
+async function checked<T extends { data: any; error: any }>(label: string, query: any): Promise<T> {
+  const result = await query as T;
   if (result.error) throw new Error(`${label}: ${describeError(result.error)}`);
   return result;
 }
