@@ -21,13 +21,25 @@ export async function GET(request: NextRequest) {
   const staffId = params.get('staffId');
   const status = params.get('status');
   let query = db().from('staff_assignments')
-    .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at,staff_profiles!inner(employee_number,full_name,email,job_title,employment_status)')
+    .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at')
     .order('scheduled_start', { ascending: true }).limit(500);
   if (staffId) query = query.eq('staff_id', staffId);
   if (status && statuses.has(status)) query = query.eq('status', status);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'Unable to load assignments.' }, { status: 500 });
-  return NextResponse.json({ assignments: data || [] });
+
+  const assignments = data || [];
+  const staffIds = [...new Set(assignments.map((item: any) => item.staff_id).filter(Boolean))];
+  let profiles: any[] = [];
+  if (staffIds.length) {
+    const { data: profileData, error: profileError } = await db().from('staff_profiles')
+      .select('id,employee_number,full_name,email,job_title,employment_status')
+      .in('id', staffIds);
+    if (profileError) return NextResponse.json({ error: 'Unable to load assignment staff details.' }, { status: 500 });
+    profiles = profileData || [];
+  }
+  const profileById = new Map(profiles.map((profile: any) => [profile.id, profile]));
+  return NextResponse.json({ assignments: assignments.map((item: any) => ({ ...item, staff_profiles: profileById.get(item.staff_id) || null })) });
 }
 
 export async function POST(request: NextRequest) {
