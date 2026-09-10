@@ -28,7 +28,7 @@ async function resolveContext(request:NextRequest){
 export async function GET(request:NextRequest){
   try{
     const {client,invite,application,role}=await resolveContext(request);
-    let {data:attempt,error}=await client.from('interview_attempts').select('id,question_snapshot,status,answers').eq('application_id',application.id).eq('round',2).maybeSingle();
+    let {data:attempt,error}=await client.from('interview_attempts').select('id,question_snapshot,status,answers').eq('application_id',application.id).eq('round',2).eq('second_interview_id',invite.id).maybeSingle();
     if(error)throw error;
     if(!attempt){
       const selected=selectRound2Questions(role);
