@@ -43,6 +43,7 @@ begin
     (select count(*) from public.laurem_payroll_periods) +
     (select count(*) from public.laurem_payroll_entries) +
     (select count(*) from public.laurem_notification_deliveries) +
+    (select count(*) from public.laurem_workforce_audit_events) +
     (select count(*) from public.laurem_legacy_contract_signatures)
   into laurem_count;
 
