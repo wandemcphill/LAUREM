@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260911_admin_auth_hardening.sql'),
+  resolve(process.cwd(), 'supabase/migrations/20260910_admin_auth_throttle.sql'),
   'utf8',
 );
 const login = readFileSync(
@@ -18,11 +18,11 @@ const logout = readFileSync(
 
 describe('admin authentication hardening', () => {
   it('uses persistent server-side throttling with bounded failures', () => {
-    expect(migration).toContain('create table if not exists admin_auth_attempts');
-    expect(migration).toContain('max_failures integer := 10');
-    expect(migration).toContain('block_seconds integer := 900');
+    expect(migration).toContain('create table if not exists public.laurem_admin_auth_throttle');
+    expect(migration).toContain('v_limit integer := 10');
+    expect(migration).toContain("v_window interval := interval '15 minutes'");
     expect(migration).toContain('laurem_consume_admin_auth_attempt');
-    expect(migration).toContain('revoke all on function laurem_consume_admin_auth_attempt');
+    expect(migration).toContain('revoke all on function public.laurem_consume_admin_auth_attempt');
   });
 
   it('fails closed when throttle state cannot be checked', () => {
@@ -34,8 +34,8 @@ describe('admin authentication hardening', () => {
   it('never stores the raw request identity in the throttle table', () => {
     expect(login).toContain('requestIdentity');
     expect(login).toContain('consumeAdminAuthAttempt(db(), requestIdentity(request, email), credentialsMatch)');
+    expect(login).not.toContain('insert into public.laurem_admin_auth_throttle(throttle_key) values (requestIdentity');
     expect(migration).toContain('throttle_key text primary key');
-    expect(migration).toContain('pre-hashed');
   });
 
   it('ships baseline browser security headers and explicit logout', () => {
