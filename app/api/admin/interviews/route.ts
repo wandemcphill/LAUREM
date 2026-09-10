@@ -9,26 +9,27 @@ import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 
 const allowedStatus = new Set(['Scheduled', 'Completed', 'Cancelled', 'Rescheduled', 'No-show']);
-
 function adminOrUnauthorized(request: NextRequest) { return readAdminSession(request); }
 function escapeHtml(value: string) { return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
 function formatDate(value: string) { return new Date(value).toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' }); }
 function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, ''); }
 
-async function sendInterviewEmail(input: { id:string; candidateName:string; candidateEmail:string; scheduledAt:string; durationMinutes:number; location:string; meetingLink:string|null; interviewer:string|null; candidateInstructions:string|null; assessmentLink:string; event:'scheduled'|'rescheduled'|'cancelled' }) {
+async function sendInterviewEmail(input: { id:string; candidateName:string; candidateEmail:string; scheduledAt:string; durationMinutes:number; location:string; meetingLink:string|null; interviewer:string|null; candidateInstructions:string|null; assessmentLink?:string; event:'scheduled'|'rescheduled'|'cancelled' }) {
   const safeName=escapeHtml(input.candidateName);
   const safeDate=escapeHtml(formatDate(input.scheduledAt));
   const safeLocation=escapeHtml(input.location);
   const safeInterviewer=escapeHtml(input.interviewer||lauremCompany.tradingName);
   const safeMeeting=input.meetingLink?escapeHtml(input.meetingLink):'';
   const safeInstructions=escapeHtml(input.candidateInstructions||'');
-  const safeAssessment=escapeHtml(input.assessmentLink);
+  const safeAssessment=input.assessmentLink?escapeHtml(input.assessmentLink):'';
   const subject=input.event==='scheduled'?`Interview scheduled with ${lauremCompany.tradingName}`:input.event==='rescheduled'?`Your interview has been rescheduled: ${lauremCompany.tradingName}`:`Interview update from ${lauremCompany.tradingName}`;
   const title=input.event==='scheduled'?'Your interview is scheduled':input.event==='rescheduled'?'Your interview has been rescheduled':'Your interview has been cancelled';
+  const assessmentText=input.assessmentLink?`\nYour first-stage assessment is available here:\n${input.assessmentLink}\n\nPlease complete the assessment before the scheduled interview.\n`:'';
+  const assessmentHtml=input.assessmentLink?`<p><strong>Your first-stage assessment</strong></p><p>Complete the ${ROUND1_QUESTIONS_PER_ATTEMPT}-question role-based assessment before the interview.</p><p><a href="${safeAssessment}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Start the assessment</a></p>`:'';
   const text=input.event==='cancelled'
     ?`Dear ${input.candidateName},\n\nYour interview with ${lauremCompany.tradingName} has been cancelled. Please contact ${lauremCompany.publicEmails.recruitment} if you need further information.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`
-    :`Dear ${input.candidateName},\n\n${title}.\n\nDate and time: ${formatDate(input.scheduledAt)}\nDuration: ${input.durationMinutes} minutes\nLocation: ${input.location}\nInterviewer: ${input.interviewer||lauremCompany.tradingName}\n${input.meetingLink?`Meeting link: ${input.meetingLink}\n`:''}${input.candidateInstructions?`Instructions: ${input.candidateInstructions}\n`:''}\nYour first-stage assessment is available here:\n${input.assessmentLink}\n\nPlease complete the assessment before the scheduled interview.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`;
-  return sendLauremEmail(db(),{eventType:`interview_${input.event}`,entityId:input.id,idempotencyKey:`interview:${input.id}:${input.event}:${new Date(input.scheduledAt).toISOString()}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[input.candidateEmail],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject,text,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">${title}</h1><p>Dear ${safeName},</p>${input.event==='cancelled'?`<p>Your interview with ${escapeHtml(lauremCompany.tradingName)} has been cancelled. Please contact <a href="mailto:${escapeHtml(lauremCompany.publicEmails.recruitment)}">${escapeHtml(lauremCompany.publicEmails.recruitment)}</a> if you need further information.</p>`:`<p>Here are the interview details:</p><ul><li><strong>Date and time:</strong> ${safeDate}</li><li><strong>Duration:</strong> ${input.durationMinutes} minutes</li><li><strong>Location:</strong> ${safeLocation}</li><li><strong>Interviewer:</strong> ${safeInterviewer}</li></ul>${safeMeeting?`<p><a href="${safeMeeting}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Open meeting link</a></p>`:''}${safeInstructions?`<p><strong>Candidate instructions</strong><br>${safeInstructions.replaceAll('\\n','<br>')}</p>`:''}<p><strong>Your first-stage assessment</strong></p><p>Complete the ${ROUND1_QUESTIONS_PER_ATTEMPT}-question role-based assessment before the interview.</p><p><a href="${safeAssessment}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Start the assessment</a></p>`}<p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
+    :`Dear ${input.candidateName},\n\n${title}.\n\nDate and time: ${formatDate(input.scheduledAt)}\nDuration: ${input.durationMinutes} minutes\nLocation: ${input.location}\nInterviewer: ${input.interviewer||lauremCompany.tradingName}\n${input.meetingLink?`Meeting link: ${input.meetingLink}\n`:''}${input.candidateInstructions?`Instructions: ${input.candidateInstructions}\n`:''}${assessmentText}\nKind regards,\n${lauremCompany.tradingName} Recruitment`;
+  return sendLauremEmail(db(),{eventType:`interview_${input.event}`,entityId:input.id,idempotencyKey:`interview:${input.id}:${input.event}:${new Date(input.scheduledAt).toISOString()}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[input.candidateEmail],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject,text,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">${title}</h1><p>Dear ${safeName},</p>${input.event==='cancelled'?`<p>Your interview with ${escapeHtml(lauremCompany.tradingName)} has been cancelled. Please contact <a href="mailto:${escapeHtml(lauremCompany.publicEmails.recruitment)}">${escapeHtml(lauremCompany.publicEmails.recruitment)}</a> if you need further information.</p>`:`<p>Here are the interview details:</p><ul><li><strong>Date and time:</strong> ${safeDate}</li><li><strong>Duration:</strong> ${input.durationMinutes} minutes</li><li><strong>Location:</strong> ${safeLocation}</li><li><strong>Interviewer:</strong> ${safeInterviewer}</li></ul>${safeMeeting?`<p><a href="${safeMeeting}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Open meeting link</a></p>`:''}${safeInstructions?`<p><strong>Candidate instructions</strong><br>${safeInstructions.replaceAll('\\n','<br>')}</p>`:''}${assessmentHtml}`}<p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
 }
 
 export async function POST(request: NextRequest) {
@@ -50,11 +51,8 @@ export async function POST(request: NextRequest) {
     if(!application)return NextResponse.json({error:'Application not found.'},{status:404});
     const role=normalizeLauremRole(application.role_applied||'');
     if(!role)return NextResponse.json({error:'Application role is invalid.'},{status:409});
-
     let {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,application_id,round,status').eq('application_id',applicationId).eq('round',1).maybeSingle();
     if(attemptError)throw attemptError;
-
-    let assessmentLink='';
     if(!attempt){
       const selected=selectRound1Questions(role);
       const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,options:q.options,correctIndex:q.correctIndex}));
@@ -62,7 +60,6 @@ export async function POST(request: NextRequest) {
       if(createAttemptError)throw createAttemptError;
       attempt=createdAttempt;
     }
-
     const assessmentToken=makeToken();
     const assessmentExpiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
     const {data:newInvite,error:newInviteError}=await client.from('recruitment_invites').insert({candidate_name:application.full_name,candidate_email:application.email,role,token_hash:hashToken(assessmentToken),expires_at:assessmentExpiresAt,used_at:new Date().toISOString()}).select('id').single();
@@ -71,8 +68,7 @@ export async function POST(request: NextRequest) {
     if(rebindError)throw rebindError;
     const {error:attemptInviteError}=await client.from('interview_attempts').update({invite_id:newInvite.id,updated_at:new Date().toISOString()}).eq('id',attempt.id);
     if(attemptInviteError)throw attemptInviteError;
-    assessmentLink=`${appUrl()}/interview/${assessmentToken}`;
-
+    const assessmentLink=`${appUrl()}/interview/${assessmentToken}`;
     const location=typeof body.location==='string'&&body.location.trim()?body.location.trim():'Online';
     const interviewer=typeof body.interviewer==='string'&&body.interviewer.trim()?body.interviewer.trim():session.email;
     const candidateInstructions=typeof body.candidateInstructions==='string'?body.candidateInstructions.trim().slice(0,4000):null;
@@ -117,8 +113,8 @@ export async function PATCH(request: NextRequest) {
   let emailStatus:null|Record<string,unknown>=null;
   if(application?.email&&(status==='Cancelled'||status==='Rescheduled'||typeof body.scheduledAt==='string')){
     const event=status==='Cancelled'?'cancelled':'rescheduled';
-    const email=await sendInterviewEmail({id:data.id,candidateName:application.full_name,candidateEmail:application.email,scheduledAt:data.scheduled_at,durationMinutes:data.duration_minutes||60,location:data.location||'Online',meetingLink:data.meeting_link,interviewer:data.interviewer,candidateInstructions:data.candidate_instructions,assessmentLink:'',event});
-    emailStatus={status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}:{})};
+    const email=await sendInterviewEmail({id:data.id,candidateName:application.full_name,candidateEmail:application.email,scheduledAt:data.scheduled_at,durationMinutes:data.duration_minutes||60,location:data.location||'Online',meetingLink:data.meeting_link,interviewer:data.interviewer,candidateInstructions:data.candidate_instructions,event});
+    emailStatus={status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}: {})};
   }
   return NextResponse.json({interview:data,email:emailStatus});
 }
