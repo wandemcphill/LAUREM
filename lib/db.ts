@@ -44,6 +44,7 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_consume_staff_auth_attempt',
   'laurem_activate_staff_account',
   'create_international_nurse_contract_template_meta',
+  'laurem_create_second_interview_invitation',
 ]);
 
 function mapTableName(name: string) {
