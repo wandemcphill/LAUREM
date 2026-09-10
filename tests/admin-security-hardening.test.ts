@@ -33,7 +33,7 @@ describe('admin authentication hardening', () => {
 
   it('never stores the raw request identity in the throttle table', () => {
     expect(login).toContain('requestIdentity');
-    expect(login).toContain('consumeAdminAuthAttempt(db(), requestIdentity(request, email))');
+    expect(login).toContain('consumeAdminAuthAttempt(db(), requestIdentity(request, email), credentialsMatch)');
     expect(migration).toContain('throttle_key text primary key');
     expect(migration).toContain('pre-hashed');
   });
