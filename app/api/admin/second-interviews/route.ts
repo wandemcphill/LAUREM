@@ -19,14 +19,27 @@ export async function POST(request:NextRequest){
   if(!applicationId)return NextResponse.json({error:'Application id is required.'},{status:400});
   try{
     const client=db();
-    const {data:app,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied').eq('id',applicationId).maybeSingle();
+    const {data:app,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,status').eq('id',applicationId).maybeSingle();
     if(appError)throw appError;
     if(!app)return NextResponse.json({error:'Application not found.'},{status:404});
+    if(String(app.role_applied||'').toLowerCase()!=='registered nurse'){
+      return NextResponse.json({error:'Second interviews are currently configured for Registered Nurse applications only.'},{status:400});
+    }
+    if(app.status!=='Interview'){
+      return NextResponse.json({error:'The candidate must complete the first interview before a second interview can be sent.'},{status:409});
+    }
+    const {data:firstInterview,error:firstInterviewError}=await client.from('recruitment_interviews').select('id').eq('application_id',applicationId).eq('status','Completed').is('cancelled_at',null).limit(1).maybeSingle();
+    if(firstInterviewError)throw firstInterviewError;
+    if(!firstInterview){
+      return NextResponse.json({error:'Complete the first interview before sending the second interview.'},{status:409});
+    }
     const token=makeToken();
     const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
     const {data:created,error}=await client.rpc('laurem_create_second_interview_invitation',{p_application_id:applicationId,p_token_hash:hashToken(token),p_sent_by:session.email,p_expires_at:expiresAt});
     if(error){
-      if(error.code==='P0001' || error.message==='active_second_interview_exists')return NextResponse.json({error:'An active second-interview invitation already exists for this candidate.'},{status:409});
+      if(error.code==='P0001' && error.message==='active_second_interview_exists')return NextResponse.json({error:'An active second-interview invitation already exists for this candidate.'},{status:409});
+      if(error.code==='P0001' && error.message==='first_interview_status_required')return NextResponse.json({error:'The candidate must complete the first interview before a second interview can be sent.'},{status:409});
+      if(error.code==='P0001' && error.message==='first_interview_not_completed')return NextResponse.json({error:'Complete the first interview before sending the second interview.'},{status:409});
       if(error.code==='P0002' || error.message==='application_not_found')return NextResponse.json({error:'Application not found.'},{status:404});
       throw error;
     }
