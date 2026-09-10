@@ -7,8 +7,7 @@
 --
 -- BIMED/shared recruitment tables are read-only from this migration.
 
-begin;
-
+do $$
 declare
   laurem_count bigint;
 begin
@@ -54,5 +53,4 @@ begin
       detail = format('Expected zero LAUREM-owned rows at first launch, found %s.', laurem_count);
   end if;
 end;
-
-commit;
+$$;
