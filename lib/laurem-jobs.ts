@@ -2,30 +2,30 @@ import type { Job } from '@/lib/recruitment-types';
 
 export const LAUREM_JOBS: Job[] = [
   {
-    id: 'registered-nurse-uk',
-    title: 'Registered Nurse',
-    category: 'Nursing',
+    id: 'healthcare-assistant',
+    title: 'Healthcare Assistant',
+    category: 'Care',
     locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
     pathway: ['uk'],
-    sponsorshipAvailable: false,
-    visaSponsorship: 'none',
+    sponsorshipAvailable: true,
+    visaSponsorship: 'in-country-switch-only',
     active: true,
-    summary: 'Join Laurem Caregroup as a Registered Nurse and deliver safe, person-centred care.',
-    description: 'Registered nursing opportunities for applicants who already have the right to work in the UK.',
-    essentialCriteria: ['Current professional nursing registration appropriate to the role', 'Relevant nursing experience', 'Strong communication and safeguarding awareness', 'Commitment to person-centred care'],
+    summary: 'Provide compassionate, person-centred support that helps people live safely and independently.',
+    description: 'Healthcare Assistant work supporting personal care, wellbeing, nutrition, mobility, medication support where trained, safeguarding and accurate record keeping. Any visa sponsorship route is limited to eligible applicants already in the UK and applying to switch or extend in-country under the applicable immigration rules.',
+    essentialCriteria: ['Compassionate and respectful approach', 'Relevant care or support experience', 'Good communication and safeguarding awareness', 'Reliable and able to work as part of a care team'],
   },
   {
-    id: 'registered-nurse-international',
-    title: 'Registered Nurse - International Recruitment',
-    category: 'Nursing',
+    id: 'support-worker',
+    title: 'Support Worker',
+    category: 'Support',
     locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
-    pathway: ['international'],
+    pathway: ['uk'],
     sponsorshipAvailable: true,
-    visaSponsorship: 'overseas-and-in-country',
+    visaSponsorship: 'in-country-switch-only',
     active: true,
-    summary: 'International nurse recruitment with a structured UK sponsorship and relocation pathway.',
-    description: 'Opportunities for qualified nurses applying from outside the UK. Sponsorship and relocation are subject to eligibility, verification and the applicable UK immigration requirements.',
-    essentialCriteria: ['Recognised nursing qualification', 'Eligible professional registration pathway', 'Relevant clinical experience', 'English-language readiness where required', 'Willingness to relocate to the UK'],
+    summary: 'Support people with dignity, safety and independence across care and community settings.',
+    description: 'Support Worker opportunities involving person-centred support, safeguarding, wellbeing, daily living, record keeping and teamwork. Any visa sponsorship route is limited to eligible applicants already in the UK and applying to switch or extend in-country under the applicable immigration rules.',
+    essentialCriteria: ['Relevant care or support experience', 'Safeguarding awareness', 'Strong communication and reliability', 'Commitment to person-centred practice'],
   },
   {
     id: 'senior-support-worker',
@@ -41,22 +41,42 @@ export const LAUREM_JOBS: Job[] = [
     essentialCriteria: ['Relevant care experience', 'Safeguarding awareness', 'Good communication and organisation', 'Ability to work independently and as part of a team'],
   },
   {
-    id: 'care-worker',
-    title: 'Care Worker',
-    category: 'Care',
+    id: 'registered-nurse',
+    title: 'Registered Nurse',
+    category: 'Nursing',
+    locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
+    pathway: ['uk', 'international'],
+    sponsorshipAvailable: true,
+    visaSponsorship: 'overseas-and-in-country',
+    active: true,
+    summary: 'Join Laurem Caregroup as a Registered Nurse through the appropriate UK or international recruitment pathway.',
+    description: 'Registered nursing opportunities for qualified nurses applying from the UK or through international recruitment. Sponsorship, professional registration and relocation are subject to individual eligibility and the applicable UK requirements.',
+    essentialCriteria: ['Recognised nursing qualification', 'Relevant clinical or nursing experience', 'Appropriate professional registration pathway', 'Strong communication and safeguarding awareness', 'Commitment to person-centred care'],
+  },
+  {
+    id: 'physiotherapist',
+    title: 'Physiotherapist',
+    category: 'Allied Health',
     locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
     pathway: ['uk'],
-    sponsorshipAvailable: true,
-    visaSponsorship: 'in-country-switch-only',
+    sponsorshipAvailable: false,
+    visaSponsorship: 'none',
     active: true,
-    summary: 'Provide compassionate, person-centred support to people in the community and care settings.',
-    description: 'Care work supporting personal care, wellbeing, nutrition, mobility, medication support where trained and safeguarding. Any visa sponsorship route is limited to eligible applicants already in the UK and applying to switch or extend in-country under the applicable immigration rules.',
-    essentialCriteria: ['Compassionate approach', 'Good communication', 'Reliability and flexibility', 'Commitment to safeguarding and confidentiality'],
+    summary: 'Deliver safe, evidence-informed physiotherapy that supports mobility, recovery and independence.',
+    description: 'Physiotherapy opportunities focused on assessment, rehabilitation, mobility, treatment planning, safe documentation and multidisciplinary teamwork.',
+    essentialCriteria: ['Recognised physiotherapy qualification', 'Appropriate professional registration', 'Relevant clinical experience', 'Strong communication and safeguarding awareness'],
   },
 ];
 
+const LEGACY_JOB_ALIASES: Record<string, string> = {
+  'registered-nurse-uk': 'registered-nurse',
+  'registered-nurse-international': 'registered-nurse',
+  'care-worker': 'healthcare-assistant',
+};
+
 export function getLauremJob(jobId: string): Job | undefined {
-  return LAUREM_JOBS.find((job) => job.id === jobId);
+  const canonicalId = LEGACY_JOB_ALIASES[jobId] || jobId;
+  return LAUREM_JOBS.find((job) => job.id === canonicalId);
 }
 
 export function getActiveLauremJobs(): Job[] {
