@@ -22,8 +22,10 @@ export async function GET(
     if (applicationError) throw applicationError;
     if (!application) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
 
-    const [inviteResult, interviewResult, secondResult, nurseResult, documentRequestResult, documentResult, evidenceResult, readinessResult, contractResult, statusHistoryResult, adminActionResult, staffResult, auditResult] = await Promise.all([
-      client.from('recruitment_invites').select('id,candidate_name,candidate_email,role,expires_at,used_at,created_at').eq('id', application.invite_id || '').maybeSingle(),
+    const [inviteResult, interviewResult, secondResult, nurseResult, documentRequestResult, documentResult, evidenceResult, readinessResult, contractResult, statusHistoryResult, adminActionResult, staffResult] = await Promise.all([
+      application.invite_id
+        ? client.from('recruitment_invites').select('id,candidate_name,candidate_email,role,expires_at,used_at,created_at').eq('id', application.invite_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
       client.from('recruitment_interviews').select('id,scheduled_at,duration_minutes,location,meeting_link,interviewer,candidate_instructions,status,reschedule_count,cancelled_at,cancellation_reason,created_at,updated_at').eq('application_id', id).order('scheduled_at', { ascending: false }).limit(20),
       client.from('recruitment_second_interviews').select('id,status,answers,sent_by,sent_at,completed_at,expires_at,created_at').eq('application_id', id).order('created_at', { ascending: false }).limit(20),
       client.from('recruitment_nurse_interview_responses').select('id,invite_id,application_id,pathway,answers,created_at').eq('application_id', id).maybeSingle(),
@@ -35,38 +37,21 @@ export async function GET(
       client.from('recruitment_status_history').select('id,from_status,to_status,changed_by,note,created_at').eq('application_id', id).order('created_at', { ascending: false }).limit(100),
       client.from('recruitment_admin_actions').select('id,actor,action_type,from_status,to_status,outcome,reason,metadata,created_at').eq('application_id', id).order('created_at', { ascending: false }).limit(100),
       client.from('staff_profiles').select('*').eq('application_id', id).maybeSingle(),
-      client.from('workforce_audit_events').select('id,staff_id,assignment_id,entity_type,entity_id,event_type,actor,details,created_at').or(`entity_id.eq.${id},entity_id.is.null`).order('created_at', { ascending: false }).limit(100),
     ]);
 
-    for (const result of [inviteResult, interviewResult, secondResult, nurseResult, documentRequestResult, documentResult, evidenceResult, readinessResult, contractResult, statusHistoryResult, adminActionResult, staffResult, auditResult]) {
-      if (result.error) throw result.error;
+    const results=[inviteResult,interviewResult,secondResult,nurseResult,documentRequestResult,documentResult,evidenceResult,readinessResult,contractResult,statusHistoryResult,adminActionResult,staffResult];
+    for(const result of results){if(result.error)throw result.error;}
+
+    let audit:any[]=[];
+    if(staffResult.data?.id){
+      const {data:staffAudit,error:staffAuditError}=await client.from('workforce_audit_events').select('id,staff_id,assignment_id,entity_type,entity_id,event_type,actor,details,created_at').eq('staff_id',staffResult.data.id).order('created_at',{ascending:false}).limit(100);
+      if(staffAuditError)throw staffAuditError;
+      audit=staffAudit||[];
     }
 
-    return NextResponse.json({
-      application,
-      invite: inviteResult.data,
-      interviews: interviewResult.data || [],
-      secondInterviews: secondResult.data || [],
-      nurseInterview: nurseResult.data,
-      documentRequests: documentRequestResult.data || [],
-      documents: documentResult.data || [],
-      evidenceReviews: evidenceResult.data || [],
-      readiness: readinessResult.data || [],
-      contracts: contractResult.data || [],
-      statusHistory: statusHistoryResult.data || [],
-      adminActions: adminActionResult.data || [],
-      staff: staffResult.data,
-      audit: auditResult.data || [],
-      recruiter: session.email,
-    });
-  } catch (error) {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'admin.application.detail_failed',
-      actor: session.email,
-      applicationId: id,
-      reason: error instanceof Error ? error.message : 'unknown',
-    }));
-    return NextResponse.json({ error: 'Unable to load candidate record.' }, { status: 500 });
+    return NextResponse.json({application,invite:inviteResult.data,interviews:interviewResult.data||[],secondInterviews:secondResult.data||[],nurseInterview:nurseResult.data,documentRequests:documentRequestResult.data||[],documents:documentResult.data||[],evidenceReviews:evidenceResult.data||[],readiness:readinessResult.data||[],contracts:contractResult.data||[],statusHistory:statusHistoryResult.data||[],adminActions:adminActionResult.data||[],staff:staffResult.data,audit,recruiter:session.email});
+  } catch(error){
+    console.error(JSON.stringify({level:'error',event:'admin.application.detail_failed',actor:session.email,applicationId:id,reason:error instanceof Error?error.message:'unknown'}));
+    return NextResponse.json({error:'Unable to load candidate record.'},{status:500});
   }
 }
