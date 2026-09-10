@@ -15,8 +15,10 @@ export async function POST(request: NextRequest) {
   const fullName = typeof payload.full_name === 'string' ? payload.full_name.trim() : '';
   const email = typeof payload.email === 'string' ? payload.email.trim() : '';
   const role = typeof payload.role_applied === 'string' ? payload.role_applied.trim() : '';
+  const pathway = payload.pathway === 'uk' || payload.pathway === 'international' ? payload.pathway : '';
   if (!fullName || !email || !role) return NextResponse.json({ error: 'Full name, email and role are required.' }, { status: 400 });
-  if (payload.living_in_uk === 'No' && (!payload.current_country || !payload.relocation_readiness)) {
+  if (!pathway) return NextResponse.json({ error: 'Please choose your application pathway.' }, { status: 400 });
+  if (pathway === 'international' && (!payload.current_country || !payload.relocation_readiness)) {
     return NextResponse.json({ error: 'Current country and relocation readiness are required for international applicants.' }, { status: 400 });
   }
 
@@ -24,7 +26,14 @@ export async function POST(request: NextRequest) {
     const client = db();
     const { data, error } = await client.rpc('create_recruitment_application', {
       p_token_hash: hashToken(token),
-      p_payload: { ...payload, full_name: fullName, email, role_applied: role },
+      p_payload: {
+        ...payload,
+        full_name: fullName,
+        email,
+        role_applied: role,
+        pathway,
+        living_in_uk: pathway === 'uk' ? 'Yes' : 'No',
+      },
     });
     if (error) {
       const message = typeof error.message === 'string' ? error.message : '';
@@ -34,6 +43,7 @@ export async function POST(request: NextRequest) {
       if (message === 'INVITATION_ROLE_MISMATCH') return NextResponse.json({ error: 'This invitation is for a different role.' }, { status: 409 });
       if (message === 'CARE_ROLE_IN_COUNTRY_ONLY') return NextResponse.json({ error: 'This care role can only be sponsored through an eligible in-country visa switch route. Applicants must already be in the UK.' }, { status: 409 });
       if (message === 'ROLE_REQUIRED') return NextResponse.json({ error: 'The application role is required.' }, { status: 400 });
+      if (message === 'PATHWAY_REQUIRED') return NextResponse.json({ error: 'Please choose your application pathway.' }, { status: 400 });
       if (message === 'CONSENT_REQUIRED') return NextResponse.json({ error: 'You must provide consent before submitting the application.' }, { status: 400 });
       throw error;
     }
