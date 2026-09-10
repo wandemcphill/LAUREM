@@ -26,31 +26,22 @@ export async function POST(request: NextRequest) {
   const email = body.email?.trim().toLowerCase() || '';
   const password = body.password || '';
 
+  const same = (a: string, b: string) => {
+    const aa = Buffer.from(a); const bb = Buffer.from(b);
+    return aa.length === bb.length && timingSafeEqual(aa, bb);
+  };
+
+  const credentialsMatch = same(email, configuredEmail) && same(password, configuredPassword);
   let throttle;
   try {
-    throttle = await consumeAdminAuthAttempt(db(), requestIdentity(request, email));
+    throttle = await consumeAdminAuthAttempt(db(), requestIdentity(request, email), credentialsMatch);
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.auth.throttle_unavailable', reason: error instanceof Error ? error.message : 'unknown' }));
     return jsonError('Admin authentication is temporarily unavailable.', 503);
   }
 
   if (!throttle.allowed) return jsonError('Too many failed login attempts. Try again later.', 429, throttle.retryAfterSeconds);
-
-  const same = (a: string, b: string) => {
-    const aa = Buffer.from(a); const bb = Buffer.from(b);
-    return aa.length === bb.length && timingSafeEqual(aa, bb);
-  };
-
-  if (!same(email, configuredEmail) || !same(password, configuredPassword)) {
-    try { await consumeAdminAuthAttempt(db(), requestIdentity(request, email)); } catch (error) {
-      console.error(JSON.stringify({ level: 'error', event: 'admin.auth.failure_audit_failed', reason: error instanceof Error ? error.message : 'unknown' }));
-    }
-    return jsonError('Invalid email or password.', 401);
-  }
-
-  try { await consumeAdminAuthAttempt(db(), requestIdentity(request, email), true); } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'admin.auth.success_reset_failed', reason: error instanceof Error ? error.message : 'unknown' }));
-  }
+  if (!credentialsMatch) return jsonError('Invalid email or password.', 401);
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set({ name: adminSessionCookieName, value: makeAdminSession(configuredEmail), httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 8 * 60 * 60 });
