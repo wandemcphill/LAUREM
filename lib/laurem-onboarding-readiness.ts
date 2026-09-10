@@ -57,7 +57,7 @@ export async function getLauremOnboardingReadiness(client: SupabaseClient, appli
       .order('created_at', { ascending: true }),
     client
       .from('recruitment_evidence_reviews')
-      .select('id,evidence_type,status,document_id,reviewed_by,reviewed_at,review_note,metadata,expires_at,created_at,updated_at')
+      .select('id,evidence_type,status,document_id,reviewed_by,reviewed_at,review_note,metadata,created_at,updated_at')
       .eq('application_id', application.id)
       .in('status', ['pending', 'approved', 'waived'])
       .order('created_at', { ascending: false }),
@@ -65,15 +65,13 @@ export async function getLauremOnboardingReadiness(client: SupabaseClient, appli
   if (checklistError) throw checklistError;
   if (reviewError) throw reviewError;
 
-  const now = Date.now();
   const authoritative = new Map<string, { status: LauremChecklistStatus; source: string; reviewId: string }>();
   for (const review of reviews || []) {
     const key = readinessKeyForEvidenceType(review.evidence_type);
     if (!key || authoritative.has(key)) continue;
-    const expired = review.status === 'approved' && review.expires_at && new Date(review.expires_at).getTime() <= now;
     authoritative.set(key, {
-      status: expired ? 'pending' : review.status === 'approved' ? 'completed' : review.status === 'waived' ? 'waived' : 'pending',
-      source: expired ? 'evidence_expired' : 'evidence',
+      status: review.status === 'approved' ? 'completed' : review.status === 'waived' ? 'waived' : 'pending',
+      source: 'evidence',
       reviewId: review.id,
     });
   }
