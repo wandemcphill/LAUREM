@@ -34,10 +34,17 @@ export async function GET(request: NextRequest) {
   try {
     const loaded = await loadContract(request);
     if ('error' in loaded) return loaded.error;
-    if (loaded.contract.status === 'issued') {
-      await loaded.client.from('recruitment_contracts').update({ status: 'viewed', viewed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loaded.contract.id);
+    let contract = loaded.contract;
+    if (contract.status === 'issued') {
+      const { data: viewed, error } = await loaded.client.from('recruitment_contracts').update({
+        status: 'viewed',
+        viewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', contract.id).eq('status', 'issued').select('*').maybeSingle();
+      if (error) throw error;
+      contract = viewed || contract;
     }
-    return NextResponse.json({ contract: loaded.contract });
+    return NextResponse.json({ contract });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.load_failed', reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to load employment contract.' }, { status: 500 });
