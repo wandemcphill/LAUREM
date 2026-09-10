@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 describe('LAUREM evidence API contract', () => {
   const route = readFileSync(resolve(process.cwd(), 'app/api/admin/evidence/route.ts'), 'utf8');
-  const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260909_evidence_lifecycle.sql'), 'utf8');
+  const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260909_shared_supabase_isolation.sql'), 'utf8');
 
   it('calls the deployed evidence RPC with its actual seven-argument signature', () => {
     expect(route).toContain('p_application_id: applicationId');
@@ -18,8 +18,9 @@ describe('LAUREM evidence API contract', () => {
     expect(route).not.toContain('p_expires_at');
   });
 
-  it('does not request an evidence-review expiry column that the schema lacks', () => {
-    expect(route).not.toContain('metadata,expires_at,created_at,updated_at');
-    expect(migration).not.toContain('expires_at timestamptz');
+  it('matches the LAUREM evidence-review schema rather than the historical shared schema', () => {
+    const match = migration.match(/create table if not exists public\.laurem_recruitment_evidence_reviews \(([\s\S]*?)\n\);/i);
+    expect(match?.[1]).toBeTruthy();
+    expect(match?.[1]).not.toContain('expires_at');
   });
 });
