@@ -36,6 +36,17 @@ describe('LAUREM recruitment parity workflow', () => {
     expect(route).toContain("import { sendLauremEmail } from '@/lib/laurem-email';");
     expect(route).toContain('second-interview:${data.id}');
     expect(route).toContain('Please do not forward it.');
+    expect(route).toContain('Invalid JSON.');
+  });
+
+  it('hardens candidate document upload validation', () => {
+    const route = read('app/api/documents/route.ts');
+    expect(route).toContain('const MAX_FILE_BYTES = 10 * 1024 * 1024;');
+    expect(route).toContain('extensionFor');
+    expect(route).toContain('signatureMatches');
+    expect(route).toContain('File extension does not match the declared document type.');
+    expect(route).toContain('The uploaded file does not match its declared document type.');
+    expect(route).toContain('upsert: false');
   });
 
   it('limits bulk invitations and reuses the canonical invitation helper', () => {
