@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { db } from '@/lib/db';
 
 const statuses = new Set(['scheduled','confirmed','completed','cancelled','no_show']);
 
@@ -8,6 +8,10 @@ function parseDate(value: unknown) {
   if (typeof value !== 'string' || !value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isOverlapConstraintError(error: { code?: string; message?: string } | null) {
+  return error?.code === '23P01' || Boolean(error?.message?.includes('laurem_staff_assignments_no_active_overlap'));
 }
 
 export async function GET(request: NextRequest) {
@@ -57,7 +61,10 @@ export async function POST(request: NextRequest) {
     status: 'scheduled',
     notes: notes || null,
   }).select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at').single();
-  if (error || !created) return NextResponse.json({ error: 'Unable to create assignment.' }, { status: 500 });
+  if (error || !created) {
+    if (isOverlapConstraintError(error)) return NextResponse.json({ error: 'This staff member already has an overlapping scheduled assignment.' }, { status: 409 });
+    return NextResponse.json({ error: 'Unable to create assignment.' }, { status: 500 });
+  }
   await client.from('workforce_audit_events').insert({ assignment_id: created.id, staff_id: staffId, event_type: 'assignment.created', actor: session.email, details: { location, scheduledStart: start.toISOString(), scheduledEnd: end.toISOString() } });
   return NextResponse.json({ assignment: created }, { status: 201 });
 }
@@ -104,7 +111,10 @@ export async function PATCH(request: NextRequest) {
   }
   const { data: updated, error } = await client.from('staff_assignments').update(patch).eq('id', id)
     .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at').single();
-  if (error || !updated) return NextResponse.json({ error: 'Unable to update assignment.' }, { status: 500 });
+  if (error || !updated) {
+    if (isOverlapConstraintError(error)) return NextResponse.json({ error: 'The updated assignment overlaps another scheduled assignment.' }, { status: 409 });
+    return NextResponse.json({ error: 'Unable to update assignment.' }, { status: 500 });
+  }
   await client.from('workforce_audit_events').insert({ assignment_id: id, staff_id: existing.staff_id, event_type: 'assignment.updated', actor: session.email, details: patch });
   return NextResponse.json({ assignment: updated });
 }
