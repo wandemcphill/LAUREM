@@ -23,14 +23,18 @@ describe('LAUREM recruitment lifecycle integrity', () => {
     expect(migration).toContain("payload_pathway not in ('uk', 'international')");
   });
 
-  it('requires a completed first interview before Second Interview', () => {
+  it('requires a completed first assessment before Second Interview', () => {
     expect(migration).toContain("app_row.status='Interview'");
     expect(migration).toContain("i.status = 'Completed'");
     expect(migration).toContain('first_interview_not_completed');
-    expect(secondInterviewRoute).toContain('Complete the first interview before sending the second interview.');
+    expect(secondInterviewRoute).toContain('The candidate must pass the first assessment before a second-stage invitation can be issued.');
+    expect(secondInterviewRoute).toContain("eq('round',1)");
+    expect(secondInterviewRoute).toContain("eq('status','passed')");
   });
 
-  it('limits second interviews to Registered Nurse applications', () => {
-    expect(secondInterviewRoute).toContain("toLowerCase()!=='registered nurse'");
+  it('supports every canonical LAUREM role rather than a nurse-only second stage', () => {
+    expect(secondInterviewRoute).toContain('normalizeLauremRole(app.role_applied||\'\')');
+    expect(secondInterviewRoute).not.toContain("toLowerCase()!=='registered nurse'");
+    expect(secondInterviewRoute).toContain('selectRound2Questions(role)');
   });
 });
