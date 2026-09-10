@@ -23,6 +23,7 @@ export const EXPECTED_PORTAL_TABLES = [
   'recruitment_evidence_reviews',
   'recruitment_evidence_audit',
   'recruitment_admin_actions',
+  'legacy_contract_signatures',
   'staff_profiles',
   'staff_onboarding_packages',
   'staff_onboarding_tasks',
@@ -40,6 +41,7 @@ export const EXPECTED_PORTAL_TABLES = [
   'payroll_periods',
   'payroll_entries',
   'notification_deliveries',
+  'workforce_audit_events',
 ] as const;
 
 export const REQUIRED_PRIVATE_BUCKET = 'laurem-private-documents';
