@@ -15,6 +15,7 @@ const LAUREM_TABLES = new Set([
   'recruitment_evidence_audit',
   'recruitment_admin_actions',
   'recruitment_onboarding_checklist',
+  'legacy_contract_signatures',
   'staff_profiles',
   'staff_availability',
   'staff_assignments',
