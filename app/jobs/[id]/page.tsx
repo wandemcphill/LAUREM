@@ -1,14 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLauremJob } from '@/lib/laurem-jobs';
-import { supportsInternationalNurseRecruitment } from '@/lib/laurem-company-config';
+import { lauremCompany } from '@/lib/laurem-company-config';
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const job = getLauremJob(id);
   if (!job) notFound();
-
-  const isInternationalNurse = supportsInternationalNurseRecruitment(job.title);
 
   return (
     <main className="wrap" style={{ padding: '48px 0 80px' }}>
@@ -20,7 +18,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             <h1 style={{ fontSize: 'clamp(36px,6vw,58px)', margin: '8px 0 12px' }}>{job.title}</h1>
             <p style={{ color: 'var(--muted)', fontSize: 18, lineHeight: 1.6 }}>{job.summary}</p>
           </div>
-          {job.sponsorshipAvailable && <span style={{ alignSelf: 'flex-start', padding: '9px 12px', borderRadius: 999, background: '#eaf5f0', color: 'var(--accent)', fontSize: 12, fontWeight: 800 }}>SPONSORSHIP PATHWAY</span>}
+          {job.visaSponsorship === 'overseas-and-in-country' && <span style={{ alignSelf: 'flex-start', padding: '9px 12px', borderRadius: 999, background: '#eaf5f0', color: 'var(--accent)', fontSize: 12, fontWeight: 800 }}>SPONSORSHIP PATHWAY</span>}
+          {job.visaSponsorship === 'in-country-switch-only' && <span style={{ alignSelf: 'flex-start', padding: '9px 12px', borderRadius: 999, background: '#f4f1e8', color: 'var(--ink)', fontSize: 12, fontWeight: 800 }}>UK VISA SWITCH ONLY</span>}
         </div>
 
         <div style={{ display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', marginTop: 28 }}>
@@ -46,19 +45,35 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           </ul>
         </div>
 
-        {isInternationalNurse && (
+        {job.visaSponsorship === 'in-country-switch-only' && (
           <div style={{ marginTop: 24, padding: 18, borderRadius: 14, background: 'var(--soft)' }}>
-            <strong>International nurses</strong>
+            <strong>Visa sponsorship note</strong>
             <p style={{ marginBottom: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
-              Laurem Caregroup accepts international nurse applications. Sponsorship, registration and relocation are subject to candidate eligibility, verification and the applicable UK requirements.
+              Any sponsorship consideration for this role is limited to eligible applicants who are already in the UK and are able to make an in-country application under the applicable UK immigration rules. Laurem Caregroup does not offer overseas entry-clearance sponsorship for this care role. Eligibility can depend on the occupation code, current immigration permission, lawful work history and other Home Office requirements.
             </p>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 30 }}>
-          <Link href={`/admin?inviteRole=${encodeURIComponent(job.title)}`} style={{ background: 'var(--accent)', color: 'white', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 800 }}>
-            Apply via recruitment invitation
-          </Link>
+        {job.visaSponsorship === 'overseas-and-in-country' && (
+          <div style={{ marginTop: 24, padding: 18, borderRadius: 14, background: 'var(--soft)' }}>
+            <strong>International recruitment</strong>
+            <p style={{ marginBottom: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
+              This role may be considered through an international recruitment pathway. Sponsorship, registration, relocation and immigration eligibility are assessed individually against the applicable UK requirements.
+            </p>
+          </div>
+        )}
+
+        <div style={{ marginTop: 30, padding: 18, border: '1px solid var(--line)', borderRadius: 12 }}>
+          <strong>Applications are by invitation only</strong>
+          <p style={{ marginBottom: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
+            Laurem Caregroup does not accept open applications through this careers page. Selected candidates receive a secure application link by email from the recruitment team.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 24 }}>
+          <a href={`mailto:${lauremCompany.publicEmails.recruitment}`} style={{ border: '1px solid var(--line)', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 700 }}>
+            Contact recruitment
+          </a>
           <Link href="/jobs" style={{ border: '1px solid var(--line)', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 700 }}>View other roles</Link>
         </div>
       </section>
