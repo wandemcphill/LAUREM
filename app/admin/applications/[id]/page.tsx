@@ -75,6 +75,11 @@ const primary: React.CSSProperties = {
   background: '#102a43',
   color: '#fff',
 };
+const danger: React.CSSProperties = {
+  ...buttonBase,
+  borderColor: '#d64545',
+  color: '#a51d1d',
+};
 const muted: React.CSSProperties = { color: '#627d98' };
 const row: React.CSSProperties = {
   display: 'flex',
@@ -185,6 +190,7 @@ export default function Candidate360Page() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [assessmentLink, setAssessmentLink] = useState('');
 
   async function load() {
     setLoading(true);
@@ -214,6 +220,7 @@ export default function Candidate360Page() {
     setBusy(true);
     setError('');
     setNotice('');
+    setAssessmentLink('');
     try {
       const response = await fetch(`/api/admin/applications?id=${encodeURIComponent(id)}`, {
         method: 'PATCH',
@@ -222,11 +229,44 @@ export default function Candidate360Page() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Unable to update status.');
-      setNotice('Candidate status updated.');
+      if (status === 'Interview' && body.assessmentEmail?.link) {
+        setAssessmentLink(body.assessmentEmail.link);
+        setNotice(
+          body.assessmentEmail.status === 'sent'
+            ? 'Candidate moved to Interview. The private first-stage assessment was emailed and the link is ready to copy below.'
+            : 'Candidate moved to Interview. The private assessment link was created, but email delivery needs attention.',
+        );
+      } else {
+        setNotice('Candidate status updated.');
+      }
       await load();
     } catch (changeError) {
       setError(changeError instanceof Error ? changeError.message : 'Unable to update status.');
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteApplication() {
+    if (!data) return;
+    const candidateName = data.application.full_name;
+    const confirmation = window.prompt(`Permanent deletion will remove the ${candidateName} application and its related LAUREM recruitment records.\n\nType DELETE APPLICATION to continue.`);
+    if (confirmation !== 'DELETE APPLICATION') return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/admin/applications?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirmation }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to delete application.');
+      router.replace('/admin');
+      router.refresh();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete application.');
       setBusy(false);
     }
   }
@@ -348,6 +388,18 @@ export default function Candidate360Page() {
 
         {error && <div role="alert" style={{ ...card, marginTop: 16, color: '#8a2323' }}>{error}</div>}
         {notice && <div role="status" style={{ ...card, marginTop: 16, color: '#176b4f' }}>{notice}</div>}
+        {assessmentLink && (
+          <section style={{ ...card, marginTop: 16, borderColor: '#b7ded2', background: '#f3faf7' }}>
+            <div style={row}>
+              <div>
+                <h2 style={{ margin: 0 }}>Private first-assessment link</h2>
+                <div style={{ ...muted, marginTop: 5 }}>Send this exact link to the candidate if the email needs to be resent or shared through an approved channel.</div>
+              </div>
+              <button type="button" onClick={() => void navigator.clipboard.writeText(assessmentLink)} style={primary}>Copy private link</button>
+            </div>
+            <div style={{ marginTop: 12, wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 }}>{assessmentLink}</div>
+          </section>
+        )}
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginTop: 18 }}>
           <Metric label="Readiness blockers" value={requiredOpen} />
@@ -410,6 +462,7 @@ export default function Candidate360Page() {
               <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>
             )}
             <Link href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>Readiness gate</Link>
+            <button disabled={busy} onClick={() => void deleteApplication()} style={danger}>Delete application</button>
           </div>
         </section>
 
