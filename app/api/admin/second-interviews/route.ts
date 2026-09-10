@@ -39,23 +39,28 @@ export async function POST(request:NextRequest){
 
     const token=makeToken();
     const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
-    const {data:created,error:createError}=await client.from('recruitment_second_interviews').insert({application_id:applicationId,token_hash:hashToken(token),status:'sent',sent_by:session.email,expires_at:expiresAt}).select('id,application_id,status,sent_at,expires_at').single();
-    if(createError)throw createError;
+    const {data:created,error:createError}=await client.rpc('laurem_create_second_interview_invitation',{p_application_id:applicationId,p_token_hash:hashToken(token),p_sent_by:session.email,p_expires_at:expiresAt});
+    if(createError){
+      if(createError.message?.includes('active_second_interview_exists'))return NextResponse.json({error:'An active second-stage invitation already exists for this candidate.'},{status:409});
+      throw createError;
+    }
+    const invitation=Array.isArray(created)?created[0]:created;
+    if(!invitation?.id)throw new Error('Second-stage invitation creation failed.');
 
     const selected=selectRound2Questions(role);
     const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,guidance:q.guidance}));
     const pathway=app.living_in_uk==='No'?'international':'uk';
     if(existingRound2){
-      const {error:updateError}=await client.from('interview_attempts').update({second_interview_id:created.id,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,answers:{},status:'in_progress',started_at:new Date().toISOString(),submitted_at:null,score:null,total_questions:20,updated_at:new Date().toISOString()}).eq('id',existingRound2.id);
+      const {error:updateError}=await client.from('interview_attempts').update({second_interview_id:invitation.id,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,answers:{},status:'in_progress',started_at:new Date().toISOString(),submitted_at:null,score:null,total_questions:20,updated_at:new Date().toISOString()}).eq('id',existingRound2.id).eq('status','in_progress');
       if(updateError)throw updateError;
     } else {
-      const {error:insertError}=await client.from('interview_attempts').insert({application_id:applicationId,second_interview_id:created.id,round:2,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:20});
+      const {error:insertError}=await client.from('interview_attempts').insert({application_id:applicationId,second_interview_id:invitation.id,round:2,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:20});
       if(insertError)throw insertError;
     }
 
     const link=`${appUrl()}/second-interview/${token}`;
     const safeName=escapeHtml(app.full_name);const safeRole=escapeHtml(role);const safeLink=escapeHtml(link);
-    const email=await sendLauremEmail(client,{eventType:'second_interview_reissue',entityId:created.id,idempotencyKey:`second-interview:reissue:${created.id}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[app.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Your second-stage assessment with ${lauremCompany.tradingName}`,text:`Dear ${app.full_name},\n\nYour second-stage assessment for ${role} is ready.\n\nUse your private link:\n${link}\n\nThis link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your second stage is ready</h1><p>Dear ${safeName},</p><p>Your practical and theory assessment for <strong>${safeRole}</strong> is ready.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Continue to second stage</a></p><p style="font-size:13px;color:#5c6c67">This private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
-    return NextResponse.json({secondInterview:created,link,email:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId}},{status:201});
+    const email=await sendLauremEmail(client,{eventType:'second_interview_reissue',entityId:invitation.id,idempotencyKey:`second-interview:reissue:${invitation.id}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[app.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Your second-stage assessment with ${lauremCompany.tradingName}`,text:`Dear ${app.full_name},\n\nYour second-stage assessment for ${role} is ready.\n\nUse your private link:\n${link}\n\nThis link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your second stage is ready</h1><p>Dear ${safeName},</p><p>Your practical and theory assessment for <strong>${safeRole}</strong> is ready.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Continue to second stage</a></p><p style="font-size:13px;color:#5c6c67">This private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
+    return NextResponse.json({secondInterview:invitation,link,email:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId}},{status:201});
   }catch(error){console.error(JSON.stringify({level:'error',event:'admin.second_interview.reissue_failed',actor:session.email,reason:error instanceof Error?error.message:'unknown'}));return NextResponse.json({error:'Unable to create the second-stage invitation.'},{status:500});}
 }
