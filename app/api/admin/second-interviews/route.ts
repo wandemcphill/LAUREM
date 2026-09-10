@@ -3,6 +3,7 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { makeToken, hashToken } from '@/lib/token';
 import { db } from '@/lib/db';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
+import { selectRound2Questions } from '@/lib/laurem-interview-engine';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 
@@ -31,10 +32,22 @@ export async function POST(request:NextRequest){
     const {data:active,error:activeError}=await client.from('recruitment_second_interviews').select('id,status,expires_at').eq('application_id',applicationId).eq('status','sent').gt('expires_at',new Date().toISOString()).order('sent_at',{ascending:false}).limit(1).maybeSingle();
     if(activeError)throw activeError;
     if(active)return NextResponse.json({error:'An active second-stage invitation already exists for this candidate.',secondInterview:active},{status:409});
+
     const token=makeToken();
     const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
     const {data:created,error:createError}=await client.from('recruitment_second_interviews').insert({application_id:applicationId,token_hash:hashToken(token),status:'sent',sent_by:session.email,expires_at:expiresAt}).select('id,application_id,status,sent_at,expires_at').single();
     if(createError)throw createError;
+
+    const selected=selectRound2Questions(role);
+    const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,guidance:q.guidance}));
+    const {data:existingRound2}=await client.from('interview_attempts').select('id,status').eq('application_id',applicationId).eq('round',2).maybeSingle();
+    if(existingRound2){
+      if(existingRound2.status==='submitted')return NextResponse.json({error:'A completed second-stage assessment already exists for this candidate.'},{status:409});
+      await client.from('interview_attempts').update({second_interview_id:created.id,role,pathway:'uk',question_ids:selected.map(q=>q.id),question_snapshot:snapshot,answers:{},status:'in_progress',started_at:new Date().toISOString(),submitted_at:null,score:null,total_questions:20,updated_at:new Date().toISOString()}).eq('id',existingRound2.id);
+    } else {
+      await client.from('interview_attempts').insert({application_id:applicationId,second_interview_id:created.id,round:2,role,pathway:'uk',question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:20});
+    }
+
     const link=`${appUrl()}/second-interview/${token}`;
     const safeName=escapeHtml(app.full_name);const safeRole=escapeHtml(role);const safeLink=escapeHtml(link);
     const email=await sendLauremEmail(client,{eventType:'second_interview_reissue',entityId:created.id,idempotencyKey:`second-interview:reissue:${created.id}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[app.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Your second-stage assessment with ${lauremCompany.tradingName}`,text:`Dear ${app.full_name},\n\nYour second-stage assessment for ${role} is ready.\n\nUse your private link:\n${link}\n\nThis link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your second stage is ready</h1><p>Dear ${safeName},</p><p>Your practical and theory assessment for <strong>${safeRole}</strong> is ready.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Continue to second stage</a></p><p style="font-size:13px;color:#5c6c67">This private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
