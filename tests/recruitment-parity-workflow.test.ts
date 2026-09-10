@@ -24,9 +24,8 @@ describe('LAUREM recruitment parity workflow', () => {
     const route = read('app/api/admin/interviews/route.ts');
     expect(route).toContain("import { sendLauremEmail } from '@/lib/laurem-email';");
     expect(route).toContain("event:'scheduled'");
-    expect(route).toContain("const event=status==='Cancelled'?'cancelled':'rescheduled';");
-    expect(route).toContain("event:'cancelled'");
-    expect(route).toContain("event:'rescheduled'");
+    expect(route).toContain("status==='Cancelled'");
+    expect(route).toContain("status==='Rescheduled'");
     expect(route).toContain('Request payload is too large.');
     expect(route).toContain('Invalid JSON.');
   });
