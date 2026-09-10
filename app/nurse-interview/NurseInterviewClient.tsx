@@ -9,35 +9,70 @@ export default function NurseInterviewClient({ token, pathway }: { token: string
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [reviewMode, setReviewMode] = useState(false);
   const questions = useMemo(() => getLauremNurseFirstInterviewQuestions(pathway), [pathway]);
   const storageKey = `laurem:nurse-interview:${pathway}`;
+  const currentQuestion = questions[questionIndex];
+  const answered = questions.filter((question) => answers[question.id]?.trim()).length;
+  const remaining = questions.length - answered;
+  const progress = questions.length ? Math.round((answered / questions.length) * 100) : 0;
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
-      if (raw) setAnswers(JSON.parse(raw) as Record<string, string>);
-      else setAnswers({});
+      if (raw) {
+        const saved = JSON.parse(raw) as { answers?: Record<string, string>; questionIndex?: number };
+        if (saved.answers) setAnswers(saved.answers);
+        if (typeof saved.questionIndex === 'number') setQuestionIndex(Math.min(Math.max(saved.questionIndex, 0), questions.length - 1));
+      }
     } catch {
       setAnswers({});
     }
-  }, [storageKey]);
+  }, [storageKey, questions.length]);
 
-  function save(next: Record<string, string>) {
+  function save(next: Record<string, string>, nextIndex = questionIndex) {
     setAnswers(next);
     setError(null);
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedAt(new Date().toLocaleTimeString());
+      window.localStorage.setItem(storageKey, JSON.stringify({ answers: next, questionIndex: nextIndex }));
+      setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch {
       setSavedAt(null);
     }
+  }
+
+  function goTo(index: number) {
+    const next = Math.min(Math.max(index, 0), questions.length - 1);
+    setQuestionIndex(next);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ answers, questionIndex: next }));
+    } catch {
+      // The interview remains usable even when local storage is unavailable.
+    }
+  }
+
+  function nextQuestion() {
+    if (!currentQuestion?.id) return;
+    if (!answers[currentQuestion.id]?.trim()) {
+      setError('Take your time. Add a few words before moving on, or come back to this question from Review.');
+      return;
+    }
+    setError(null);
+    goTo(questionIndex + 1);
+  }
+
+  function previousQuestion() {
+    setError(null);
+    goTo(questionIndex - 1);
   }
 
   async function submit() {
     setError(null);
     const unanswered = questions.filter((question) => !answers[question.id]?.trim());
     if (unanswered.length) {
-      setError(`Please answer all ${unanswered.length} remaining question${unanswered.length === 1 ? '' : 's'}.`);
+      setError(`You have ${unanswered.length} question${unanswered.length === 1 ? '' : 's'} left. Use Review to jump straight to them.`);
+      setReviewMode(true);
       return;
     }
 
@@ -56,26 +91,36 @@ export default function NurseInterviewClient({ token, pathway }: { token: string
     }
   }
 
-  const answered = questions.filter((question) => answers[question.id]?.trim()).length;
-
   if (submitted) {
     return <main className="wrap" style={{ padding: '80px 0' }}><section className="card" style={{ padding: 36, textAlign: 'center' }}><p style={{ color: 'var(--accent)', fontWeight: 800 }}>INTERVIEW RECEIVED</p><h1>Thank you.</h1><p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your nursing interview responses have been submitted to {lauremCompany.tradingName}. The recruitment team will contact you about the next stage.</p></section></main>;
   }
 
-  return (
-    <main className="wrap" style={{ padding: '42px 0 80px' }}>
-      <section className="card" style={{ padding: 32, marginBottom: 18 }}>
-        <p style={{ color: 'var(--accent)', letterSpacing: '.1em', fontWeight: 700, fontSize: 12 }}>{lauremCompany.tradingName.toUpperCase()} NURSE INTERVIEW</p>
-        <h1 style={{ fontSize: 44, margin: '10px 0' }}>Professional nursing screening</h1>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.6, maxWidth: 760 }}>This private assessment covers clinical judgement, patient safety, safeguarding, communication, teamwork and professional practice. Your assessment pathway is set by the recruitment team based on your application.</p>
-        <div style={{ marginTop: 20, padding: 14, borderRadius: 10, background: 'var(--soft)', color: 'var(--muted)' }}><strong>Pathway:</strong> {pathway === 'uk' ? 'UK-based nurse' : 'International nurse'}</div>
-      </section>
+  if (reviewMode) {
+    return <main className="wrap" style={{ padding: '42px 0 80px', maxWidth: 900 }}><section className="card" style={{ padding: 30 }}><p style={{ color: 'var(--accent)', letterSpacing: '.08em', fontWeight: 800, fontSize: 12 }}>YOUR PROGRESS</p><h1 style={{ margin: '8px 0' }}>Review your answers</h1><p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>Nothing here is timed. Open any question to change your answer. You can submit when everything feels complete.</p>{error && <div role="alert" style={{ marginTop: 14, padding: 14, borderRadius: 10, background: '#fff8f8', border: '1px solid #dfb4b4', color: '#8a2323' }}>{error}</div>}<div style={{ display: 'grid', gap: 10, marginTop: 22 }}>{questions.map((question, index) => <button type="button" key={question.id} onClick={() => { setReviewMode(false); goTo(index); }} style={{ textAlign: 'left', padding: 16, border: '1px solid var(--line)', borderRadius: 12, background: answers[question.id]?.trim() ? 'var(--soft)' : 'white', color: 'var(--ink)' }}><span style={{ color: 'var(--accent)', fontWeight: 800, marginRight: 8 }}>Q{index + 1}</span><strong>{answers[question.id]?.trim() ? 'Answered' : 'Needs an answer'}</strong><span style={{ display: 'block', marginTop: 5, lineHeight: 1.45 }}>{question.text}</span></button>)}</div><div style={{ marginTop: 22, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}><span style={{ color: 'var(--muted)' }}>{answered} of {questions.length} answered</span>{remaining === 0 && <button type="button" onClick={submit} style={primaryButton}>Submit interview</button>}</div></section></main>;
+  }
 
-      {error && <div role="alert" className="card" style={{ padding: 16, marginBottom: 14, borderColor: '#d98282', color: '#8a2323' }}>{error}</div>}
+  return <main className="wrap" style={{ padding: '42px 0 80px', maxWidth: 900 }}>
+    <section className="card" style={{ padding: 30, marginBottom: 18 }}>
+      <p style={{ color: 'var(--accent)', letterSpacing: '.1em', fontWeight: 800, fontSize: 12 }}>{lauremCompany.tradingName.toUpperCase()} · NURSE INTERVIEW</p>
+      <h1 style={{ fontSize: 42, margin: '8px 0' }}>Let’s take this one question at a time.</h1>
+      <p style={{ color: 'var(--muted)', lineHeight: 1.65, maxWidth: 760 }}>There are {questions.length} questions. Most people can complete them in around 20–30 minutes. Your answers are saved on this device as you go, so you do not need to rush.</p>
+      <div style={{ marginTop: 18, height: 8, background: 'var(--line)', borderRadius: 99, overflow: 'hidden' }} aria-hidden="true"><div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width .2s ease' }} /></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 9, color: 'var(--muted)', fontSize: 13 }}><span>{answered} of {questions.length} answered</span><span>{savedAt ? `Saved ${savedAt}` : 'Not saved yet'}</span></div>
+    </section>
 
-      <div style={{ display: 'grid', gap: 14 }}>{questions.map((question, index) => <section className="card" key={question.id} style={{ padding: 24 }}><div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}><span style={{ color: 'var(--accent)', fontWeight: 800 }}>Q{index + 1}</span><span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 700 }}>{question.category}</span></div><h2 style={{ fontSize: 20, lineHeight: 1.45 }}>{question.text}</h2>{question.guidance && <p style={{ color: 'var(--muted)', lineHeight: 1.5 }}>{question.guidance}</p>}<textarea value={answers[question.id] || ''} onChange={(event) => save({ ...answers, [question.id]: event.target.value })} rows={6} placeholder="Type your answer here..." style={{ width: '100%', resize: 'vertical', border: '1px solid var(--line)', borderRadius: 10, padding: 14, font: 'inherit' }} /></section>)}</div>
+    {error && <div role="alert" aria-live="assertive" className="card" style={{ padding: 14, marginBottom: 14, border: '1px solid #dfb4b4', background: '#fff8f8', color: '#8a2323' }}>{error}</div>}
 
-      <section className="card" style={{ padding: 22, marginTop: 18, position: 'sticky', bottom: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}><div><strong>{answered} of {questions.length} answered</strong>{savedAt && <span style={{ color: 'var(--muted)', marginLeft: 12 }}>Saved {savedAt}</span>}</div><button type="button" onClick={submit} style={{ background: 'var(--ink)', color: 'white', border: 0, padding: '12px 18px', borderRadius: 9, fontWeight: 700 }}>Submit interview</button></div></section>
-    </main>
-  );
+    {currentQuestion && <section className="card" style={{ padding: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}><span style={{ color: 'var(--accent)', fontWeight: 800 }}>Question {questionIndex + 1} of {questions.length}</span><span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 700 }}>{currentQuestion.category}</span></div>
+      <h2 style={{ fontSize: 27, lineHeight: 1.4, margin: '16px 0 10px' }}>{currentQuestion.text}</h2>
+      <p style={{ color: 'var(--muted)', lineHeight: 1.6, marginBottom: 16 }}>Answer in your own words. A clear real example is more useful than a perfect-sounding answer. Around 1–3 short paragraphs is plenty.</p>
+      {currentQuestion.guidance && <div style={{ padding: 14, borderRadius: 10, background: 'var(--soft)', color: 'var(--muted)', lineHeight: 1.55, marginBottom: 16 }}><strong>Think about:</strong> {currentQuestion.guidance}</div>}
+      <textarea aria-label={`Answer to question ${questionIndex + 1}`} value={answers[currentQuestion.id] || ''} onChange={(event) => save({ ...answers, [currentQuestion.id]: event.target.value })} rows={9} autoFocus placeholder="Write naturally. You do not need to use formal language." style={{ width: '100%', resize: 'vertical', minHeight: 210, border: '1px solid var(--line)', borderRadius: 12, padding: 16, font: 'inherit', lineHeight: 1.6 }} />
+    </section>}
+
+    <section className="card" style={{ padding: 18, marginTop: 16, position: 'sticky', bottom: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}><button type="button" onClick={previousQuestion} disabled={questionIndex === 0} style={secondaryButton}>Back</button><button type="button" onClick={() => setReviewMode(true)} style={secondaryButton}>Review answers</button>{questionIndex < questions.length - 1 ? <button type="button" onClick={nextQuestion} style={primaryButton}>Next question</button> : <button type="button" onClick={() => setReviewMode(true)} style={primaryButton}>Review & submit</button>}</div></section>
+  </main>;
 }
+
+const primaryButton = { background: 'var(--ink)', color: 'white', border: 0, padding: '12px 18px', borderRadius: 9, fontWeight: 800 };
+const secondaryButton = { background: 'white', color: 'var(--ink)', border: '1px solid var(--line)', padding: '12px 18px', borderRadius: 9, fontWeight: 800 };
