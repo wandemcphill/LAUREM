@@ -32,6 +32,7 @@ const LAUREM_TABLES = new Set([
   'payroll_periods',
   'payroll_entries',
   'notification_deliveries',
+  'workforce_audit_events',
 ]);
 
 const LAUREM_RPC_NAMES = new Set([
