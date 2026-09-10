@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashToken } from '@/lib/token';
-import { getLauremNurseFirstInterviewQuestions, type NursePathway } from '@/lib/laurem-nurse-interviews';
+import { getLauremCalmFirstInterviewQuestions } from '@/lib/laurem-calm-interviews';
+import type { NursePathway } from '@/lib/laurem-nurse-interviews';
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get('x-invitation-token') || '';
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pathway: NursePathway = application.living_in_uk === 'No' ? 'international' : 'uk';
-    const questions = getLauremNurseFirstInterviewQuestions(pathway);
+    const questions = getLauremCalmFirstInterviewQuestions(pathway);
     for (const question of questions) {
       if (typeof answers[question.id] !== 'string' || !answers[question.id].trim()) {
         return NextResponse.json({ error: `Please answer question ${question.id}.` }, { status: 400 });
