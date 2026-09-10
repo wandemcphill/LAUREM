@@ -50,8 +50,8 @@ describe('weekly scheduling board', () => {
   it('uses the existing assignment boundary rather than a second scheduling API', async () => {
     const source = await read('app/admin/workforce/schedule/page.tsx');
     expect(source).toContain("/api/admin/workforce/assignments");
-    expect(source).toContain("status:'confirmed'");
-    expect(source).toContain("status:'cancelled'");
+    expect(source).toContain("changeStatus(a.id,'confirmed')");
+    expect(source).toContain("changeStatus(a.id,'cancelled')");
     expect(source).toContain('Weekly operations board');
   });
 });
