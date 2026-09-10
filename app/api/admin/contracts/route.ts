@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
+import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
@@ -112,11 +113,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: contract.id, token_hash: hashToken(token), expires_at: expiresAt, used_at: null });
     if (tokenError) throw tokenError;
-    return NextResponse.json({
-      contract,
-      contractType: contract.contract_type,
-      acceptanceLink: `${appUrl()}/contracts/accept/${token}`,
-    }, { status: 201 });
+    return NextResponse.json({ contract, contractType: contract.contract_type, acceptanceLink: `${appUrl()}/contracts/accept/${token}` }, { status: 201 });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.contract.generate_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to generate employment contract.' }, { status: 500 });
@@ -129,54 +126,52 @@ export async function PATCH(request: NextRequest) {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Contract id is required.' }, { status: 400 });
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const status = typeof body?.status === 'string' ? body.status : '';
-  if (status !== 'issued') return NextResponse.json({ error: 'Only issuing a draft contract is permitted here.' }, { status: 400 });
+  if (body?.status !== 'issued') return NextResponse.json({ error: 'Only issuing a draft contract is permitted here.' }, { status: 400 });
   const client = db();
   const { data: current, error: readError } = await client.from('recruitment_contracts')
     .select('id,application_id,status,accepted_at,job_title,contract_type').eq('id', id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load contract.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
-  if (current.contract_type !== 'international_nurse' || current.job_title !== 'Registered Nurse') {
-    return NextResponse.json({ error: 'Only an international Registered Nurse contract can be issued.' }, { status: 409 });
-  }
+  if (current.contract_type !== 'international_nurse' || current.job_title !== 'Registered Nurse') return NextResponse.json({ error: 'Only an international Registered Nurse contract can be issued.' }, { status: 409 });
+  if (current.accepted_at) return NextResponse.json({ error: 'An accepted contract is immutable.' }, { status: 409 });
+
   const { data: app, error: appError } = await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk').eq('id', current.application_id).maybeSingle();
   if (appError) return NextResponse.json({ error: 'Unable to load contract application.' }, { status: 500 });
   if (!app || !isInternationalNurseApplication(app)) return NextResponse.json({ error: 'Contract is not eligible for issue.' }, { status: 409 });
-  if (current.accepted_at) return NextResponse.json({ error: 'An accepted contract is immutable.' }, { status: 409 });
 
+  const now = new Date().toISOString();
   const { data: updated, error: updateError } = await client.from('recruitment_contracts')
-    .update({ status: 'issued', issued_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({ status: 'issued', issued_at: now, updated_at: now })
     .eq('id', id).in('status', ['draft','issued']).select('*').maybeSingle();
   if (updateError) return NextResponse.json({ error: 'Unable to issue contract.' }, { status: 500 });
   if (!updated) return NextResponse.json({ error: 'Contract changed concurrently. Refresh and try again.' }, { status: 409 });
 
-  let { data: tokenRow, error: tokenLookupError } = await client.from('recruitment_contract_tokens')
-    .select('id,token_hash,expires_at,used_at,created_at').eq('contract_id', id).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
-  if (tokenLookupError) return NextResponse.json({ error: 'Unable to prepare contract acceptance link.' }, { status: 500 });
-  let rawToken: string | null = null;
-  if (!tokenRow) {
-    rawToken = makeToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: createdToken, error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: id, token_hash: hashToken(rawToken), expires_at: expiresAt, used_at: null }).select('id,expires_at').single();
-    if (tokenError || !createdToken) return NextResponse.json({ error: 'Unable to create contract acceptance link.' }, { status: 500 });
-    tokenRow = { id: createdToken.id, token_hash: hashToken(rawToken), expires_at: createdToken.expires_at, used_at: null, created_at: new Date().toISOString() };
-  }
-  if (!rawToken) {
-    return NextResponse.json({ contract: updated, acceptanceLink: null, email: { status: 'not_available', message: 'The existing acceptance token is stored hashed and cannot be reconstructed. Generate a new draft to issue a fresh link.' } }, { status: 200 });
-  }
+  await client.from('recruitment_contract_tokens').update({ used_at: now }).eq('contract_id', id).is('used_at', null);
+  const token = makeToken();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: id, token_hash: hashToken(token), expires_at: expiresAt, used_at: null });
+  if (tokenError) return NextResponse.json({ error: 'Unable to create contract acceptance link.' }, { status: 500 });
 
-  const link = `${appUrl()}/contracts/accept/${rawToken}`;
+  const link = `${appUrl()}/contracts/accept/${token}`;
   const safeName = escapeHtml(app.full_name);
   const safeLink = escapeHtml(link);
   const email = await sendLauremEmail(client, {
-    eventType: 'contract_issued', entityId: id, idempotencyKey: `contract:issued:${id}:${new Date(updated.issued_at || Date.now()).toISOString()}`,
+    eventType: 'contract_issued',
+    entityId: id,
+    idempotencyKey: `contract:issued:${id}:${now}`,
     payload: {
       from: lauremCompany.candidateCommunications.senderAddress,
-      to: [app.email], reply_to: lauremCompany.candidateCommunications.replyToAddress,
+      to: [app.email],
+      reply_to: lauremCompany.candidateCommunications.replyToAddress,
       subject: `Your employment contract from ${lauremCompany.tradingName}`,
       text: `Dear ${app.full_name},\n\nYour international Registered Nurse employment contract is ready for review.\n\nReview and respond here:\n${link}\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,
       html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your employment contract is ready</h1><p>Dear ${safeName},</p><p>Your international Registered Nurse employment contract is ready for review.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Review contract</a></p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`,
     },
   });
-  return NextResponse.json({ contract: updated, acceptanceLink: link, email: { status: email.status, attempts: email.attempts, providerId: 'providerId' in email ? email.providerId : null, deliveryId: email.deliveryId, ...(email.status === 'failed' ? { error: email.error } : {}) } });
+
+  return NextResponse.json({
+    contract: updated,
+    acceptanceLink: link,
+    email: { status: email.status, attempts: email.attempts, providerId: 'providerId' in email ? email.providerId : null, deliveryId: email.deliveryId, ...(email.status === 'failed' ? { error: email.error } : {}) },
+  });
 }
