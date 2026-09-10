@@ -44,7 +44,7 @@ export async function PATCH(request:NextRequest){
     const {data,error}=await client.rpc('laurem_transition_application_status',{p_application_id:id,p_to_status:status,p_actor:session.email,p_note:note,p_override:override,p_override_reason:overrideReason});
     if(error||!data){const message=error?.message||'';if(message.includes('APPLICATION_NOT_FOUND'))return NextResponse.json({error:'Application not found.'},{status:404});if(message.includes('STATUS_TRANSITION_BLOCKED'))return NextResponse.json({error:error?.details||'The requested transition is blocked by the current lifecycle controls.'},{status:409});if(message.includes('OVERRIDE_REASON_REQUIRED'))return NextResponse.json({error:'An override reason is required.'},{status:400});if(message.includes('INVALID_RECRUITMENT_STATUS'))return NextResponse.json({error:'Invalid recruitment status.'},{status:400});return NextResponse.json({error:'Unable to update application status.'},{status:500});}
 
-    let assessmentEmail:{status:string;attempts:number;providerId:string|null;deliveryId:string|null;error?:string}={status:'skipped',attempts:0,providerId:null,deliveryId:null};
+    let assessmentEmail:{status:string;attempts:number;providerId:string|null;deliveryId:string|null;error?:string;link?:string;expiresAt?:string;questions?:number}={status:'skipped',attempts:0,providerId:null,deliveryId:null};
     if(status==='Interview'){
       const role=normalizeLauremRole(current.role_applied||'');
       if(!role)return NextResponse.json({error:'Application role is invalid.'},{status:409});
@@ -55,7 +55,7 @@ export async function PATCH(request:NextRequest){
       if(!attempt || attempt.status==='in_progress'){
         const token=makeToken();
         const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
-        const {data:newInvite,error:newInviteError}=await client.from('recruitment_invites').insert({candidate_name:current.full_name,candidate_email:current.email,role,token_hash:hashToken(token),expires_at:expiresAt,used_at:new Date().toISOString()}).select('id,candidate_name,candidate_email,role,expires_at').single();
+        const {data:newInvite,error:newInviteError}=await client.from('recruitment_invites').insert({candidate_name:current.full_name,candidate_email:current.email,role,token_hash:hashToken(token),expires_at:expiresAt,used_at:null}).select('id,candidate_name,candidate_email,role,expires_at').single();
         if(newInviteError||!newInvite)throw newInviteError||new Error('Unable to create interview invitation.');
 
         if(!attempt){
@@ -73,7 +73,7 @@ export async function PATCH(request:NextRequest){
         const link=`${appUrl()}/interview/${token}`;
         const safeName=escapeHtml(current.full_name);const safeRole=escapeHtml(role);const safeLink=escapeHtml(link);
         const email=await sendLauremEmail(client,{eventType:'round1_assessment_invitation',entityId:id,idempotencyKey:`round1-assessment:admin:${id}:${newInvite.id}`,payload:{from:lauremCompany.candidateCommunications.senderAddress,to:[current.email],reply_to:lauremCompany.candidateCommunications.replyToAddress,subject:`Your first assessment with ${lauremCompany.tradingName}`,text:`Dear ${current.full_name},\n\nYou have been invited to the first-stage assessment for ${role}.\n\nStart here:\n${link}\n\nThis private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.\n\nKind regards,\n${lauremCompany.tradingName} Recruitment`,html:`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">${escapeHtml(lauremCompany.tradingName.toUpperCase())} RECRUITMENT</p><h1 style="font-size:28px">Your first assessment is ready</h1><p>Dear ${safeName},</p><p>Your first-stage assessment for <strong>${safeRole}</strong> is ready.</p><p><a href="${safeLink}" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Start the assessment</a></p><p style="font-size:13px;color:#5c6c67">This private link expires on ${new Date(expiresAt).toLocaleDateString('en-GB',{dateStyle:'medium'})}.</p><p>Kind regards,<br>${escapeHtml(lauremCompany.tradingName)} Recruitment</p></div>`}});
-        assessmentEmail={status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}: {})};
+        assessmentEmail={status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,link,expiresAt,questions:ROUND1_QUESTIONS_PER_ATTEMPT,...(email.status==='failed'?{error:email.error}: {})};
       }
     }
 
