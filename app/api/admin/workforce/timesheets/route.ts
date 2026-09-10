@@ -20,12 +20,23 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const status = new URL(request.url).searchParams.get('status');
   let query = db().from('staff_timesheets')
-    .select('id,staff_id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,approved_by,approved_at,created_at,updated_at,staff_profiles(full_name,email,job_title,employee_number)')
+    .select('id,staff_id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,approved_by,approved_at,created_at,updated_at')
     .order('work_date', { ascending: false }).limit(200);
   if (status) query = query.eq('status', status);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'Unable to load timesheets.' }, { status: 500 });
-  return NextResponse.json({ timesheets: data || [] });
+
+  const timesheets = data || [];
+  const staffIds = [...new Set(timesheets.map((item: any) => item.staff_id).filter(Boolean))];
+  let profiles: any[] = [];
+  if (staffIds.length) {
+    const { data: profileData, error: profileError } = await db().from('staff_profiles')
+      .select('id,full_name,email,job_title,employee_number').in('id', staffIds);
+    if (profileError) return NextResponse.json({ error: 'Unable to load timesheet staff details.' }, { status: 500 });
+    profiles = profileData || [];
+  }
+  const profileById = new Map(profiles.map((profile: any) => [profile.id, profile]));
+  return NextResponse.json({ timesheets: timesheets.map((item: any) => ({ ...item, staff_profiles: profileById.get(item.staff_id) || null })) });
 }
 
 export async function PATCH(request: NextRequest) {
