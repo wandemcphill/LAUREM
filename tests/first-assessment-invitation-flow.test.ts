@@ -22,6 +22,7 @@ describe('first assessment invitation flow', () => {
     expect(statusRoute).toContain('token_hash:hashToken(token)');
     expect(statusRoute).toContain("const link=`${appUrl()}/interview/${token}`");
     expect(statusRoute).toContain('link,expiresAt,questions:ROUND1_QUESTIONS_PER_ATTEMPT');
+    expect(statusRoute).not.toContain('token:token');
   });
 
   it('does not mark a newly issued assessment invitation as already used', () => {
