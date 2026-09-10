@@ -4,13 +4,27 @@ import { db } from '@/lib/db';
 import { hashToken } from '@/lib/token';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const allowedTypes = new Set([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+const allowedTypes = new Map([
+  ['application/pdf', ['pdf']],
+  ['image/jpeg', ['jpg', 'jpeg']],
+  ['image/png', ['png']],
+  ['application/msword', ['doc']],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', ['docx']],
 ]);
+
+function extensionFor(name: string) {
+  const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match?.[1] || '';
+}
+
+function signatureMatches(type: string, bytes: Buffer) {
+  if (type === 'application/pdf') return bytes.subarray(0, 5).toString('ascii') === '%PDF-';
+  if (type === 'image/jpeg') return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === 'image/png') return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (type === 'application/msword') return bytes.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
+  if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return bytes.subarray(0, 2).equals(Buffer.from([0x50, 0x4b]));
+  return false;
+}
 
 export async function POST(request: NextRequest) {
   const token = request.headers.get('x-invitation-token') || '';
@@ -32,11 +46,14 @@ export async function POST(request: NextRequest) {
     const documentType = String(form.get('documentType') || 'Supporting document').trim().slice(0, 120) || 'Supporting document';
     if (!(file instanceof File)) return NextResponse.json({ error: 'A document file is required.' }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_FILE_BYTES) return NextResponse.json({ error: 'Documents must be between 1 byte and 10 MB.' }, { status: 400 });
-    if (!allowedTypes.has(file.type)) return NextResponse.json({ error: 'Unsupported document type. Upload PDF, JPG, PNG, DOC or DOCX.' }, { status: 400 });
+    const extensions = allowedTypes.get(file.type);
+    if (!extensions) return NextResponse.json({ error: 'Unsupported document type. Upload PDF, JPG, PNG, DOC or DOCX.' }, { status: 400 });
+    if (!extensions.includes(extensionFor(file.name))) return NextResponse.json({ error: 'File extension does not match the declared document type.' }, { status: 400 });
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-180) || 'document';
     const path = `${application.id}/${crypto.randomUUID()}-${safeName}`;
     const bytes = Buffer.from(await file.arrayBuffer());
+    if (!signatureMatches(file.type, bytes)) return NextResponse.json({ error: 'The uploaded file does not match its declared document type.' }, { status: 400 });
     const checksumSha256 = crypto.createHash('sha256').update(bytes).digest('hex');
     const { error: uploadError } = await client.storage
       .from('laurem-private-documents')
