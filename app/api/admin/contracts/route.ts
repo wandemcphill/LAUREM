@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
 import { renderLauremContract } from '@/lib/laurem-contract';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
@@ -134,8 +134,18 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const status = typeof body?.status === 'string' ? body.status : '';
   if (!['draft','issued'].includes(status)) return NextResponse.json({ error: 'Only draft or issued status can be set by recruiter.' }, { status: 400 });
-  const { data, error } = await db().from('recruitment_contracts').update({ status, issued_at: status === 'issued' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', id).select('*').maybeSingle();
+  const client = db();
+  const { data: current, error: readError } = await client.from('recruitment_contracts')
+    .select('id,status,accepted_at').eq('id', id).maybeSingle();
+  if (readError) return NextResponse.json({ error: 'Unable to load contract.' }, { status: 500 });
+  if (!current) return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
+  if (current.status === 'accepted' && current.accepted_at) {
+    return NextResponse.json({ error: 'An accepted employment contract is immutable and cannot be reopened or edited.' }, { status: 409 });
+  }
+  const { data, error } = await client.from('recruitment_contracts')
+    .update({ status, issued_at: status === 'issued' ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('status', current.status).select('*').maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to update contract.' }, { status: 500 });
-  if (!data) return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
+  if (!data) return NextResponse.json({ error: 'Contract changed concurrently. Refresh and try again.' }, { status: 409 });
   return NextResponse.json({ contract: data });
 }
