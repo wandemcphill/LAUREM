@@ -6,6 +6,7 @@
 
 begin;
 
+delete from public.laurem_workforce_audit_events;
 delete from public.laurem_payroll_entries;
 delete from public.laurem_staff_timesheets;
 delete from public.laurem_staff_assignments;
