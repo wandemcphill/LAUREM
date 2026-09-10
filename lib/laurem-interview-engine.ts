@@ -14,24 +14,25 @@ function shuffle<T>(items: T[]): T[] {
 
 function pickBalanced<T extends { category: string }>(bank: T[], count: number): T[] {
   const groups = new Map<string, T[]>();
-  for (const question of bank) {
-    const group = groups.get(question.category) || [];
-    group.push(question);
-    groups.set(question.category, group);
-  }
+  for (const question of bank) groups.set(question.category, [...(groups.get(question.category) || []), question]);
   const categories = shuffle([...groups.keys()]);
-  const selected: T[] = [];
   const target = Math.floor(count / categories.length);
   const remainder = count % categories.length;
-  categories.forEach((category, index) => {
-    const take = target + (index < remainder ? 1 : 0);
-    selected.push(...shuffle(groups.get(category) || []).slice(0, take));
-  });
+  const selected: T[] = [];
+  categories.forEach((category, index) => selected.push(...shuffle(groups.get(category) || []).slice(0, target + (index < remainder ? 1 : 0))));
   return shuffle(selected).slice(0, count);
 }
 
+export function prepareRound1Questions(questions: ObjectiveInterviewQuestion[]) {
+  return questions.map((question) => {
+    const options = question.options.map((text, index) => ({ text, correct: index === question.correctIndex }));
+    const shuffled = shuffle(options);
+    return { ...question, options: shuffled.map((option) => option.text), correctIndex: shuffled.findIndex((option) => option.correct) };
+  });
+}
+
 export function selectRound1Questions(role: LauremCanonicalRole) {
-  return pickBalanced(getLauremRound1Bank(role), ROUND1_QUESTIONS_PER_ATTEMPT);
+  return prepareRound1Questions(pickBalanced(getLauremRound1Bank(role), ROUND1_QUESTIONS_PER_ATTEMPT));
 }
 
 export function selectRound2Questions(role: LauremCanonicalRole) {
@@ -48,12 +49,7 @@ export function scoreRound1(questions: ObjectiveInterviewQuestion[], answers: Re
     const answer = Number(answers[question.id]);
     if (Number.isInteger(answer) && answer === question.correctIndex) score += 1;
   }
-  return {
-    score,
-    total: questions.length,
-    percent: questions.length ? Math.round((score * 10000) / questions.length) / 100 : 0,
-    passed: questions.length > 0 && (score * 100) / questions.length >= ROUND1_PASS_PERCENT,
-  };
+  return { score, total: questions.length, percent: questions.length ? Math.round((score * 10000) / questions.length) / 100 : 0, passed: questions.length > 0 && (score * 100) / questions.length >= ROUND1_PASS_PERCENT };
 }
 
 export function publicRound2Questions(questions: PracticalInterviewQuestion[]) {
