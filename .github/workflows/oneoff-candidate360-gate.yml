@@ -1,0 +1,43 @@
+name: oneoff-candidate360-gate
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore: run Candidate 360 lifecycle gate patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch Candidate 360
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('app/admin/applications/[id]/page.tsx')
+          text = path.read_text()
+          marker = "  const nurseAnswers = data.nurseInterview?.answers;\n"
+          insert = marker + "  const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';\n  const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);\n  const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;\n"
+          if "const canSendSecondInterview =" not in text:
+              if marker not in text:
+                  raise SystemExit('Candidate 360 insertion marker not found')
+              text = text.replace(marker, insert, 1)
+          old = '<button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>'
+          new = "{canSendSecondInterview ? (\n            <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>\n          ) : (\n            <div style={{ ...subcard, flex: '1 1 320px' }}>\n              <div style={{ fontWeight: 800 }}>Second interview locked</div>\n              <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{isRegisteredNurse ? 'A completed first interview is required before the second interview can be sent.' : 'Second interviews are currently available only for Registered Nurse candidates after a completed first interview.'}</div>\n            </div>\n          )}"
+          if old not in text:
+              raise SystemExit('Candidate 360 second-interview button not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          rm .github/workflows/oneoff-candidate360-gate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/admin/applications/'[id]'/page.tsx .github/workflows/oneoff-candidate360-gate.yml
+          git commit -m "fix: gate Candidate 360 second interview" \
+            && git push origin main
