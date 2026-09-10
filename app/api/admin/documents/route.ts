@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
-import { readinessKeyForEvidenceType } from '@/lib/laurem-evidence';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -11,12 +10,11 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await db().from('recruitment_documents')
       .select('id,application_id,document_request_id,document_type,original_filename,mime_type,file_size_bytes,status,uploaded_by,uploaded_at,reviewed_by,reviewed_at,review_note,superseded_at,superseded_by,checksum_sha256')
-      .eq('application_id', applicationId)
-      .order('uploaded_at', { ascending: false });
+      .eq('application_id', applicationId).order('uploaded_at', { ascending: false });
     if (error) throw error;
     return NextResponse.json({ documents: data || [] });
   } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'admin.documents.list_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
+    console.error(JSON.stringify({ level: 'error', event: 'admin.documents.list_failed', actor: session.email, reason: error instanceof Error ? error.message : String(error) }));
     return NextResponse.json({ error: 'Unable to load documents.' }, { status: 500 });
   }
 }
@@ -26,7 +24,7 @@ export async function PATCH(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Document id is required.' }, { status: 400 });
-  const body = await request.json().catch(() => null) as { status?: string; reviewNote?: string; expiresAt?: string | null; metadata?: unknown } | null;
+  const body = await request.json().catch(() => null) as { status?: string; reviewNote?: string; metadata?: unknown } | null;
   const status = body?.status || '';
   if (!['pending','approved','rejected'].includes(status)) return NextResponse.json({ error: 'Invalid document status.' }, { status: 400 });
   const note = typeof body?.reviewNote === 'string' ? body.reviewNote.trim() : '';
@@ -48,8 +46,6 @@ export async function PATCH(request: NextRequest) {
       p_actor: session.email,
       p_note: note || null,
       p_metadata: typeof body?.metadata === 'object' && body.metadata !== null ? body.metadata : {},
-      p_readiness_item_key: readinessKeyForEvidenceType(document.document_type),
-      p_expires_at: body?.expiresAt ? new Date(body.expiresAt).toISOString() : null,
     });
     if (reviewError) throw reviewError;
 
@@ -60,7 +56,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ document: updated, evidence: review });
   } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'admin.document.review_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
+    console.error(JSON.stringify({ level: 'error', event: 'admin.document.review_failed', actor: session.email, reason: error instanceof Error ? error.message : String(error) }));
     return NextResponse.json({ error: 'Unable to review document.' }, { status: 500 });
   }
 }
