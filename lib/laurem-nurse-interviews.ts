@@ -8,43 +8,39 @@ export type InterviewQuestion = {
 export type NursePathway = 'uk' | 'international';
 
 /**
- * Laurem nurse interview template.
- *
- * The interview is intentionally split into professional, safeguarding,
- * clinical-judgement and pathway sections so the same engine can support UK
- * nurses and nurses recruited internationally without duplicating the UI.
+ * Full interview bank for Laurem recruitment/admin workflows.
+ * Candidate-facing screens use the focused selection in laurem-calm-interviews.ts.
  */
-
 export const LAUREM_NURSE_FIRST_COMMON_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_about_you',
-    category: 'Introduction',
-    text: 'Tell us about yourself and your nursing experience, including the clinical settings in which you have worked.',
+    category: 'Getting to know you',
+    text: 'What kind of nursing have you done, and what do you enjoy most about your work?',
   },
   {
     id: 'nurse_motivation',
     category: 'Motivation',
-    text: 'Why do you want to work for Laurem Caregroup?',
+    text: 'What interests you about joining Laurem Caregroup?',
   },
   {
     id: 'nurse_person_centred_care',
     category: 'Person-centred care',
-    text: 'What does person-centred nursing care mean to you, and how do you protect a patient or service user’s dignity, privacy and choices?',
+    text: 'What does great person-centred care look like in your day-to-day practice?',
   },
   {
     id: 'nurse_communication',
     category: 'Communication',
-    text: 'Describe a time when you had to communicate difficult or sensitive information to a patient, family member or colleague. How did you approach it?',
+    text: 'Tell us about a time you made a difficult conversation easier for a patient, family member or colleague.',
   },
   {
     id: 'nurse_teamwork',
     category: 'Teamwork',
-    text: 'Give an example of effective multidisciplinary teamwork and explain your contribution.',
+    text: 'Tell us about a time you worked well with others to solve a problem or improve care.',
   },
   {
     id: 'nurse_raise_concern',
     category: 'Professional judgement',
-    text: 'Tell us about a time you had to challenge a decision, raise a concern or speak up about a safety issue.',
+    text: 'Tell us about a time you raised a safety concern. What did you do?',
   },
 ];
 
@@ -52,44 +48,44 @@ export const LAUREM_NURSE_CLINICAL_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_deteriorating_patient',
     category: 'Clinical judgement',
-    text: 'You notice that a patient or service user is becoming acutely unwell. How would you assess the situation, escalate your concerns and keep the person safe?',
-    guidance: 'Explain your priorities, observations, escalation route and documentation.',
+    text: 'A person suddenly becomes more unwell during your shift. What would you do first?',
+    guidance: 'Talk through your immediate priorities, observations, escalation and documentation.',
   },
   {
     id: 'nurse_medication_safety',
     category: 'Medication safety',
-    text: 'Describe the checks you make before administering medication and what you would do if you identified a discrepancy or possible medication error.',
+    text: 'You notice a possible medication error. What would you do next?',
   },
   {
     id: 'nurse_infection_control',
     category: 'Infection prevention',
-    text: 'What are your responsibilities in preventing and controlling infection in a care environment?',
+    text: 'What do you do in everyday practice to help prevent infection?',
   },
   {
     id: 'nurse_safeguarding',
     category: 'Safeguarding',
-    text: 'What would you do if you suspected that a patient or vulnerable adult was being abused or neglected?',
+    text: 'You are worried that a vulnerable person may be experiencing abuse or neglect. How would you respond?',
   },
   {
     id: 'nurse_capacity_consent',
     category: 'Consent and rights',
-    text: 'How would you respond when a patient refuses care or treatment that you believe is important?',
-    guidance: 'Cover communication, consent, capacity where relevant, least-restrictive practice, escalation and documentation.',
+    text: 'A person refuses care that you believe is important. How would you handle the situation?',
+    guidance: 'Consider communication, consent, capacity where relevant, escalation and documentation.',
   },
   {
     id: 'nurse_documentation',
     category: 'Record keeping',
-    text: 'What makes a nursing record clear, accurate and safe, and what would you do if you discovered an earlier documentation error?',
+    text: 'What makes a nursing record clear, accurate and safe?',
   },
   {
     id: 'nurse_scope_competence',
     category: 'Professional standards',
-    text: 'What does working within your competence mean in day-to-day nursing practice?',
+    text: 'What does working within your competence mean to you?',
   },
   {
     id: 'nurse_delegation',
     category: 'Leadership and delegation',
-    text: 'How do you decide what can be delegated to another member of the care team, and how do you make sure delegated work is completed safely?',
+    text: 'How do you make sure work you delegate is safe and appropriate for the person receiving it?',
   },
 ];
 
@@ -97,17 +93,17 @@ export const LAUREM_NURSE_UK_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_uk_right_to_work',
     category: 'Right to work',
-    text: 'Please describe your current right-to-work status in the UK and any restrictions or expiry dates that Laurem should be aware of.',
+    text: 'What is your current UK right-to-work status, and are there any restrictions or expiry dates we should know about?',
   },
   {
     id: 'nurse_uk_registration',
     category: 'Professional registration',
-    text: 'What is your current NMC registration status, and is there anything affecting your ability to practise in the UK?',
+    text: 'What is your current NMC registration status?',
   },
   {
     id: 'nurse_uk_availability',
     category: 'Availability',
-    text: 'What shift patterns and locations are you able to work, including nights, weekends and travel between services where required?',
+    text: 'What shifts and locations are you comfortable working, including nights or weekends where required?',
   },
 ];
 
@@ -120,33 +116,33 @@ export const LAUREM_NURSE_INTERNATIONAL_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_intl_nmc_status',
     category: 'Professional registration',
-    text: 'What stage are you currently at with your UK NMC registration process?',
-    guidance: 'Include any completed or outstanding overseas registration steps, assessment or test requirements where applicable.',
+    text: 'What stage are you currently at with UK NMC registration?',
+    guidance: 'Mention any completed or outstanding registration steps you are comfortable sharing.',
   },
   {
     id: 'nurse_intl_english',
     category: 'Communication',
-    text: 'How have you demonstrated the English-language competence required for UK nursing practice?',
+    text: 'How have you demonstrated the English-language competence needed for UK nursing practice?',
   },
   {
     id: 'nurse_intl_relocation',
     category: 'Relocation',
-    text: 'Why are you considering relocating to the UK, and what is your expected timeframe for relocation?',
+    text: 'What is your expected timeframe for relocating to the UK?',
   },
   {
     id: 'nurse_intl_dependants',
     category: 'Relocation',
-    text: 'Do you expect to relocate alone or with dependants, and are there any relocation considerations Laurem should know about?',
+    text: 'Are there any relocation arrangements or considerations you would like Laurem to know about?',
   },
   {
     id: 'nurse_intl_adaptation',
     category: 'Adaptability',
-    text: 'How would you adapt your nursing practice to a new healthcare system, workplace culture and UK professional expectations?',
+    text: 'How would you prepare for working in a new healthcare system and workplace culture?',
   },
   {
     id: 'nurse_intl_sponsorship',
     category: 'Sponsorship',
-    text: 'What is your understanding of the employer-sponsored work visa process, and what support would you expect from Laurem versus what would remain your responsibility?',
+    text: 'What do you understand about employer sponsorship, and what would you expect the employer to support you with?',
   },
 ];
 
@@ -154,27 +150,27 @@ export const LAUREM_NURSE_SECOND_COMMON_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_second_safeguarding',
     category: 'Safeguarding',
-    text: 'During a shift you notice unexplained bruising and a change in behaviour in a vulnerable person. What would you do immediately, what would you record and who would you inform?',
+    text: 'You notice unexplained bruising and a change in a vulnerable person’s behaviour. What would you do?',
   },
   {
     id: 'nurse_second_medication_error',
     category: 'Medication safety',
-    text: 'You realise that a medication error has occurred. Talk us through your immediate actions, escalation, monitoring and documentation.',
+    text: 'You discover a medication error. What happens next?',
   },
   {
     id: 'nurse_second_deterioration',
     category: 'Clinical escalation',
-    text: 'A person who was stable earlier in the shift suddenly deteriorates. How would you prioritise your response?',
+    text: 'A person suddenly deteriorates. How would you prioritise your response?',
   },
   {
     id: 'nurse_second_conflict',
     category: 'Professionalism',
-    text: 'A colleague strongly disagrees with your clinical decision in front of a patient. How do you handle the situation while keeping the patient safe and maintaining professionalism?',
+    text: 'A colleague disagrees with you in front of a patient. How would you handle it?',
   },
   {
     id: 'nurse_second_end_of_life',
     category: 'Compassionate care',
-    text: 'How would you support a person and their family when care is focused on comfort and end-of-life needs?',
+    text: 'How would you support a person and family receiving end-of-life care?',
   },
 ];
 
@@ -182,7 +178,7 @@ export const LAUREM_NURSE_SECOND_UK_QUESTIONS: InterviewQuestion[] = [
   {
     id: 'nurse_second_uk_local_practice',
     category: 'UK practice',
-    text: 'Tell us about your experience working within UK healthcare or social care policy, documentation and multidisciplinary practice.',
+    text: 'Tell us about your experience working within UK healthcare or social care policy and multidisciplinary practice.',
   },
 ];
 
@@ -190,12 +186,12 @@ export const LAUREM_NURSE_SECOND_INTERNATIONAL_QUESTIONS: InterviewQuestion[] = 
   {
     id: 'nurse_second_intl_cultural_adaptation',
     category: 'International adaptation',
-    text: 'What do you think will be the biggest adjustment when practising nursing in the UK, and how will you prepare for it?',
+    text: 'What do you think will be the biggest adjustment when practising nursing in the UK?',
   },
   {
     id: 'nurse_second_intl_patient_safety',
     category: 'Patient safety',
-    text: 'How would you respond if a UK policy or local procedure differed from the way you were previously taught to work?',
+    text: 'What would you do if a UK policy differed from how you were previously taught to work?',
   },
 ];
 
