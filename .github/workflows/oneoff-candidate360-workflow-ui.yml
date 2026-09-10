@@ -1,0 +1,72 @@
+name: oneoff-candidate360-workflow-ui
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch Candidate 360 workflow UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('app/admin/applications/[id]/page.tsx')
+          text = path.read_text()
+
+          marker = "const pre: React.CSSProperties = {\n"
+          transitions = "const statusTransitions: Record<string, string[]> = {\n  Enquiry: ['Invited', 'Rejected', 'Withdrawn'],\n  Invited: ['Application', 'Rejected', 'Withdrawn'],\n  Application: ['Screening', 'Rejected', 'Withdrawn'],\n  Screening: ['Interview', 'Documents', 'Rejected', 'Withdrawn'],\n  Interview: ['Second Interview', 'Documents', 'Offer', 'Rejected', 'Withdrawn'],\n  'Second Interview': ['Documents', 'Offer', 'Rejected', 'Withdrawn'],\n  Documents: ['Sponsorship', 'Offer', 'Onboarding', 'Rejected', 'Withdrawn'],\n  Sponsorship: ['Offer', 'Rejected', 'Withdrawn'],\n  Offer: ['Onboarding', 'Rejected', 'Withdrawn'],\n  Onboarding: ['Hired', 'Rejected', 'Withdrawn'],\n  Hired: [],\n  Rejected: [],\n  Withdrawn: [],\n};\n\n"
+          if "const statusTransitions: Record<string, string[]>" not in text:
+              if marker not in text:
+                  raise SystemExit('status style marker not found')
+              text = text.replace(marker, transitions + marker, 1)
+
+          old = "  const application = data.application;\n  const nurseAnswers = data.nurseInterview?.answers;\n  const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';\n  const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);\n  const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;\n"
+          new = "  const application = data.application;\n  const nurseAnswers = data.nurseInterview?.answers;\n  const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';\n  const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);\n  const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;\n  const availableStatuses = [application.status, ...(statusTransitions[application.status] || [])].filter((status, index, values) => values.indexOf(status) === index);\n  const applicationData = application.application_data && typeof application.application_data === 'object' ? application.application_data : {};\n  const pathway = String((applicationData as any).pathway || (application.living_in_uk === 'Yes' ? 'uk' : application.living_in_uk === 'No' ? 'international' : ''));\n"
+          if old not in text:
+              raise SystemExit('Candidate 360 state marker not found')
+          text = text.replace(old, new, 1)
+
+          old_select = "            <select value={application.status} disabled={busy} onChange={(event) => void changeStatus(event.target.value)} style={{ padding: 11, border: '1px solid #d9e2ec', borderRadius: 9, fontWeight: 700 }}>\n              {recruitmentConfig.statusFlow.map((status: string) => <option key={status}>{status}</option>)}\n            </select>"
+          new_select = "            <select value={application.status} disabled={busy} onChange={(event) => void changeStatus(event.target.value)} aria-label=\"Recruitment status\" style={{ padding: 11, border: '1px solid #d9e2ec', borderRadius: 9, fontWeight: 700 }}>\n              {availableStatuses.map((status) => <option key={status}>{status}</option>)}\n            </select>"
+          if old_select not in text:
+              raise SystemExit('status select not found')
+          text = text.replace(old_select, new_select, 1)
+
+          old_actions = "          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>\n            {canSendSecondInterview ? (\n              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>\n            ) : (\n              <div style={{ ...subcard, flex: '1 1 320px' }}>\n                <div style={{ fontWeight: 800 }}>Second interview locked</div>\n                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{isRegisteredNurse ? 'A completed first interview is required before the second interview can be sent.' : 'Second interviews are currently available only for Registered Nurse candidates after a completed first interview.'}</div>\n              </div>\n            )}\n            <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>\n            <Link href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>Readiness gate</Link>\n          </div>"
+          new_actions = "          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14, alignItems: 'stretch' }}>\n            {application.status === 'Application' && (\n              <button disabled={busy} onClick={() => void changeStatus('Screening')} style={primary}>Move to screening</button>\n            )}\n            {application.status === 'Screening' && (\n              <div style={{ ...subcard, flex: '1 1 320px' }}>\n                <div style={{ fontWeight: 800 }}>Ready for first interview</div>\n                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Review the application, then schedule the first interview. Do not skip straight to a second interview.</div>\n              </div>\n            )}\n            {canSendSecondInterview ? (\n              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>\n            ) : isRegisteredNurse && application.status === 'Interview' ? (\n              <div style={{ ...subcard, flex: '1 1 320px' }}>\n                <div style={{ fontWeight: 800 }}>First interview still required</div>\n                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Complete the first interview before sending the second interview invitation.</div>\n              </div>\n            ) : !isRegisteredNurse ? (\n              <div style={{ ...subcard, flex: '1 1 320px' }}>\n                <div style={{ fontWeight: 800 }}>Single interview pathway</div>\n                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{application.role_applied || 'This role'} does not use the Registered Nurse second-interview stage.</div>\n              </div>\n            ) : null}\n            {['Offer', 'Onboarding', 'Hired'].includes(application.status) && (\n              <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>\n            )}\n            <Link href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>Readiness gate</Link>\n          </div>"
+          if old_actions not in text:
+              raise SystemExit('Candidate 360 actions block not found')
+          text = text.replace(old_actions, new_actions, 1)
+
+          old_pathway = "          <h2 style={{ marginTop: 0 }}>UK / international pathway</h2>\n"
+          new_pathway = "          <h2 style={{ marginTop: 0 }}>Application pathway</h2>\n          <div style={{ ...subcard, marginBottom: 14 }}>\n            <div style={{ fontWeight: 800 }}>{pathway === 'international' ? 'International applicant' : pathway === 'uk' ? 'UK-based applicant' : 'Pathway not recorded'}</div>\n            <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>This is taken from the candidate's submitted application pathway, not inferred from their role.</div>\n          </div>\n"
+          if old_pathway not in text:
+              raise SystemExit('pathway heading not found')
+          text = text.replace(old_pathway, new_pathway, 1)
+
+          old_metrics = "          <Metric label=\"Second interviews\" value={data.secondInterviews.length} />"
+          new_metrics = "          <Metric label=\"First interviews\" value={data.interviews.length} />\n          <Metric label=\"Second interviews\" value={data.secondInterviews.length} />"
+          if old_metrics not in text:
+              raise SystemExit('metrics marker not found')
+          text = text.replace(old_metrics, new_metrics, 1)
+
+          path.write_text(text)
+          PY
+          rm .github/workflows/oneoff-candidate360-workflow-ui.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: clarify Candidate 360 recruitment workflow"
+          git push origin main
