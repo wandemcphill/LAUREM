@@ -8,6 +8,8 @@ BIMED retains ownership of the existing shared `recruitment_*` and legacy workfo
 
 The LAUREM server client in `lib/db.ts` keeps the application's logical table names stable while translating known LAUREM table and RPC names to their prefixed physical names. This means an existing LAUREM call such as `db().from('recruitment_applications')` reaches `laurem_recruitment_applications`, not BIMED's table.
 
+This allowlist includes the logical `workforce_audit_events` table used by assignment and leave audit logging. It is translated to `laurem_workforce_audit_events`, so workforce audit events cannot fall through to a shared `workforce_audit_events` table.
+
 Unknown table names and Supabase operations are passed through unchanged. LAUREM therefore cannot silently take over BIMED-only tables through the LAUREM name map.
 
 ## Data ownership
