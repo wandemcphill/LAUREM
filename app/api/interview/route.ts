@@ -19,12 +19,29 @@ async function resolveContext(request:NextRequest){
   if(inviteError) throw inviteError;
   if(!invite) throw new Error('INVITATION_NOT_FOUND');
   if(invite.expires_at&&new Date(invite.expires_at).getTime()<=Date.now()) throw new Error('INVITATION_EXPIRED');
-  const {data:application,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('invite_id',invite.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+
+  let {data:application,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('invite_id',invite.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(appError) throw appError;
+
+  // Admin reissued assessment links use a fresh invitation bound to the existing Round 1 attempt.
+  if(!application){
+    const {data:boundAttempt,error:boundAttemptError}=await client.from('interview_attempts').select('application_id').eq('invite_id',invite.id).eq('round',1).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(boundAttemptError) throw boundAttemptError;
+    if(boundAttemptAttemptId(boundAttempt)){
+      const {data:reissuedApplication,error:reissuedApplicationError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('id',boundAttempt.application_id).maybeSingle();
+      if(reissuedApplicationError) throw reissuedApplicationError;
+      application=reissuedApplication;
+    }
+  }
+
   if(!application) throw new Error('APPLICATION_REQUIRED');
   const role=normalizeLauremRole(application.role_applied||invite.role);
   if(!role) throw new Error('INVALID_ROLE');
   return {client,invite,application,role,token};
+}
+
+function boundAttemptAttemptId(value: { application_id?: string | null } | null): value is { application_id: string } {
+  return Boolean(value?.application_id);
 }
 
 export async function GET(request:NextRequest){
@@ -61,7 +78,7 @@ export async function POST(request:NextRequest){
   try{body=JSON.parse(raw) as typeof body;}catch{return NextResponse.json({error:'Invalid request body.'},{status:400});}
   if(!body.attemptId)return NextResponse.json({error:'Assessment id is required.'},{status:400});
   try{
-    const {client,application,role,token}=await resolveContext(request);
+    const {client,application,role}=await resolveContext(request);
     const {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,application_id,round,role,pathway,question_snapshot,status').eq('id',body.attemptId).eq('application_id',application.id).eq('round',1).maybeSingle();
     if(attemptError)throw attemptError;
     if(!attempt)return NextResponse.json({error:'Assessment not found.'},{status:404});
