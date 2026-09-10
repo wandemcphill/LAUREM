@@ -309,7 +309,11 @@ export default function Candidate360Page() {
   const nurseAnswers = data.nurseInterview?.answers;
   const isRegisteredNurse = String(application.role_applied || '').trim().toLowerCase() === 'registered nurse';
   const hasCompletedFirstInterview = data.interviews.some((interview: any) => interview.status === 'Completed' && !interview.cancelled_at);
-  const canSendSecondInterview = isRegisteredNurse && application.status === 'Interview' && hasCompletedFirstInterview;
+  const round1Assessment = (data.assessments || []).find((assessment: any) => assessment.round === 1);
+  const round2Assessment = (data.assessments || []).find((assessment: any) => assessment.round === 2);
+  const activeSecondInvitation = (data.secondInterviews || []).find((item: any) => item.status === 'sent' && item.expires_at && new Date(item.expires_at).getTime() > Date.now());
+  const canReissueSecondInterview = round1Assessment?.status === 'passed' && !activeSecondInvitation;
+  const canSendSecondInterview = canReissueSecondInterview && application.status === 'Second Interview';
   const availableStatuses = [application.status, ...(statusTransitions[application.status] || [])].filter((status, index, values) => values.indexOf(status) === index);
   const applicationData = application.application_data && typeof application.application_data === 'object' ? application.application_data : {};
   const pathway = String((applicationData as any).pathway || (application.living_in_uk === 'Yes' ? 'uk' : application.living_in_uk === 'No' ? 'international' : ''));
@@ -338,6 +342,8 @@ export default function Candidate360Page() {
           <Metric label="Readiness blockers" value={requiredOpen} />
           <Metric label="Approved documents" value={approvedDocs} />
           <Metric label="First interviews" value={data.interviews.length} />
+          <Metric label="Round 1" value={round1Assessment?.status || 'Not started'} />
+          <Metric label="Round 2" value={round2Assessment?.status || 'Locked'} />
           <Metric label="Second interviews" value={data.secondInterviews.length} />
           <Metric label="Contracts" value={data.contracts.length} />
         </section>
@@ -362,19 +368,33 @@ export default function Candidate360Page() {
                 <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Review the application, then schedule the first interview. Do not skip straight to a second interview.</div>
               </div>
             )}
-            {canSendSecondInterview ? (
-              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Send second interview</button>
-            ) : isRegisteredNurse && application.status === 'Interview' ? (
+            {round1Assessment?.status === 'in_progress' && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
-                <div style={{ fontWeight: 800 }}>First interview still required</div>
-                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Complete the first interview before sending the second interview invitation.</div>
+                <div style={{ fontWeight: 800 }}>First assessment in progress</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>The candidate has a role-based 20-question assessment in progress.</div>
               </div>
-            ) : !isRegisteredNurse ? (
+            )}
+            {round1Assessment?.status === 'passed' && activeSecondInvitation && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
-                <div style={{ fontWeight: 800 }}>Single interview pathway</div>
-                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{application.role_applied || 'This role'} does not use the Registered Nurse second-interview stage.</div>
+                <div style={{ fontWeight: 800 }}>Second stage issued</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Round 1 passed at {round1Assessment.percent}% and the second-stage link is active.</div>
               </div>
-            ) : null}
+            )}
+            {round1Assessment?.status === 'passed' && !activeSecondInvitation && (
+              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Reissue second stage</button>
+            )}
+            {round1Assessment?.status === 'failed' && (
+              <div style={{ ...subcard, flex: '1 1 320px' }}>
+                <div style={{ fontWeight: 800 }}>First assessment not passed</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Score {round1Assessment.percent}% against the configured {round1Assessment.pass_percent || 80}% pass mark.</div>
+              </div>
+            )}
+            {round2Assessment?.status === 'submitted' && (
+              <div style={{ ...subcard, flex: '1 1 320px' }}>
+                <div style={{ fontWeight: 800 }}>Second stage completed</div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Round 2 has been submitted and is ready for recruiter review.</div>
+              </div>
+            )}
             {['Offer', 'Onboarding', 'Hired'].includes(application.status) && (
               <Link href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>Prepare contract</Link>
             )}
