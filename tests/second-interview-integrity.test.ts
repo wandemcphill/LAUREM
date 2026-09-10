@@ -6,19 +6,21 @@ describe('LAUREM second interview submission integrity', () => {
   const route = readFileSync(resolve(process.cwd(), 'app/api/second-interview/route.ts'), 'utf8');
 
   it('bounds request body size before JSON parsing', () => {
-    expect(route).toContain('const MAX_BODY = 512_000;');
-    expect(route).toContain("return NextResponse.json({ error: 'Interview payload is too large.' }, { status: 413 });");
+    expect(route).toContain('const MAX_BODY=512_000;');
+    expect(route).toContain("return NextResponse.json({error:'Interview payload is too large.'},{status:413})");
   });
 
-  it('selects the nursing interview pathway from the linked application', () => {
-    expect(route).toContain("select('id,role_applied,living_in_uk')");
-    expect(route).toContain("application.living_in_uk === 'No' ? 'international' : 'uk'");
-    expect(route).toContain('getLauremNurseSecondInterviewQuestions(pathway)');
+  it('derives the universal second-stage pathway from the linked application and role', () => {
+    expect(route).toContain("select('id,full_name,email,role_applied,living_in_uk,status')");
+    expect(route).toContain("const role=normalizeLauremRole(application.role_applied||'');");
+    expect(route).toContain("pathway:application.living_in_uk==='No'?'international':'uk'");
+    expect(route).toContain('selectRound2Questions(role)');
   });
 
-  it('uses a compare-and-set update and rejects the losing concurrent submission', () => {
-    expect(route).toContain(".eq('status', 'sent')");
-    expect(route).toContain(".select('id,status')");
-    expect(route).toContain('if (!completed) return NextResponse.json({ error: \'This second-interview link has already been completed.\' }, { status: 409 });');
+  it('binds the assessment attempt to the exact second-stage invitation', () => {
+    expect(route).toContain("eq('second_interview_id',invite.id)");
+    expect(route).toContain("second_interview_id:invite.id");
+    expect(route).toContain("if(attempt.status==='submitted')return NextResponse.json({error:'This second-stage assessment has already been submitted.'},{status:409});");
+    expect(route).toContain('laurem_complete_round2');
   });
 });
