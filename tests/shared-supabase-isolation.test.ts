@@ -7,9 +7,13 @@ describe('shared Supabase isolation', () => {
   const dbSource = readFileSync(resolve(process.cwd(), 'lib/db.ts'), 'utf8');
   const migrationSource = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260909_shared_supabase_isolation.sql'), 'utf8');
 
-  it('routes every LAUREM logical table to a laurem-prefixed physical table', () => {
+  it('routes LAUREM tables and RPCs through explicit namespace maps', () => {
+    expect(dbSource).toContain('function mapTableName(name: string)');
     expect(dbSource).toContain('return LAUREM_TABLES.has(name) ? `laurem_${name}` : name;');
-    expect(dbSource).toContain('return LAUREM_RPC_NAMES.has(fn) ? `laurem_${fn}` : fn;');
+    expect(dbSource).toContain('function mapRpcName(name: string)');
+    expect(dbSource).toContain('return LAUREM_RPC_NAMES.has(name) ? `laurem_${name}` : name;');
+    expect(dbSource).toContain("'legacy_contract_signatures'");
+    expect(dbSource).toContain("'workforce_audit_events'");
   });
 
   it('does not rename or drop the shared BIMED namespace', () => {
