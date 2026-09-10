@@ -52,6 +52,9 @@ function mapTableName(name: string) {
 }
 
 function mapRpcName(name: string) {
+  // Some LAUREM RPCs are already namespace-qualified. Never turn
+  // `laurem_x` into the invalid `laurem_laurem_x`.
+  if (name.startsWith('laurem_')) return name;
   return LAUREM_RPC_NAMES.has(name) ? `laurem_${name}` : name;
 }
 
