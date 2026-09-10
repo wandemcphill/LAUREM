@@ -29,7 +29,7 @@ describe('LAUREM recruitment lifecycle integrity', () => {
     expect(migration).toContain('first_interview_not_completed');
     expect(secondInterviewRoute).toContain('The candidate must pass the first assessment before a second-stage invitation can be issued.');
     expect(secondInterviewRoute).toContain("eq('round',1)");
-    expect(secondInterviewRoute).toContain("eq('status','passed')");
+    expect(secondInterviewRoute).toContain("attempt.status!=='passed'");
   });
 
   it('supports every canonical LAUREM role rather than a nurse-only second stage', () => {
