@@ -11,13 +11,13 @@ describe('LAUREM invitation-only recruitment access', () => {
     expect(read('app/page.tsx')).not.toContain('href="/nurse-interview"');
   });
 
-  it('protects the nursing interview route with an invitation and nursing application check', () => {
+  it('protects the legacy nursing interview route by validating the private invite before redirecting to universal assessment', () => {
     const page = read('app/nurse-interview/page.tsx');
     expect(page).toContain("if (!token) notFound();");
     expect(page).toContain("eq('token_hash', hashToken(token))");
-    expect(page).toContain("if (invite.role && !/nurse/i.test(invite.role)) notFound();");
-    expect(page).toContain("eq('invite_id', invite.id)");
-    expect(page).toContain("!application || !/nurse/i.test(application.role_applied || '')");
+    expect(page).toContain('if (inviteError || !invite) notFound();');
+    expect(page).toContain('if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) notFound();');
+    expect(page).toContain('redirect(`/interview/${token}`);');
   });
 
   it('keeps vacancy pages informational instead of sending candidates to admin', () => {
