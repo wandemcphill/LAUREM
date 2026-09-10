@@ -17,6 +17,8 @@ export type RecruitmentStatus =
 
 export type JobCategory = 'Nursing' | 'Care' | 'Support' | 'Administration' | 'Other';
 
+export type JobVisaSponsorship = 'none' | 'in-country-switch-only' | 'overseas-and-in-country';
+
 export type Job = {
   id: string;
   title: string;
@@ -24,6 +26,7 @@ export type Job = {
   locations: string[];
   pathway: CandidatePathway[];
   sponsorshipAvailable: boolean;
+  visaSponsorship: JobVisaSponsorship;
   active: boolean;
   summary: string;
   description: string;
