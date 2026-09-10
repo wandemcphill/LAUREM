@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       if (message === 'INVITATION_EXPIRED') return NextResponse.json({ error: 'This invitation has expired.' }, { status: 410 });
       if (message === 'INVITATION_NOT_FOUND') return NextResponse.json({ error: 'Invitation not found.' }, { status: 404 });
       if (message === 'INVITATION_ROLE_MISMATCH') return NextResponse.json({ error: 'This invitation is for a different role.' }, { status: 409 });
+      if (message === 'CARE_ROLE_IN_COUNTRY_ONLY') return NextResponse.json({ error: 'This care role can only be sponsored through an eligible in-country visa switch route. Applicants must already be in the UK.' }, { status: 409 });
       if (message === 'ROLE_REQUIRED') return NextResponse.json({ error: 'The application role is required.' }, { status: 400 });
       if (message === 'CONSENT_REQUIRED') return NextResponse.json({ error: 'You must provide consent before submitting the application.' }, { status: 400 });
       throw error;
