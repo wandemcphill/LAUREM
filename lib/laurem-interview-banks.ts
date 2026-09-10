@@ -169,7 +169,7 @@ function format(template: string, role: LauremCanonicalRole) {
 }
 
 function buildObjectiveBank(role: LauremCanonicalRole): ObjectiveInterviewQuestion[] {
-  const templates = [...commonObjectiveTemplates, ...roleSpecificObjectiveTemplates];
+  const templates = [...commonObjectiveTemplates.slice(0, 20), ...roleSpecificObjectiveTemplates];
   return templates.slice(0, ROUND1_BANK_SIZE).map(([category, text, options, correctIndex], index) => ({
     id: `${role.toLowerCase().replaceAll(' ', '_')}_r1_${String(index + 1).padStart(2, '0')}`,
     category,
