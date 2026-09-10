@@ -24,6 +24,8 @@ Never rename, drop, truncate, or repurpose the existing shared BIMED tables to s
 
 LAUREM migrations create and evolve only the `laurem_*` physical namespace and LAUREM-owned storage. New LAUREM candidate activity should create records only in that namespace.
 
+The historical isolation migration contains legacy bootstrap-copy SQL because it was the migration used during the original shared-schema cutover. It must be treated as a historical migration and must not be repurposed as a data-import mechanism. The subsequent empty-cutover migration and baseline guard enforce the current launch policy: LAUREM starts with zero application/recruitment/workforce rows.
+
 ## Production baseline
 
 After correction, production contains:
@@ -36,13 +38,16 @@ After correction, production contains:
 
 The existing BIMED/shared counts remain unchanged: 59 invites, 15 applications, 4 interviews, 9 second interviews and 6 contract signatures.
 
+The executable baseline guard migration fails the migration sequence if any LAUREM-owned rows exist at first launch. It performs no writes against BIMED/shared recruitment tables.
+
 ## Deployment sequence
 
 1. Apply the LAUREM schema/isolation migrations.
-2. Confirm the LAUREM namespace is empty at first launch.
-3. Deploy the LAUREM application containing the `lib/db.ts` routing layer.
-4. Run the authenticated LAUREM system health check.
-5. Confirm new LAUREM application writes are landing in `laurem_*` tables.
-6. Keep BIMED on its existing shared tables. No BIMED migration is required for the LAUREM cut-over.
+2. Apply the empty-cutover cleanup migration.
+3. Apply the LAUREM empty-baseline guard and require it to succeed.
+4. Deploy the LAUREM application containing the `lib/db.ts` routing layer.
+5. Run the authenticated LAUREM system health check.
+6. Confirm new LAUREM application writes are landing in `laurem_*` tables.
+7. Keep BIMED on its existing shared tables. No BIMED migration is required for the LAUREM cut-over.
 
 This architecture intentionally favours additive isolation over a risky in-place rename or schema replacement.
