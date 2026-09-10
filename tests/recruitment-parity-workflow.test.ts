@@ -12,7 +12,8 @@ describe('LAUREM recruitment parity workflow', () => {
     expect(route).toContain('recruitment_status_history');
     expect(route).toContain('recruitment_contracts');
     expect(route).toContain('recruitment_evidence_reviews');
-    expect(route).toContain('Private invitation tokens and raw storage credentials are deliberately excluded');
+    expect(route).toContain("select('id,candidate_name,candidate_email,role,expires_at,used_at,created_at')");
+    expect(route).not.toContain('token_hash');
     expect(page).toContain('LAUREM CANDIDATE 360');
     expect(page).toContain('Documents & evidence');
     expect(page).toContain('Readiness gate');
@@ -23,7 +24,9 @@ describe('LAUREM recruitment parity workflow', () => {
     const route = read('app/api/admin/interviews/route.ts');
     expect(route).toContain("import { sendLauremEmail } from '@/lib/laurem-email';");
     expect(route).toContain("event:'scheduled'");
-    expect(route).toContain("event==='Cancelled'?'cancelled':'rescheduled'");
+    expect(route).toContain("const event=status==='Cancelled'?'cancelled':'rescheduled';");
+    expect(route).toContain("event:'cancelled'");
+    expect(route).toContain("event:'rescheduled'");
     expect(route).toContain('Request payload is too large.');
     expect(route).toContain('Invalid JSON.');
   });
@@ -33,7 +36,7 @@ describe('LAUREM recruitment parity workflow', () => {
     expect(route).toContain("An active second-interview invitation already exists for this candidate.");
     expect(route).toContain("import { sendLauremEmail } from '@/lib/laurem-email';");
     expect(route).toContain('second-interview:${data.id}');
-    expect(route).toContain('Do not forward the private link.');
+    expect(route).toContain('Please do not forward it.');
   });
 
   it('limits bulk invitations and reuses the canonical invitation helper', () => {
