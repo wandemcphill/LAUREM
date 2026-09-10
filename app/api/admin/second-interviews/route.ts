@@ -13,8 +13,9 @@ export async function POST(request:NextRequest){
   if(!session)return NextResponse.json({error:'Unauthorised'},{status:401});
   const raw=await request.text();
   if(new TextEncoder().encode(raw).byteLength>32000)return NextResponse.json({error:'Request payload is too large.'},{status:413});
-  const body=JSON.parse(raw) as Record<string,unknown>;
-  const applicationId=typeof body.applicationId==='string'?body.applicationId:'';
+  let body:Record<string,unknown>;
+  try{body=JSON.parse(raw) as Record<string,unknown>;}catch{return NextResponse.json({error:'Invalid JSON.'},{status:400});}
+  const applicationId=typeof body.applicationId==='string'?body.applicationId.trim():'';
   if(!applicationId)return NextResponse.json({error:'Application id is required.'},{status:400});
   try{
     const client=db();
