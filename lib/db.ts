@@ -14,6 +14,7 @@ const LAUREM_TABLES = new Set([
   'recruitment_evidence_reviews',
   'recruitment_evidence_audit',
   'recruitment_admin_actions',
+  'laurem_interview_attempts',
   'recruitment_onboarding_checklist',
   'legacy_contract_signatures',
   'staff_profiles',
@@ -45,53 +46,35 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_activate_staff_account',
   'create_international_nurse_contract_template_meta',
   'laurem_create_second_interview_invitation',
+  'laurem_complete_round1',
+  'laurem_complete_round2',
 ]);
 
 function mapTableName(name: string) {
-  return LAUREM_TABLES.has(name) ? `laurem_${name}` : name;
+  return LAUREM_TABLES.has(name) ? (name.startsWith('laurem_') ? name : `laurem_${name}`) : name;
 }
 
 function mapRpcName(name: string) {
-  // Some LAUREM RPCs are already namespace-qualified. Never turn
-  // `laurem_x` into the invalid `laurem_laurem_x`.
   if (name.startsWith('laurem_')) return name;
   return LAUREM_RPC_NAMES.has(name) ? `laurem_${name}` : name;
 }
 
 let client: ReturnType<typeof createClient<any>> | null = null;
 
-/**
- * Server-only Supabase client.
- *
- * BIMED and LAUREM intentionally share the same Supabase project. LAUREM's
- * application code retains its stable logical table names, while this adapter
- * routes those names to LAUREM-prefixed physical tables. Non-LAUREM tables and
- * operations pass through untouched, preventing accidental cross-application
- * reads and writes in the shared database.
- */
 export function db() {
   if (client) return client;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Supabase server environment is not configured.');
 
-  const rawClient = createClient<any>(url, key, {
-    auth: { persistSession: false },
-  });
-
+  const rawClient = createClient<any>(url, key, { auth: { persistSession: false } });
   client = new Proxy(rawClient, {
     get(target, property, receiver) {
-      if (property === 'from') {
-        return (table: string) => target.from(mapTableName(table));
-      }
-      if (property === 'rpc') {
-        return (fn: string, args?: Record<string, unknown>, options?: Record<string, unknown>) =>
-          target.rpc(mapRpcName(fn), args, options);
-      }
+      if (property === 'from') return (table: string) => target.from(mapTableName(table));
+      if (property === 'rpc') return (fn: string, args?: Record<string, unknown>, options?: Record<string, unknown>) => target.rpc(mapRpcName(fn), args, options);
       const value = Reflect.get(target, property, receiver);
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
-
   return client;
 }
