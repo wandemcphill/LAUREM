@@ -2,40 +2,26 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
 type ContractResult = { id?:string; status?:string; acceptanceLink?:string; email?:{status?:string;error?:string} };
 
-function eligible(app: Application | null) {
-  return Boolean(app && app.role_applied === 'Registered Nurse' && app.living_in_uk === 'No');
-}
+function eligible(app: Application | null) { return Boolean(app && app.role_applied === 'Registered Nurse' && app.living_in_uk === 'No'); }
 
 export default function InternationalNurseContractPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
   const [id, setId] = useState('');
   const [application, setApplication] = useState<Application|null>(null);
   const [message, setMessage] = useState<string|null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ContractResult|null>(null);
   const [form, setForm] = useState({
-    weeklyHours: String(contractConfig.defaultWeeklyHours),
-    annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark),
-    postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark),
-    preRegistrationSalary: '',
-    visaRoute: contractConfig.defaultVisaRoute,
-    sponsorshipOccupationCode: contractConfig.defaultOccupationCode,
-    nmcStatus: 'Working towards full NMC registration',
-    registrationDeadline: 'Within the period permitted by the applicable immigration rules and NMC process',
-    probation: '6 months',
-    noticePeriodEmployee: '1 week during probation and 4 weeks thereafter',
-    noticePeriodEmployer: '1 week during probation and 4 weeks thereafter, or the statutory minimum where greater',
-    holidayEntitlement: 'Statutory minimum entitlement plus any more favourable Laurem entitlement stated in the offer',
-    pensionScheme: 'Laurem workplace pension arrangement for eligible employees',
-    workLocations: 'Scotland',
-    relocationSupport: 'As expressly stated in the signed relocation/offer schedule',
-    repayableCosts: '',
+    weeklyHours: String(contractConfig.defaultWeeklyHours), annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark), postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark), preRegistrationSalary: '',
+    visaRoute: contractConfig.defaultVisaRoute, sponsorshipOccupationCode: contractConfig.defaultOccupationCode, nmcStatus: 'Working towards full NMC registration',
+    registrationDeadline: 'Within the period permitted by the applicable immigration rules and NMC process', probation: '6 months',
+    noticePeriodEmployee: '1 week during probation and 4 weeks thereafter', noticePeriodEmployer: '1 week during probation and 4 weeks thereafter, or the statutory minimum where greater',
+    holidayEntitlement: 'Statutory minimum entitlement plus any more favourable Laurem entitlement stated in the offer', pensionScheme: 'Laurem workplace pension arrangement for eligible employees',
+    workLocations: 'Scotland', relocationSupport: 'As expressly stated in the signed relocation/offer schedule', repayableCosts: '',
     repaymentSchedule: '0–12 months: 100%; 13–24 months: 50%; 25–36 months: 25%; after 36 months: 0%, subject to applicable law and individual circumstances',
   });
 
@@ -61,11 +47,9 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
         noticePeriodEmployee:form.noticePeriodEmployee,noticePeriodEmployer:form.noticePeriodEmployer,holidayEntitlement:form.holidayEntitlement,pensionScheme:form.pensionScheme,
         workLocations:form.workLocations.split(',').map(v=>v.trim()).filter(Boolean),relocationSupport:form.relocationSupport,repayableCosts:form.repayableCosts,repaymentSchedule:form.repaymentSchedule,
       })});
-      const payload=await response.json();
-      if(!response.ok)throw new Error(payload.error||'Unable to generate contract.');
+      const payload=await response.json(); if(!response.ok)throw new Error(payload.error||'Unable to generate contract.');
       setResult(payload);setMessage('Contract draft generated. Review all terms before issuing it to the candidate.');
-    }catch(e){setMessage(e instanceof Error?e.message:'Unable to generate contract.');}
-    finally{setBusy(false);}
+    }catch(e){setMessage(e instanceof Error?e.message:'Unable to generate contract.');}finally{setBusy(false);}
   }
 
   async function issue(){
@@ -73,11 +57,9 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     setBusy(true);setMessage(null);
     try{
       const response=await fetch(`/api/admin/contracts?id=${encodeURIComponent(result.id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'issued'})});
-      const payload=await response.json();
-      if(!response.ok)throw new Error(payload.error||'Unable to issue contract.');
+      const payload=await response.json(); if(!response.ok)throw new Error(payload.error||'Unable to issue contract.');
       setResult(payload);setMessage(payload.email?.status==='sent'?'Contract issued and acceptance link emailed to the candidate.':'Contract issued, but email delivery needs attention.');
-    }catch(e){setMessage(e instanceof Error?e.message:'Unable to issue contract.');}
-    finally{setBusy(false);}
+    }catch(e){setMessage(e instanceof Error?e.message:'Unable to issue contract.');}finally{setBusy(false);}
   }
 
   if(!application)return <main className="wrap" style={{padding:40}}><p>{message||'Loading candidate...'}</p>{id&&<Link href={`/admin/applications/${encodeURIComponent(id)}`}>Back to candidate</Link>}</main>;
@@ -106,7 +88,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Pension" value={form.pensionScheme} onChange={(v)=>setField('pensionScheme',v)} />
     </div></section>
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Relocation and repayment</h2><Field label="Relocation support" value={form.relocationSupport} onChange={(v)=>setField('relocationSupport',v)} multiline /><Field label="Potentially repayable employer-funded expenses" value={form.repayableCosts} onChange={(v)=>setField('repayableCosts',v)} multiline /><Field label="Repayment schedule" value={form.repaymentSchedule} onChange={(v)=>setField('repaymentSchedule',v)} multiline /><p style={{color:'var(--muted)',fontSize:13,lineHeight:1.6,marginTop:14}}>Do not include recruitment fees, sponsor licence fees, Immigration Skills Charge, Certificate of Sponsorship costs or interview costs as employee-repayable expenses. Any repayment term must be supported by genuine, evidenced and auditable employer-funded expenses and must be reviewed for proportionality and individual circumstances.</p></section>
-    <section className="card" style={{padding:22}}><h2>Issue contract</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, explicitly issue it to create a fresh private acceptance link and email it to the candidate.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',marginTop:12,...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue contract and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div></>}</div>}</section>
+    <section className="card" style={{padding:22}}><h2>Issue contract</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, explicitly issue it to create a fresh private acceptance link and email it to the candidate.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue contract and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div></>}</div>}</section>
   </main>;
 }
 
