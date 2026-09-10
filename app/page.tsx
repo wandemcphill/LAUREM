@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { lauremCompany } from '@/lib/laurem-company-config';
 
+const buttonBase = {
+  padding: '13px 18px',
+  borderRadius: 10,
+  textDecoration: 'none',
+  fontWeight: 700,
+};
+
 export default function HomePage() {
   return (
     <main className="wrap" style={{ padding: '56px 0 80px' }}>
@@ -14,15 +21,43 @@ export default function HomePage() {
             A modern recruitment experience for UK-based candidates and nurses applying internationally, with structured screening, interviews, documents and onboarding.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link href="/jobs" style={{ background: 'var(--ink)', color: 'white', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 700 }}>View vacancies</Link>
-            <Link href="/nurse-interview" style={{ border: '1px solid var(--line)', padding: '13px 18px', borderRadius: 10, textDecoration: 'none', fontWeight: 700 }}>Nurse interview</Link>
+            <Link href="/jobs" style={{ ...buttonBase, background: 'var(--ink)', color: 'white' }}>View vacancies</Link>
+            <Link href="/nurse-interview" style={{ ...buttonBase, border: '1px solid var(--line)' }}>Nurse interview</Link>
           </div>
         </div>
       </section>
+
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16, marginTop: 18 }}>
-        {['Candidate application', 'UK & international nurses', 'Interview & assessment', 'Documents & onboarding'].map((item) => (
-          <div className="card" key={item} style={{ padding: 22 }}><strong>{item}</strong><p style={{ color: 'var(--muted)', lineHeight: 1.5 }}>Built as a configurable recruitment workflow for {lauremCompany.tradingName}.</p></div>
+        {[
+          ['Candidate application', 'Apply for current vacancies and track the recruitment process.'],
+          ['UK & international nurses', 'Use the appropriate recruitment pathway and interview process.'],
+          ['Interview & assessment', 'Complete structured interviews and assessments securely.'],
+          ['Documents & onboarding', 'Submit required evidence and progress through onboarding.'],
+        ].map(([title, description]) => (
+          <div className="card" key={title} style={{ padding: 22 }}>
+            <strong>{title}</strong>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.5 }}>{description}</p>
+          </div>
         ))}
+      </section>
+
+      <section className="card" style={{ marginTop: 18, padding: 22 }} aria-label="Portal access">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <strong>Portal access</strong>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.5, margin: '6px 0 0' }}>
+              Existing LAUREM staff and authorised recruiters can sign in to their secure workspaces.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href="/staff/login" style={{ ...buttonBase, border: '1px solid var(--line)', display: 'inline-block' }}>
+              Staff login
+            </Link>
+            <Link href="/admin/login" style={{ ...buttonBase, background: 'var(--ink)', color: 'white', display: 'inline-block' }}>
+              Admin login
+            </Link>
+          </div>
+        </div>
       </section>
     </main>
   );
