@@ -8,6 +8,8 @@ type Shift = { id:string; client_name:string|null; location:string; scheduled_st
 type Timesheet = { id:string; assignment_id:string|null; work_date:string; clock_in:string|null; clock_out:string|null; total_hours:number|null; status:string; notes:string|null };
 type LeaveRequest = { id:string; leave_type:string; start_date:string; end_date:string; total_days:number; reason:string|null; status:string; review_note:string|null };
 type MessageSummary = { id:string; subject:string|null; updated_at:string|null; latest_message?:{body:string|null;created_at:string|null;sender_name:string|null} };
+type OnboardingTask = { id:string; title:string; required:boolean; status:string; acknowledgement_required:boolean; acknowledged_at:string|null };
+type Onboarding = { title:string; status:string; tasks:OnboardingTask[] };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -25,6 +27,7 @@ export default function StaffPortalHome() {
   const [timesheets,setTimesheets] = useState<Timesheet[]>([]);
   const [leave,setLeave] = useState<LeaveRequest[]>([]);
   const [messages,setMessages] = useState<MessageSummary[]>([]);
+  const [onboarding,setOnboarding] = useState<Onboarding|null>(null);
   const [loading,setLoading] = useState(true);
   const [refreshing,setRefreshing] = useState(false);
   const [error,setError] = useState('');
@@ -39,18 +42,20 @@ export default function StaffPortalHome() {
     if(showSpinner) setLoading(true); else setRefreshing(true);
     setError('');
     try {
-      const [me,shiftRes,timesheetRes,leaveRes,messageRes] = await Promise.all([
+      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes] = await Promise.all([
         fetch('/api/staff/me',{cache:'no-store'}),
         fetch('/api/staff/shifts',{cache:'no-store'}),
         fetch('/api/staff/timesheets',{cache:'no-store'}),
         fetch('/api/staff/leave',{cache:'no-store'}),
         fetch('/api/staff/messages',{cache:'no-store'}),
+        fetch('/api/staff/onboarding',{cache:'no-store'}),
       ]);
-      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
-      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json()]);
+      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
+      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json()]);
       if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
-      if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||'Unable to load the staff dashboard.');
+      if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||'Unable to load the staff dashboard.');
       setStaff(meBody.staff); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]);
+      setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
   }
@@ -79,8 +84,13 @@ export default function StaffPortalHome() {
     submitted:timesheets.filter(t=>t.status==='submitted').length,
     approvedHours:timesheets.filter(t=>['approved','paid'].includes(t.status)).reduce((sum,t)=>sum+(Number(t.total_hours)||0),0),
     pendingLeave:leave.filter(r=>r.status==='pending').length,
-    unreadish:messages.length,
-  }),[shifts,timesheets,leave,messages]);
+  }),[shifts,timesheets,leave]);
+
+  const onboardingProgress = useMemo(()=>{
+    const required = onboarding?.tasks.filter(task=>task.required) || [];
+    const done = required.filter(task=>(task.status==='completed'||task.status==='waived') && (!task.acknowledgement_required || Boolean(task.acknowledged_at))).length;
+    return required.length ? Math.round((done/required.length)*100) : onboarding ? 100 : 0;
+  },[onboarding]);
 
   if(loading || !staff) return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}><div style={card}><strong>LAUREM STAFF PORTAL</strong><p style={muted}>Loading your workspace…</p></div></div></main>;
 
@@ -96,9 +106,11 @@ export default function StaffPortalHome() {
       <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/>
     </section>
 
+    {onboarding && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>ONBOARDING</div><h2 style={{margin:'5px 0 4px'}}>{onboarding.title}</h2><div style={muted}>{onboardingProgress}% of required items fully complete · {statusPill(onboarding.status)}</div></div><button onClick={()=>router.push('/staff/onboarding')} style={btn(true)}>Open onboarding</button></div><div style={{height:10,background:'#edf2f7',borderRadius:99,overflow:'hidden',marginTop:15}}><div style={{width:`${onboardingProgress}%`,height:'100%',background:'#102a43'}}/></div><div style={{display:'flex',gap:14,flexWrap:'wrap',marginTop:10,fontSize:12}}><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.status!=='completed'&&t.status!=='waived').length} required items still open</span><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.acknowledgement_required&&!t.acknowledged_at).length} acknowledgements pending</span></div></section>}
+
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(290px,.9fr)',gap:14,marginTop:14}}>
       <article style={card}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><h2 style={{margin:'0 0 4px'}}>Next shift</h2><div style={muted}>Your nearest scheduled assignment</div></div><button onClick={()=>router.push('/staff/shifts')} style={btn()}>View shifts</button></div>{shifts[0]?<div style={{marginTop:18,padding:16,borderRadius:12,background:'#f7fafc'}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><strong>{shifts[0].client_name||'LAUREM Assignment'}</strong>{statusPill(shifts[0].status)}</div><div style={{marginTop:7}}>{shifts[0].location}</div><div style={{...muted,marginTop:5}}>{fmtDateTime(shifts[0].scheduled_start)} → {fmtDateTime(shifts[0].scheduled_end)}</div>{shifts[0].notes&&<p style={{...muted,whiteSpace:'pre-wrap'}}>{shifts[0].notes}</p>}</div>:<Empty text="No upcoming shifts are currently scheduled."/>}</article>
-      <article style={card}><h2 style={{margin:'0 0 4px'}}>Quick access</h2><div style={{...muted,marginBottom:14}}>Everything you use most often.</div><div style={{display:'grid',gap:9}}>{[['Messages','/staff/messages'],['Timesheets','/staff/timesheets'],['Documents','/staff/documents'],['My Shifts','/staff/shifts']].map(([label,path])=><button key={path} onClick={()=>router.push(path)} style={{...btn(),textAlign:'left'}}>{label}<span style={{float:'right'}}>→</span></button>)}</div></article>
+      <article style={card}><h2 style={{margin:'0 0 4px'}}>Quick access</h2><div style={{...muted,marginBottom:14}}>Everything you use most often.</div><div style={{display:'grid',gap:9}}>{[['Onboarding','/staff/onboarding'],['Messages','/staff/messages'],['Timesheets','/staff/timesheets'],['Documents','/staff/documents'],['My Shifts','/staff/shifts']].map(([label,path])=><button key={path} onClick={()=>router.push(path)} style={{...btn(),textAlign:'left'}}>{label}<span style={{float:'right'}}>→</span></button>)}</div></article>
     </section>
 
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.35fr) minmax(300px,.9fr)',gap:14,marginTop:14}}>
