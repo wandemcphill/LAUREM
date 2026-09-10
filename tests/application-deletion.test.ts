@@ -22,7 +22,7 @@ describe('admin application deletion', () => {
   it('requires a deliberate recruiter confirmation in the UI', () => {
     expect(candidatePage).toContain('Delete application');
     expect(candidatePage).toContain('DELETE APPLICATION');
-    expect(candidatePage).toContain('method: \'DELETE\'');
-    expect(candidatePage).not.toContain('window.confirm');
+    expect(candidatePage).toContain("method: 'DELETE'");
+    expect(candidatePage).toContain('Permanent deletion will remove');
   });
 });
