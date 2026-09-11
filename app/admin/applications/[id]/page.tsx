@@ -100,7 +100,7 @@ const statusTransitions: Record<string, string[]> = {
   Screening: ['Interview', 'Documents', 'Rejected', 'Withdrawn'],
   Interview: ['Second Interview', 'Documents', 'Offer', 'Rejected', 'Withdrawn'],
   'Second Interview': ['Documents', 'Offer', 'Rejected', 'Withdrawn'],
-  Documents: ['Sponsorship', 'Offer', 'Onboarding', 'Rejected', 'Withdrawn'],
+  Documents: ['Sponsorship', 'Offer', 'Rejected', 'Withdrawn'],
   Sponsorship: ['Offer', 'Rejected', 'Withdrawn'],
   Offer: ['Onboarding', 'Rejected', 'Withdrawn'],
   Onboarding: ['Hired', 'Rejected', 'Withdrawn'],
