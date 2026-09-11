@@ -57,10 +57,14 @@ export function buildOnboardingTasks(audience: LauremHandbookAudience | 'standar
   return tasks;
 }
 
-export function calculateOnboardingStatus(tasks: Array<{ status: string; required: boolean }>): 'pending' | 'in_progress' | 'complete' {
+export function calculateOnboardingStatus(tasks: Array<{ status: string; required: boolean; acknowledgement_required?: boolean; acknowledged_at?: string | null }>): 'pending' | 'in_progress' | 'complete' {
   const required = tasks.filter((task) => task.required);
   if (required.length === 0) return 'complete';
-  if (required.every((task) => task.status === 'completed' || task.status === 'waived')) return 'complete';
-  if (required.some((task) => task.status === 'completed' || task.status === 'waived')) return 'in_progress';
-  return 'pending';
+  const fullyComplete = required.every((task) =>
+    (task.status === 'completed' || task.status === 'waived') &&
+    (!task.acknowledgement_required || Boolean(task.acknowledged_at)),
+  );
+  if (fullyComplete) return 'complete';
+  const hasProgress = required.some((task) => task.status === 'completed' || task.status === 'waived' || Boolean(task.acknowledged_at));
+  return hasProgress ? 'in_progress' : 'pending';
 }
