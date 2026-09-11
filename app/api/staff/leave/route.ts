@@ -19,6 +19,7 @@ function normaliseLeaveType(value: unknown) {
     'family leave': 'family',
     'unpaid leave': 'unpaid',
     'other leave': 'other',
+    'emergency leave': 'other',
   };
   return aliases[input] || input;
 }
