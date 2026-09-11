@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
   const notes = typeof body?.notes === 'string' ? body.notes.trim() : null;
   try {
     const client = db();
-    const { data: task, error: taskError } = await client.from('staff_onboarding_tasks').select('id,package_id,status,required').eq('id', id).maybeSingle();
+    const { data: task, error: taskError } = await client.from('staff_onboarding_tasks').select('id,package_id,status,required,acknowledgement_required,acknowledged_at').eq('id', id).maybeSingle();
     if (taskError) throw taskError;
     if (!task) return NextResponse.json({ error: 'Onboarding task not found.' }, { status: 404 });
     const now = new Date().toISOString();
@@ -46,9 +46,9 @@ export async function PATCH(request: NextRequest) {
     }).eq('id', id).select('*').single();
     if (updateError) throw updateError;
 
-    const { data: tasks, error: taskListError } = await client.from('staff_onboarding_tasks').select('status,required').eq('package_id', task.package_id);
+    const { data: tasks, error: taskListError } = await client.from('staff_onboarding_tasks').select('status,required,acknowledgement_required,acknowledged_at').eq('package_id', task.package_id);
     if (taskListError) throw taskListError;
-    const onboardingStatus = calculateOnboardingStatus((tasks || []) as Array<{ status: string; required: boolean }>);
+    const onboardingStatus = calculateOnboardingStatus(tasks || []);
     const { data: updatedPackage, error: packageError } = await client.from('staff_onboarding_packages').update({ status: onboardingStatus, completed_at: onboardingStatus === 'complete' ? now : null, updated_at: now }).eq('id', task.package_id).select('*').single();
     if (packageError) throw packageError;
     return NextResponse.json({ task: updatedTask, package: updatedPackage });
