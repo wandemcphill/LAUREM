@@ -10,6 +10,19 @@ function dbConflictMessage(error: { code?: string; message?: string } | null) {
   return null;
 }
 
+function normaliseLeaveType(value: unknown) {
+  if (typeof value !== 'string') return '';
+  const input = value.trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    'annual leave': 'annual',
+    'sick leave': 'sick',
+    'family leave': 'family',
+    'unpaid leave': 'unpaid',
+    'other leave': 'other',
+  };
+  return aliases[input] || input;
+}
+
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
@@ -26,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const input = body ?? {};
-  const leaveType = typeof input.leaveType === 'string' ? input.leaveType : '';
+  const leaveType = normaliseLeaveType(input.leaveType);
   const startDate = typeof input.startDate === 'string' ? input.startDate : '';
   const endDate = typeof input.endDate === 'string' ? input.endDate : '';
   const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
