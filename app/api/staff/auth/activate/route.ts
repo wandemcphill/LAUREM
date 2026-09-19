@@ -13,39 +13,46 @@ export async function POST(req: NextRequest) {
   }
 
   const client = db();
-  const { data: updated, error } = await client.rpc('laurem_activate_staff_account', {
+  const activationTokenHash = hashActivationToken(token);
+  const { data: candidate } = await client.from('staff_profiles')
+    .select('id,laurem_id,employee_number,email,session_version')
+    .eq('email', email)
+    .eq('activation_token_hash', activationTokenHash)
+    .maybeSingle();
+
+  if (!candidate) return NextResponse.json({ error: 'This activation link is invalid or expired.' }, { status: 400 });
+
+  const expectedSessionVersion = Math.max(candidate.session_version || 1, 1);
+  const tokenForSession = createStaffSession({
+    id: candidate.id,
+    laurem_id: candidate.laurem_id || candidate.employee_number,
+    email: candidate.email,
+    session_version: expectedSessionVersion + 1,
+  });
+  const expiresAt = new Date(Date.now() + STAFF_SESSION_TTL_SECONDS * 1000).toISOString();
+
+  const { data: updated, error } = await client.rpc('laurem_activate_staff_account_with_session', {
     p_email: email,
-    p_token_hash: hashActivationToken(token),
+    p_token_hash: activationTokenHash,
     p_password_hash: hashPassword(password),
+    p_session_token_hash: hashActivationToken(tokenForSession),
+    p_session_expires_at: expiresAt,
+    p_expected_session_version: expectedSessionVersion,
     p_ip_address: requestIp(req),
     p_user_agent: req.headers.get('user-agent'),
   });
   if (error || !updated) {
     const reason = error?.message || '';
-    if (reason.includes('ACTIVATION_INVALID')) return NextResponse.json({ error: 'This activation link is invalid or expired.' }, { status: 400 });
+    if (reason.includes('ACTIVATION_INVALID') || reason.includes('ACTIVATION_EXPIRED') || reason.includes('ACTIVATION_USED') || reason.includes('ACTIVATION_CHANGED')) {
+      return NextResponse.json({ error: 'This activation link is invalid or expired. Please request a new activation link.' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Unable to activate staff account.' }, { status: 500 });
   }
 
   const mailbox = await ensureLauremMailbox(client, updated);
-  const tokenForSession = createStaffSession({
-    id: updated.id,
-    laurem_id: updated.laurem_id || updated.employee_number,
-    email: updated.email,
-    session_version: updated.session_version,
-  });
-  const expiresAt = new Date(Date.now() + STAFF_SESSION_TTL_SECONDS * 1000).toISOString();
-  const { error: sessionError } = await client.from('staff_portal_sessions').insert({
-    staff_id: updated.id,
-    token_hash: hashActivationToken(tokenForSession),
-    expires_at: expiresAt,
-    ip_address: requestIp(req),
-    user_agent: req.headers.get('user-agent'),
-  });
-  if (sessionError) return NextResponse.json({ error: 'Account activated, but the staff session could not be created.' }, { status: 500 });
-
   const response = NextResponse.json({ ok: true, staff: {
     laurem_id: updated.laurem_id || updated.employee_number,
-    address: `${mailbox.handle}@${mailbox.namespace}`,
+    address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null,
   } });
   setStaffSession(response, tokenForSession);
   return response;
