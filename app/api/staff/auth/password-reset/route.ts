@@ -89,8 +89,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const client = db();
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+
   try {
-    if (!await consumeThrottle(client, 'staff-password-reset-complete', 8, 900)) {
+    if (!await consumeThrottle(client, `staff-password-reset-complete-ip:${ip}`, 8, 900)) {
       return NextResponse.json({ error: 'Too many password reset attempts. Please try again later.' }, { status: 429 });
     }
 
@@ -102,8 +104,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'A valid reset link and a password of at least 10 characters are required.' }, { status: 400 });
     }
 
+    const tokenHash = hashActivationToken(token);
+    if (!await consumeThrottle(client, `staff-password-reset-token:${tokenHash}`, 5, 900)) {
+      return NextResponse.json({ error: 'Too many password reset attempts. Please request a new reset link.' }, { status: 429 });
+    }
+
     const result = await client.rpc('laurem_complete_staff_password_reset', {
-      p_token_hash: hashActivationToken(token),
+      p_token_hash: tokenHash,
       p_password_hash: hashPassword(password),
     });
 
