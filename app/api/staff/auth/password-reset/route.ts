@@ -45,34 +45,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
     }
 
-    const { data: staff } = await client
-      .from('staff_profiles')
-      .select('id,laurem_id,employee_number,full_name,preferred_name,email,password_hash,employment_status,activated_at')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (!staff || !staff.activated_at || !['pending', 'active'].includes(staff.employment_status)) {
-      return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
-    }
-
     const { token, hash } = createResetToken();
     const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000).toISOString();
 
-    await client
-      .from('staff_password_reset_tokens')
-      .update({ consumed_at: new Date().toISOString() })
-      .eq('staff_id', staff.id)
-      .is('consumed_at', null);
+    const { data: resetRows, error: resetError } = await client.rpc('laurem_issue_staff_password_reset', {
+      p_email: email,
+      p_token_hash: hash,
+      p_expires_at: expiresAt,
+    });
 
-    const { error: insertError } = await client
-      .from('staff_password_reset_tokens')
-      .insert({ staff_id: staff.id, token_hash: hash, expires_at: expiresAt });
-
-    if (insertError) throw insertError;
+    if (resetError) throw resetError;
+    const staff = Array.isArray(resetRows) ? resetRows[0] : resetRows;
+    if (!staff) {
+      return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
+    }
 
     const delivery = await sendLauremStaffPasswordReset(client, staff, token);
     await client.from('staff_security_events').insert({
-      staff_id: staff.id,
+      staff_id: staff.staff_id,
       event_type: 'staff.password_reset.requested',
       actor: 'staff_password_reset_request',
       ip_address: ip,
