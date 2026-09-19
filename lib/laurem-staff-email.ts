@@ -37,3 +37,26 @@ export async function sendLauremStaffActivation(client: SupabaseClient, staff: R
   if (result.status === 'not_configured') return { status: 'not_configured' as const, address, url: activationUrl, deliveryId: result.deliveryId };
   return { status: 'failed' as const, address, url: activationUrl, error: result.error, deliveryId: result.deliveryId };
 }
+
+
+export async function sendLauremStaffPasswordReset(client: SupabaseClient, staff: Record<string, any>, token: string) {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
+  const resetUrl = `${appUrl}/staff/password-reset?token=${encodeURIComponent(token)}`;
+  const displayName = esc(staff.preferred_name || staff.full_name || 'Colleague');
+  const from = process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>';
+  const payload = {
+    from,
+    to: [staff.email],
+    reply_to: 'recruitment@lauremcare.com',
+    subject: 'Reset your LAUREM Care Staff Portal password',
+    text: `Hello ${staff.preferred_name || staff.full_name},\n\nWe received a request to reset your LAUREM Care Staff Portal password. Use this secure link within 30 minutes:\n${resetUrl}\n\nIf you did not request this, ignore this email.\n\nKind regards,\nLAUREM Care Staff Portal`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#173a31"><p style="color:#0f766e;font-weight:800;letter-spacing:1px">LAUREM CARE</p><h1>Reset your Staff Portal password</h1><p>Hello ${displayName},</p><p>We received a request to reset your LAUREM Care Staff Portal password.</p><p><a href="${resetUrl}" style="background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Reset password</a></p><p>This secure link expires in <strong>30 minutes</strong> and can only be used once.</p><p>If you did not request this, you can ignore this email and your current password will remain unchanged.</p><p>Kind regards,<br>LAUREM Care Staff Portal</p></div>`,
+  };
+  const result = await sendLauremEmail(client, {
+    eventType: 'staff.password_reset',
+    entityId: staff.id,
+    idempotencyKey: `staff.password_reset/${staff.id}/${hashActivationToken(token)}`,
+    payload,
+  });
+  return result;
+}
