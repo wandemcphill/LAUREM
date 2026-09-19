@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function StaffPasswordResetPage() {
+function StaffPasswordResetContent() {
   const params = useSearchParams();
   const token = params.get('token') || '';
   const [mode, setMode] = useState(token ? 'complete' : 'request');
@@ -76,5 +76,13 @@ export default function StaffPasswordResetPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function StaffPasswordResetPage() {
+  return (
+    <Suspense fallback={<main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f4f7fb', padding: 24, fontFamily: 'system-ui' }}>Loading password reset…</main>}>
+      <StaffPasswordResetContent />
+    </Suspense>
   );
 }
