@@ -13,13 +13,13 @@ describe('LAUREM staff password recovery parity', () => {
     expect(route).toContain('staff-password-reset-email:');
     expect(route).toContain('laurem_complete_staff_password_reset');
     expect(route).toContain('staff-password-reset-complete');
-    expect(route).toContain('session_version');
     expect(route).toContain('consumed_at');
     expect(login).toContain('/staff/password-reset');
     expect(migration).toContain('laurem_staff_password_reset_tokens');
     expect(migration).toContain('enable row level security');
     expect(atomicMigration).toContain('laurem_complete_staff_password_reset');
     expect(atomicMigration).toContain('for update');
+    expect(atomicMigration).toContain('session_version');
   });
 
   it('keeps the password reset UI available from the private staff portal', () => {
