@@ -141,12 +141,6 @@ begin
       message='READINESS_INCOMPLETE';
   end if;
 
-  select exists(
-    select 1
-      from public.laurem_staff_profiles
-     where application_id = p_application_id
-  ) into created_staff_value;
-
   select *
     into staff_row
     from public.laurem_staff_profiles
