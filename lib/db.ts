@@ -27,6 +27,7 @@ const LAUREM_TABLES = new Set([
   'staff_portal_sessions',
   'staff_portal_auth_limits',
   'staff_security_events',
+  'staff_password_reset_tokens',
   'staff_internal_mailboxes',
   'staff_message_conversations',
   'staff_message_participants',
