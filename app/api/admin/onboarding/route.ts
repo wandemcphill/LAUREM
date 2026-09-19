@@ -14,14 +14,12 @@ export async function POST(request: NextRequest) {
   if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
   try {
     const client = db();
-    const { application, contract, readiness, staff: existing } = await validateLauremStaffTransition(client, applicationId);
+    const { application } = await validateLauremStaffTransition(client, applicationId);
     const applicationData = (application.application_data && typeof application.application_data === 'object') ? application.application_data as Record<string, unknown> : {};
     const nmc = typeof applicationData.nmc_number === 'string' ? applicationData.nmc_number : null;
     const location = typeof body?.location === 'string' ? body.location.trim() : null;
     const audience = inferLauremOnboardingAudience(String(application.role_applied || ''), application.living_in_uk);
     const tasks = buildOnboardingTasks(audience);
-    const verifiedRightToWork = readiness.items.find((item) => item.item_key === 'right_to_work_verified')?.status === 'completed';
-
     const packageTitle = audience === 'international_nurse'
       ? 'International Nurse Onboarding & Welcome Programme'
       : audience === 'sponsored_hca'
