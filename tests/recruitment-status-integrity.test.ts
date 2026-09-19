@@ -12,10 +12,15 @@ const workflowMigration = readFileSync(
 );
 
 describe('recruitment status integrity', () => {
-  it('routes onboarding through the audited transition RPC', () => {
-    expect(route).toContain("rpc('laurem_transition_application_status'");
-    expect(route).toContain("p_to_status: 'Onboarding'");
+  it('routes onboarding through the atomic preparation RPC', () => {
+    const atomicMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/migrations/20260919_staff_onboarding_atomic.sql'),
+      'utf8',
+    );
+    expect(route).toContain("rpc('laurem_prepare_staff_onboarding_atomic'");
     expect(route).not.toContain("from('recruitment_applications').update({ status: 'Onboarding'");
+    expect(atomicMigration).toContain('laurem_transition_application_status');
+    expect(atomicMigration).toContain("p_application_id");
   });
 
   it('keeps onboarding prerequisites enforced by the database lifecycle function', () => {
