@@ -9,6 +9,7 @@ describe('LAUREM staff activation/session atomicity', () => {
     expect(route).toContain("laurem_activate_staff_account_with_session");
     expect(route).toContain("p_session_token_hash");
     expect(route).toContain("p_session_expires_at");
+    expect(route).toContain("p_expected_session_version");
     expect(route).not.toContain(".from('staff_portal_sessions').insert");
 
     expect(migration).toContain("create or replace function public.laurem_activate_staff_account_with_session");
@@ -17,6 +18,7 @@ describe('LAUREM staff activation/session atomicity', () => {
     expect(migration).toContain("insert into public.laurem_staff_portal_sessions");
     expect(migration).toContain("staff.activation.completed");
     expect(migration).toContain("session_created");
+    expect(migration).toContain("p_expected_session_version");
     expect(migration).toContain("revoke all on function");
   });
 
@@ -26,6 +28,7 @@ describe('LAUREM staff activation/session atomicity', () => {
     expect(migration).toContain("raise exception 'ACTIVATION_INVALID'");
     expect(migration).toContain("raise exception 'ACTIVATION_EXPIRED'");
     expect(migration).toContain("raise exception 'ACTIVATION_USED'");
+    expect(migration).toContain("raise exception 'ACTIVATION_CHANGED'");
     expect(migration).toContain("activation_token_hash = p_token_hash");
   });
 });
