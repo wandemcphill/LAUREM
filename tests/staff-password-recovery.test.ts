@@ -12,7 +12,9 @@ describe('LAUREM staff password recovery parity', () => {
     expect(route).toContain('staff-password-reset-ip');
     expect(route).toContain('staff-password-reset-email:');
     expect(route).toContain('laurem_complete_staff_password_reset');
-    expect(route).toContain('staff-password-reset-complete');
+    expect(route).toContain('staff-password-reset-complete-ip:');
+    expect(route).toContain('staff-password-reset-token:');
+    expect(route).not.toContain("consumeThrottle(client, 'staff-password-reset-complete'");
     expect(route).toContain('consumed_at');
     expect(login).toContain('/staff/password-reset');
     expect(migration).toContain('laurem_staff_password_reset_tokens');
