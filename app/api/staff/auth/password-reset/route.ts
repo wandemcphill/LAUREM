@@ -102,57 +102,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'A valid reset link and a password of at least 10 characters are required.' }, { status: 400 });
     }
 
-    const hash = hashActivationToken(token);
-    const { data: reset } = await client
-      .from('staff_password_reset_tokens')
-      .select('id,staff_id,expires_at,consumed_at')
-      .eq('token_hash', hash)
-      .maybeSingle();
-
-    if (!reset || reset.consumed_at || new Date(reset.expires_at).getTime() <= Date.now()) {
-      return NextResponse.json({ error: 'This password reset link is invalid or has expired. Request a new reset link.' }, { status: 410 });
-    }
-
-    const { data: staff } = await client
-      .from('staff_profiles')
-      .select('id,laurem_id,employee_number,email,employment_status,activated_at,session_version')
-      .eq('id', reset.staff_id)
-      .maybeSingle();
-
-    if (!staff || !staff.activated_at || !['pending', 'active'].includes(staff.employment_status)) {
-      return NextResponse.json({ error: 'This Staff Portal account is not currently eligible for password reset.' }, { status: 409 });
-    }
-
-    const newVersion = Math.max(Number(staff.session_version) || 1, 1) + 1;
-    const { error: updateError } = await client
-      .from('staff_profiles')
-      .update({
-        password_hash: hashPassword(password),
-        session_version: newVersion,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', staff.id);
-
-    if (updateError) throw updateError;
-
-    const { data: consumed, error: consumeError } = await client
-      .from('staff_password_reset_tokens')
-      .update({ consumed_at: new Date().toISOString() })
-      .eq('id', reset.id)
-      .is('consumed_at', null)
-      .select('id')
-      .maybeSingle();
-
-    if (consumeError || !consumed) {
-      return NextResponse.json({ error: 'This password reset link has already been used or is no longer valid.' }, { status: 409 });
-    }
-
-    await client.from('staff_security_events').insert({
-      staff_id: staff.id,
-      event_type: 'staff.password_reset.completed',
-      actor: 'staff_password_reset',
-      details: { session_version: newVersion },
+    const result = await client.rpc('laurem_complete_staff_password_reset', {
+      p_token_hash: hashActivationToken(token),
+      p_password_hash: hashPassword(password),
     });
+
+    if (result.error) {
+      if (result.error.message?.includes('STAFF_PASSWORD_RESET_INVALID_OR_EXPIRED') || result.error.message?.includes('STAFF_PASSWORD_RESET_ALREADY_USED')) {
+        return NextResponse.json({ error: 'This password reset link is invalid or has expired. Request a new reset link.' }, { status: 410 });
+      }
+      if (result.error.message?.includes('STAFF_PASSWORD_RESET_NOT_ELIGIBLE')) {
+        return NextResponse.json({ error: 'This Staff Portal account is not currently eligible for password reset.' }, { status: 409 });
+      }
+      throw result.error;
+    }
 
     return NextResponse.json({ ok: true, message: 'Your LAUREM Staff Portal password has been changed. You can now sign in with your LAUREM ID or employee number.' });
   } catch (error) {
