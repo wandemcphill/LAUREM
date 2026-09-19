@@ -29,13 +29,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const client = db();
-    const selected = selectRound1Questions(normalizeLauremRole(role) || role);
+    const canonicalRoleForAssessment = normalizeLauremRole(role);
+    if (!canonicalRoleForAssessment) return NextResponse.json({ error: 'The application role is not recognised.' }, { status: 400 });
+    const selected = selectRound1Questions(canonicalRoleForAssessment);
     const snapshot = selected.map(q => ({ id:q.id, category:q.category, text:q.text, options:q.options, correctIndex:q.correctIndex }));
 
     const { data, error } = await client.rpc('laurem_create_application_with_round1', {
       p_token_hash: hashToken(token),
       p_payload: { ...payload, full_name: fullName, email, role_applied: role, pathway, living_in_uk: pathway === 'uk' ? 'Yes' : 'No' },
-      p_round1_role: normalizeLauremRole(role) || role,
+      p_round1_role: canonicalRoleForAssessment,
       p_round1_pathway: pathway,
       p_question_ids: selected.map(q=>q.id),
       p_question_snapshot: snapshot,
