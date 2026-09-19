@@ -7,6 +7,7 @@ describe('LAUREM staff password recovery parity', () => {
     const login = readFileSync('app/staff/login/page.tsx', 'utf8');
     const migration = readFileSync('supabase/migrations/20260919_staff_password_reset.sql', 'utf8');
     const atomicMigration = readFileSync('supabase/migrations/20260919_staff_password_reset_atomic.sql', 'utf8');
+    const issuanceMigration = readFileSync('supabase/migrations/20260919_staff_password_reset_issuance_atomic.sql', 'utf8');
 
     expect(route).toContain('GENERIC_MESSAGE');
     expect(route).toContain('staff-password-reset-ip');
@@ -15,6 +16,9 @@ describe('LAUREM staff password recovery parity', () => {
     expect(route).toContain('staff-password-reset-complete-ip:');
     expect(route).toContain('staff-password-reset-token:');
     expect(route).not.toContain("consumeThrottle(client, 'staff-password-reset-complete'");
+    expect(route).toContain('laurem_issue_staff_password_reset');
+    expect(route).not.toContain(".from('staff_password_reset_tokens').update");
+    expect(route).not.toContain(".from('staff_password_reset_tokens').insert");
     expect(route).toContain('consumed_at');
     expect(login).toContain('/staff/password-reset');
     expect(migration).toContain('laurem_staff_password_reset_tokens');
@@ -22,6 +26,9 @@ describe('LAUREM staff password recovery parity', () => {
     expect(atomicMigration).toContain('laurem_complete_staff_password_reset');
     expect(atomicMigration).toContain('for update');
     expect(atomicMigration).toContain('session_version');
+    expect(issuanceMigration).toContain('for update');
+    expect(issuanceMigration).toContain('staff_password_reset_tokens');
+    expect(issuanceMigration).toContain('grant execute on function public.laurem_issue_staff_password_reset');
   });
 
   it('keeps the password reset UI available from the private staff portal', () => {
