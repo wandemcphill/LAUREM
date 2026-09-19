@@ -19,7 +19,7 @@ describe('LAUREM staff password recovery parity', () => {
     expect(route).toContain('laurem_issue_staff_password_reset');
     expect(route).not.toContain(".from('staff_password_reset_tokens').update");
     expect(route).not.toContain(".from('staff_password_reset_tokens').insert");
-    expect(route).toContain('consumed_at');
+    expect(issuanceMigration).toContain('consumed_at');
     expect(login).toContain('/staff/password-reset');
     expect(migration).toContain('laurem_staff_password_reset_tokens');
     expect(migration).toContain('enable row level security');
