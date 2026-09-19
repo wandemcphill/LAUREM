@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { checkRateLimit } from '@/lib/token';
 import { hashActivationToken, hashPassword } from '@/lib/laurem-staff-auth';
 import { sendLauremStaffPasswordReset } from '@/lib/laurem-staff-email';
 
