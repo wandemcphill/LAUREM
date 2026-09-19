@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const email = typeof body?.email === 'string' ? normalizeEmail(body.email) : '';
     if (!EMAIL_PATTERN.test(email)) return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
 
-    if (!await consumeThrottle(client, `staff-password-reset-email:${email}`, 3, 3600)) {
+    if (!await consumeThrottle(client, `staff-password-reset-email:${hashActivationToken(email)}`, 3, 3600)) {
       return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
     }
 
