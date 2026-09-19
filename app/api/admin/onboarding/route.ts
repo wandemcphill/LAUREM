@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildOnboardingTasks, calculateOnboardingStatus, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
+import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
 import { readAdminSession } from '@/lib/admin-auth';
 import { hashToken, makeToken } from '@/lib/token';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
@@ -22,79 +22,73 @@ export async function POST(request: NextRequest) {
     const tasks = buildOnboardingTasks(audience);
     const verifiedRightToWork = readiness.items.find((item) => item.item_key === 'right_to_work_verified')?.status === 'completed';
 
-    let staffId: string;
-    if (existing) {
-      staffId = existing.id;
-      if (contract && !existing.contract_id) {
-        const { error: bindingError } = await client.from('staff_profiles').update({ contract_id: contract.id, updated_at: new Date().toISOString() }).eq('id', existing.id).is('contract_id', null);
-        if (bindingError) throw bindingError;
-      }
-    } else {
-      const employeeNumber = `LAU-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-      const { data: createdStaff, error } = await client.from('staff_profiles').insert({
-        application_id: applicationId,
-        employee_number: employeeNumber,
-        full_name: String(application.full_name),
-        email: String(application.email || '').trim().toLowerCase(),
-        phone: application.phone,
-        job_title: application.role_applied,
-        employment_status: 'pending',
-        start_date: contract?.start_date || application.start_date,
-        location: location || null,
-        nmc_number: nmc || (typeof application.nmc_number === 'string' ? application.nmc_number : null),
-        right_to_work_verified: verifiedRightToWork,
-        dbs_verified: Boolean(body?.dbsVerified),
-        contract_id: contract?.id || null,
-      }).select('*').single();
-      if (error) throw error;
-      if (!createdStaff) throw new Error('Staff profile creation returned no row.');
-      staffId = createdStaff.id;
-    }
+    const packageTitle = audience === 'international_nurse'
+      ? 'International Nurse Onboarding & Welcome Programme'
+      : audience === 'sponsored_hca'
+        ? 'Sponsored Healthcare Assistant Onboarding Programme'
+        : 'Laurem Staff Onboarding Programme';
 
-    let { data: packageRow } = await client.from('staff_onboarding_packages').select('*').eq('staff_id', staffId).maybeSingle();
-    let rawAccessToken: string | null = null;
-    if (!packageRow) {
-      rawAccessToken = makeToken();
-      const { data: createdPackage, error } = await client.from('staff_onboarding_packages').insert({
-        staff_id: staffId,
-        audience,
-        title: audience === 'international_nurse' ? 'International Nurse Onboarding & Welcome Programme' : audience === 'sponsored_hca' ? 'Sponsored Healthcare Assistant Onboarding Programme' : 'Laurem Staff Onboarding Programme',
-        status: 'pending',
-        access_token_hash: hashToken(rawAccessToken),
-        access_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }).select('*').single();
-      if (error) throw error;
-      packageRow = createdPackage;
-    } else if (!packageRow.access_token_hash) {
-      rawAccessToken = makeToken();
-      const { data: refreshedPackage, error } = await client.from('staff_onboarding_packages').update({ access_token_hash: hashToken(rawAccessToken), access_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }).eq('id', packageRow.id).select('*').single();
-      if (error) throw error;
-      packageRow = refreshedPackage;
-    }
+    const rawAccessToken = makeToken();
+    const accessTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: atomicRows, error: atomicError } = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
+      p_application_id: applicationId,
+      p_actor: session.email,
+      p_audience: audience,
+      p_package_title: packageTitle,
+      p_tasks: tasks,
+      p_location: location,
+      p_nmc_number: nmc || (typeof application.nmc_number === 'string' ? application.nmc_number : null),
+      p_dbs_verified: Boolean(body?.dbsVerified),
+      p_access_token_hash: hashToken(rawAccessToken),
+      p_access_token_expires_at: accessTokenExpiresAt,
+    });
+    if (atomicError) throw atomicError;
 
-    const { data: existingTasks, error: taskReadError } = await client.from('staff_onboarding_tasks').select('task_key,status,required').eq('package_id', packageRow.id);
-    if (taskReadError) throw taskReadError;
-    if (!existingTasks || existingTasks.length === 0) {
-      const { error: taskInsertError } = await client.from('staff_onboarding_tasks').insert(tasks.map((task) => ({ ...task, package_id: packageRow.id })));
-      if (taskInsertError) throw taskInsertError;
-    }
-    const { data: allTasks, error: allTasksError } = await client.from('staff_onboarding_tasks').select('status,required').eq('package_id', packageRow.id);
-    if (allTasksError) throw allTasksError;
-    const onboardingStatus = calculateOnboardingStatus((allTasks || []) as Array<{ status: string; required: boolean }>);
-    const { data: updatedPackage, error: packageUpdateError } = await client.from('staff_onboarding_packages').update({ status: onboardingStatus, completed_at: onboardingStatus === 'complete' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', packageRow.id).select('*').single();
-    if (packageUpdateError) throw packageUpdateError;
+    const atomic = Array.isArray(atomicRows) ? atomicRows[0] : atomicRows;
+    if (!atomic) throw new Error('Atomic onboarding preparation returned no result.');
 
-    if (application.status !== 'Onboarding') {
-      const { error: transitionError } = await client.rpc('laurem_transition_application_status', { p_application_id: applicationId, p_to_status: 'Onboarding', p_actor: session.email, p_note: `Staff onboarding package ${packageRow.id} created`, p_override: false, p_override_reason: null });
-      if (transitionError) throw transitionError;
-    }
+    const { data: updatedPackage, error: packageError } = await client
+      .from('staff_onboarding_packages')
+      .select('*')
+      .eq('id', atomic.package_id)
+      .single();
+    if (packageError || !updatedPackage) throw packageError || new Error('Onboarding package not found after atomic preparation.');
 
     let portal: Awaited<ReturnType<typeof provisionLauremStaffPortal>> | null = null;
-    if (!existing || (!existing.activated_at && !existing.activation_token_hash)) portal = await provisionLauremStaffPortal(applicationId);
-    const { data: finalTasks } = await client.from('staff_onboarding_tasks').select('*').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
-    const onboardingLink = rawAccessToken ? `${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '')}/onboarding/${rawAccessToken}` : null;
-    const staff = existing ?? (portal ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id } : { id: staffId, employee_number: null, contract_id: contract?.id || null });
-    return NextResponse.json({ staff, audience, package: updatedPackage, tasks: finalTasks || [], onboardingLink, portal: portal ? { laurem_id: portal.staff.laurem_id || portal.staff.employee_number, address: `${portal.mailbox.handle}@${portal.mailbox.namespace}`, activation: portal.activation } : null, alreadyOnboarded: Boolean(existing) }, { status: existing ? 200 : 201 });
+    const { data: preparedStaff, error: staffReadError } = await client
+      .from('staff_profiles')
+      .select('*')
+      .eq('id', atomic.staff_id)
+      .single();
+    if (staffReadError || !preparedStaff) throw staffReadError || new Error('Staff profile not found after atomic preparation.');
+
+    if (!preparedStaff.activated_at && !preparedStaff.activation_token_hash) {
+      portal = await provisionLauremStaffPortal(applicationId);
+    }
+
+    const { data: finalTasks } = await client
+      .from('staff_onboarding_tasks')
+      .select('*')
+      .eq('package_id', atomic.package_id)
+      .order('sort_order', { ascending: true });
+
+    const onboardingLink = atomic.access_token_issued && rawAccessToken
+      ? `${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '')}/onboarding/${rawAccessToken}`
+      : null;
+
+    const staff = portal
+      ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id }
+      : { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id };
+
+    return NextResponse.json({
+      staff,
+      audience,
+      package: updatedPackage,
+      tasks: finalTasks || [],
+      onboardingLink,
+      portal: portal ? { laurem_id: portal.staff.laurem_id || portal.staff.employee_number, address: `${portal.mailbox.handle}@${portal.mailbox.namespace}`, activation: portal.activation } : null,
+      alreadyOnboarded: !atomic.created_staff,
+    }, { status: atomic.created_staff ? 201 : 200 });
   } catch (error) {
     if (error instanceof LauremLifecycleError) {
       const statusByCode: Record<LauremLifecycleErrorCode, number> = { APPLICATION_NOT_FOUND: 404, CONTRACT_REQUIRED: 409, CONTRACT_ROLE_MISMATCH: 409, READINESS_INCOMPLETE: 409, STAFF_CONTRACT_MISMATCH: 409 };
