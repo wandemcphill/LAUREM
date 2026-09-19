@@ -35,7 +35,7 @@ export default function StaffLoginPage() {
         <p style={{ color: '#627d98' }}>Use the LAUREM ID issued after onboarding.</p>
         <input required placeholder="LAU-001000" value={id} onChange={(event) => setId(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 11, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 10 }} />
         <input required type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 11, border: '1px solid #cbd5e1', borderRadius: 10 }} />
-        <button disabled={busy} style={{ width: '100%', marginTop: 12, padding: 12, border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        <div style={{ textAlign: 'right', marginTop: 10 }}><a href="/staff/password-reset" style={{ color: '#0f766e', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Forgot your password?</a></div><button disabled={busy} style={{ width: '100%', marginTop: 12, padding: 12, border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>{busy ? 'Signing in…' : 'Sign in'}</button>
         {error && <p style={{ color: '#b42318' }}>{error}</p>}
       </form>
     </main>

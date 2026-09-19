@@ -27,8 +27,10 @@ export async function loadLauremApplication(client: SupabaseClient, applicationI
   return data as ApplicationRecord;
 }
 
-export function requiresLauremPlatformContract(application: ApplicationRecord) {
-  return lauremRoleSlug(application.role_applied) === 'registered-nurse' && application.living_in_uk === 'No';
+export function requiresLauremPlatformContract(_application: ApplicationRecord) {
+  // Every staff conversion requires an accepted employment contract.
+  // Jurisdiction-specific sponsorship/registration rules are layered on top of this baseline gate.
+  return true;
 }
 
 export async function loadAcceptedLauremContract(client: SupabaseClient, applicationId: string): Promise<ContractRecord> {
