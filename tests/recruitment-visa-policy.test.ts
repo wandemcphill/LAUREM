@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { getLauremJob } from '@/lib/laurem-jobs';
 
 const jobs = readFileSync(resolve(process.cwd(), 'lib/laurem-jobs.ts'), 'utf8');
 const jobPage = readFileSync(resolve(process.cwd(), 'app/jobs/[id]/page.tsx'), 'utf8');
@@ -15,13 +16,13 @@ describe('recruitment visa sponsorship policy', () => {
   it('marks Senior Support Worker and Care Worker as in-country switch only', () => {
     expect(jobs).toContain("id: 'senior-support-worker'");
     expect(jobs).toContain("visaSponsorship: 'in-country-switch-only'");
-    expect(jobs).toContain("id: 'care-worker'");
-    expect(jobs).toContain("visaSponsorship: 'in-country-switch-only'");
+    expect(getLauremJob('care-worker')?.visaSponsorship).toBe('in-country-switch-only');
+    expect(getLauremJob('care-worker')?.id).toBe('healthcare-assistant');
   });
 
   it('keeps overseas sponsorship available only for the international nurse vacancy', () => {
-    expect(jobs).toContain("id: 'registered-nurse-international'");
-    expect(jobs).toContain("visaSponsorship: 'overseas-and-in-country'");
+    expect(getLauremJob('registered-nurse-international')?.visaSponsorship).toBe('overseas-and-in-country');
+    expect(getLauremJob('registered-nurse-international')?.id).toBe('registered-nurse');
   });
 
   it('shows the in-country switch restriction on public vacancy pages', () => {
