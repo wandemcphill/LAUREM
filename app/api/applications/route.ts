@@ -29,9 +29,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const client = db();
-    const { data, error } = await client.rpc('create_recruitment_application', {
+    const canonicalRoleForAssessment = normalizeLauremRole(role);
+    if (!canonicalRoleForAssessment) return NextResponse.json({ error: 'The application role is not recognised.' }, { status: 400 });
+    const selected = selectRound1Questions(canonicalRoleForAssessment);
+    const snapshot = selected.map(q => ({ id:q.id, category:q.category, text:q.text, options:q.options, correctIndex:q.correctIndex }));
+
+    const { data, error } = await client.rpc('laurem_create_application_with_round1', {
       p_token_hash: hashToken(token),
       p_payload: { ...payload, full_name: fullName, email, role_applied: role, pathway, living_in_uk: pathway === 'uk' ? 'Yes' : 'No' },
+      p_round1_role: canonicalRoleForAssessment,
+      p_round1_pathway: pathway,
+      p_question_ids: selected.map(q=>q.id),
+      p_question_snapshot: snapshot,
+      p_total_questions: ROUND1_QUESTIONS_PER_ATTEMPT,
+      p_pass_percent: ROUND1_PASS_PERCENT,
+      p_actor: email,
     });
     if (error) {
       const message = typeof error.message === 'string' ? error.message : '';
@@ -51,23 +63,6 @@ export async function POST(request: NextRequest) {
     const application = Array.isArray(data) ? data[0] : data;
     const canonicalRole = normalizeLauremRole(application?.role_applied || role);
     if (!application?.id || !canonicalRole) throw new Error('Application created without a valid role.');
-
-    const selected = selectRound1Questions(canonicalRole);
-    const snapshot = selected.map(q => ({ id:q.id, category:q.category, text:q.text, options:q.options, correctIndex:q.correctIndex }));
-    const { error: attemptError } = await client.from('interview_attempts').insert({
-      application_id: application.id,
-      invite_id: application.invite_id,
-      round: 1,
-      role: canonicalRole,
-      pathway,
-      question_ids: selected.map(q=>q.id),
-      question_snapshot: snapshot,
-      status: 'in_progress',
-      total_questions: ROUND1_QUESTIONS_PER_ATTEMPT,
-      pass_percent: ROUND1_PASS_PERCENT,
-    });
-    if (attemptError && !String(attemptError.message).toLowerCase().includes('duplicate')) throw attemptError;
-    await client.from('recruitment_applications').update({ status:'Interview', updated_at:new Date().toISOString() }).eq('id',application.id).eq('status','Application');
 
     const link=`${appUrl()}/interview/${token}`;
     const safeName=escapeHtml(fullName); const safeRole=escapeHtml(canonicalRole); const safeLink=escapeHtml(link);
