@@ -18,6 +18,9 @@ describe('LAUREM portal parity boundary', () => {
   });
 
   it('retains LAUREM staff and workforce workflow surfaces', () => {
+    expect(readFileSync('app/api/staff/auth/password-reset/route.ts', 'utf8')).toContain('staff-password-reset');
+    expect(readFileSync('app/staff/password-reset/page.tsx', 'utf8')).toContain('Send password reset link');
+
     const requiredFiles = [
       'app/api/staff/messages/route.ts',
       'app/api/staff/shifts/route.ts',
