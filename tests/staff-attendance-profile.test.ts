@@ -31,8 +31,10 @@ describe('LAUREM staff attendance and profile', () => {
     const route = readFileSync('app/api/staff/me/route.ts', 'utf8');
     const page = readFileSync('app/staff/profile/page.tsx', 'utf8');
     expect(route).toContain('export async function PATCH');
-    expect(route).toContain("update({ phone, updated_at");
-    expect(route).toContain("details: { fields: ['phone'] }");
+    expect(route).toContain("const editable = [");
+    expect(route).toContain("'phone'");
+    expect(route).toContain("'address_line_1'");
+    expect(route).toContain("staff.self_service_profile_updated");
     expect(page).toContain("fetch('/api/staff/me'");
     expect(page).toContain('Save phone number');
   });
