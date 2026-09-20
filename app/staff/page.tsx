@@ -13,6 +13,7 @@ type Onboarding = { title:string; status:string; tasks:OnboardingTask[] };
 type NotificationSummary = { id:string; title:string; body:string; read_at:string|null; action_url:string|null; created_at:string };
 type StaffDocument = { id:string; title:string; signature_status:string; category:string; issued_at:string };
 type AvailabilitySummary = { id:string; effective_from:string; full_time:boolean; part_time:boolean; days:boolean; nights:boolean; weekends:boolean; notes:string|null };
+type WorkforceReadiness = { overall:'ready'|'attention'|'blocked'; nextAction:string|null; lanes:{key:string;level:'ready'|'attention'|'blocked';label:string;detail:string;count:number}[] };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -34,6 +35,7 @@ export default function StaffPortalHome() {
   const [notifications,setNotifications] = useState<NotificationSummary[]>([]);
   const [documents,setDocuments] = useState<StaffDocument[]>([]);
   const [availability,setAvailability] = useState<AvailabilitySummary|null>(null);
+  const [workforceReadiness,setWorkforceReadiness] = useState<WorkforceReadiness|null>(null);
   const [loading,setLoading] = useState(true);
   const [refreshing,setRefreshing] = useState(false);
   const [error,setError] = useState('');
@@ -59,12 +61,13 @@ export default function StaffPortalHome() {
         fetch('/api/staff/notifications',{cache:'no-store'}),
         fetch('/api/staff/documents',{cache:'no-store'}),
         fetch('/api/staff/availability',{cache:'no-store'}),
+        fetch('/api/staff/workforce-readiness',{cache:'no-store'}),
       ]);
       if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
-      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json()]);
+      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody,workforceBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json(),fetch('/api/staff/workforce-readiness',{cache:'no-store'}).then(async (response) => ({ ok: response.ok, body: await response.json() }))]);
       if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
       if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok || !documentRes.ok || !availabilityRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||documentBody.error||availabilityBody.error||'Unable to load the staff dashboard.');
-      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null);
+      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null); setWorkforceReadiness(workforceBody.ok ? workforceBody.body.readiness || null : null);
       setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
@@ -126,6 +129,8 @@ export default function StaffPortalHome() {
     <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:10,marginTop:14}}>
       <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/>
     </section>
+
+    {workforceReadiness && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>OPERATIONS STATUS</div><h2 style={{margin:'5px 0 4px'}}>Workforce operations</h2><div style={muted}>{workforceReadiness.nextAction || 'No operational exceptions detected.'}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:workforceReadiness.overall==='ready'?'#e8f7ee':workforceReadiness.overall==='attention'?'#fff4e5':'#fdecec',color:workforceReadiness.overall==='ready'?'#166534':workforceReadiness.overall==='attention'?'#9a3412':'#991b1b',fontSize:12,fontWeight:900}}>{workforceReadiness.overall.toUpperCase()}</span></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:9,marginTop:14}}>{workforceReadiness.lanes.map(lane=><div key={lane.key} style={{padding:12,border:'1px solid #e5eaf0',borderRadius:12}}><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>{lane.label}</div><strong style={{display:'block',marginTop:4}}>{lane.level==='ready'?'Ready':lane.level==='attention'?'Needs attention':'Blocked'}</strong><div style={{...muted,fontSize:12,marginTop:4,lineHeight:1.45}}>{lane.detail}</div></div>)}</div></section>}
 
     <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>WORKFORCE READINESS</div><h2 style={{margin:'5px 0 4px'}}>Your staff record at a glance</h2><div style={muted}>Keep these four areas current so your Staff Portal stays complete and useful.</div></div><button onClick={()=>router.push('/staff/profile')} style={btn()}>Open profile</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,marginTop:15}}><ReadinessCard title='Profile' value={readiness.profile===100?'Complete':readiness.profile+'% complete'} text={readiness.profile===100?'Phone, address and photograph are present.':'Add missing contact/address/photo details.'} href='/staff/profile'/><ReadinessCard title='Availability' value={readiness.availability?'Recorded':'Not set'} text={readiness.availability?'Current work preferences are recorded.':'Tell LAUREM how you prefer to work.'} href='/staff/availability'/><ReadinessCard title='Documents' value={documents.length?documents.length+' issued':'None issued'} text={documents.some(d=>d.signature_status==='pending')?'A document needs your signature.':'Review your employment documents.'} href='/staff/documents'/><ReadinessCard title='Notifications' value={notifications.filter(n=>!n.read_at).length?notifications.filter(n=>!n.read_at).length+' unread':'All caught up'} text='Keep track of workforce updates and decisions.' href='/staff/notifications'/></div></section>
 
