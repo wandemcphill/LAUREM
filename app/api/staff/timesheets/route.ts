@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { isMutableTimesheetStatus, isDateOnly } from '@/lib/laurem-workforce-policy';
+import { validateAssignedTimesheet } from '@/lib/laurem-workforce-integrity';
 
 function hoursBetween(clockIn: string, clockOut: string, breakMinutes: number) {
   const start = new Date(clockIn).getTime();
@@ -50,9 +51,19 @@ export async function POST(req: NextRequest) {
   const assignmentId = typeof input.assignmentId === 'string' ? input.assignmentId : null;
   const client = db();
   if (assignmentId) {
-    const { data: assignment } = await client.from('staff_assignments').select('id,status').eq('id', assignmentId).eq('staff_id', session.staff_id).maybeSingle();
+    const { data: assignment } = await client.from('staff_assignments')
+      .select('id,staff_id,scheduled_start,scheduled_end,status')
+      .eq('id', assignmentId)
+      .eq('staff_id', session.staff_id)
+      .maybeSingle();
     if (!assignment) return NextResponse.json({ error: 'Assignment not found.' }, { status: 404 });
-    if (assignment.status === 'cancelled' || assignment.status === 'no_show') return NextResponse.json({ error: 'Cancelled or no-show assignments cannot receive a timesheet.' }, { status: 409 });
+    const validation = validateAssignedTimesheet(assignment, {
+      assignmentId,
+      workDate,
+      clockIn,
+      clockOut,
+    });
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
   }
   const { data: created, error } = await client.from('staff_timesheets').insert({
     staff_id: session.staff_id,
@@ -101,10 +112,24 @@ export async function PATCH(req: NextRequest) {
   const totalHours = hoursBetween(nextClockIn, nextClockOut, nextBreak);
   if (totalHours === null) return NextResponse.json({ error: 'Clock-out must be later than clock-in.' }, { status: 400 });
 
+  if (current.assignment_id && !nextAssignment && ['submitted', 'approved', 'paid'].includes(current.status)) {
+    return NextResponse.json({ error: 'Submitted or approved assigned timesheets cannot be detached from their assignment.' }, { status: 409 });
+  }
+
   if (nextAssignment) {
-    const { data: assignment } = await db().from('staff_assignments').select('id,status').eq('id', nextAssignment).eq('staff_id', session.staff_id).maybeSingle();
+    const { data: assignment } = await db().from('staff_assignments')
+      .select('id,staff_id,scheduled_start,scheduled_end,status')
+      .eq('id', nextAssignment)
+      .eq('staff_id', session.staff_id)
+      .maybeSingle();
     if (!assignment) return NextResponse.json({ error: 'Assignment not found.' }, { status: 404 });
-    if (assignment.status === 'cancelled' || assignment.status === 'no_show') return NextResponse.json({ error: 'Cancelled or no-show assignments cannot receive a timesheet.' }, { status: 409 });
+    const validation = validateAssignedTimesheet(assignment, {
+      assignmentId: nextAssignment,
+      workDate: nextWorkDate,
+      clockIn: nextClockIn,
+      clockOut: nextClockOut,
+    });
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
   }
 
   const nextStatus = resubmit ? 'submitted' : current.status;
@@ -123,6 +148,9 @@ export async function PATCH(req: NextRequest) {
   }).eq('id', id).eq('staff_id', session.staff_id).select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at').single();
   if (error || !updated) {
     if (lockedError(error)) return NextResponse.json({ error: 'This timesheet is locked because its payroll period is processing or closed.' }, { status: 409 });
+    if (error?.message?.includes('TIMESHEET_WORK_DATE_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_IN_TOO_EARLY') || error?.message?.includes('TIMESHEET_ASSIGNMENT_NOT_ACTIVE') || error?.message?.includes('TIMESHEET_ASSIGNMENT_STAFF_MISMATCH')) {
+      return NextResponse.json({ error: 'The assigned timesheet does not match the assignment schedule.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
   }
   return NextResponse.json({ timesheet: updated });
