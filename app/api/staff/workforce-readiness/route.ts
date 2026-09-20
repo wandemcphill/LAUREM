@@ -27,10 +27,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unable to load workforce readiness.' }, { status: 500 });
     }
 
-    const openAttendanceIds = new Set((attendance || []).map((row: any) => row.assignment_id).filter(Boolean));
+    const openAttendanceIds = [...new Set((attendance || []).map((row: any) => row.assignment_id).filter(Boolean))];
     let overdueAttendance = 0;
-    if (openAttendanceIds.size) {
-      overdueAttendance = (assignments || []).filter((row: any) => openAttendanceIds.has(row.id) && new Date(row.scheduled_end).getTime() < Date.now()).length;
+    if (openAttendanceIds.length) {
+      const { data: openAttendanceAssignments, error: openAttendanceAssignmentError } = await client.from('staff_assignments')
+        .select('id,scheduled_end')
+        .eq('staff_id', session.staff_id)
+        .in('id', openAttendanceIds);
+      if (openAttendanceAssignmentError) return NextResponse.json({ error: 'Unable to validate open attendance.' }, { status: 500 });
+      overdueAttendance = (openAttendanceAssignments || []).filter((row: any) => new Date(row.scheduled_end).getTime() < Date.now()).length;
     }
 
     let payrollEntryMissingRate = 0;
