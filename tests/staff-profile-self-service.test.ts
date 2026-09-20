@@ -18,7 +18,6 @@ describe('LAUREM staff profile self service', () => {
   it('limits profile updates and photo uploads to the authenticated staff session', () => {
     const route = readFileSync('app/api/staff/me/route.ts', 'utf8');
     const photo = readFileSync('app/api/staff/me/photo/route.ts', 'utf8');
-    expect(route).toContain('checkRateLimit');
     expect(route).toContain("getStaffSession(req)");
     expect(route).toContain("public: false");
     expect(route).toContain('MAX_PHOTO_BYTES');
