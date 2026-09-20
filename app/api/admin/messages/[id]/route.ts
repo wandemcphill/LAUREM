@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -34,5 +35,12 @@ export async function POST(req: NextRequest, context: Context) {
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at').single();
   if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
+  await createLauremStaffNotification(client, {
+    staffId: participant.staff_id,
+    category: 'message',
+    title: 'New LAUREM message',
+    body: `LAUREM Admin / HR sent you a new message.`,
+    actionUrl: `/staff/messages?conversation=${encodeURIComponent(id)}`,
+  });
   return NextResponse.json({ message: created }, { status: 201 });
 }
