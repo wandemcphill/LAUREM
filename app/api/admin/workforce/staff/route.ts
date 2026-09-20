@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 const transitions: Record<string, string[]> = {
   pending: ['active'],
@@ -56,6 +57,14 @@ export async function PATCH(request: NextRequest) {
     event_type: 'staff.status_changed',
     actor: session.email,
     details: { from: current.employment_status, to: nextStatus, endDate, note: note || null },
+  });
+  const statusLabel = nextStatus.replaceAll('_', ' ');
+  await createLauremStaffNotification(client, {
+    staffId: id,
+    category: 'employment',
+    title: `Employment status updated: ${statusLabel}`,
+    body: `Your LAUREM employment status has changed from ${current.employment_status.replaceAll('_', ' ')} to ${statusLabel}.`,
+    actionUrl: '/staff/profile',
   });
   return NextResponse.json({ staff: data });
 }
