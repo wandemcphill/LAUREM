@@ -264,7 +264,7 @@ begin
     if nullif(trim(coalesce(p_accepted_by_name,'')), '') is null then
       return jsonb_build_object('ok',false,'code','NAME_REQUIRED');
     end if;
-    if nullif(trim(coalesce(p_attestation,''))) is null then
+    if nullif(trim(coalesce(p_attestation,'')), '') is null then
       return jsonb_build_object('ok',false,'code','ATTESTATION_REQUIRED');
     end if;
     if trim(p_attestation) <> 'I confirm that I have read and understood this employment contract and agree to sign it electronically.' then
