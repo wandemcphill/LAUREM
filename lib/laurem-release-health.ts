@@ -42,6 +42,11 @@ export const EXPECTED_PORTAL_TABLES = [
   'payroll_entries',
   'notification_deliveries',
   'workforce_audit_events',
+  'staff_documents',
+  'staff_document_events',
+  'staff_visa_cases',
+  'staff_visa_invoices',
+  'staff_visa_case_events',
 ] as const;
 
 export const REQUIRED_PRIVATE_BUCKET = 'laurem-private-documents';
@@ -78,7 +83,7 @@ export async function checkReleaseHealth(client: SupabaseClient): Promise<Releas
   const latencyMs = Date.now() - started;
 
   const schemaResults = await Promise.all(EXPECTED_PORTAL_TABLES.map(async (table) => {
-    const { error } = await client.from(table).select('*', { head: true, count: 'exact' });
+    const { error } = await client.from(table).select('id', { head: true, count: 'exact' });
     return { table, error };
   }));
   const missingTables = schemaResults.filter(({ error }) => Boolean(error)).map(({ table }) => table);

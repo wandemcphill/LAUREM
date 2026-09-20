@@ -7,8 +7,8 @@ import { selectRound1Questions } from '@/lib/laurem-interview-engine';
 import { ROUND1_PASS_PERCENT, ROUND1_QUESTIONS_PER_ATTEMPT } from '@/lib/laurem-interview-banks';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
+import { isLauremRecruitmentStatus } from '@/lib/laurem-recruitment-lifecycle';
 
-const allowedStatus = new Set(['Enquiry','Invited','Application','Screening','Interview','Second Interview','Documents','Sponsorship','Offer','Onboarding','Hired','Rejected','Withdrawn']);
 function adminOrUnauthorized(request:NextRequest){return readAdminSession(request);}
 function escapeHtml(value:string){return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
 function appUrl(){return(process.env.NEXT_PUBLIC_APP_URL||'https://recruitment.lauremcare.com').replace(/\/$/,'');}
@@ -61,7 +61,7 @@ export async function PATCH(request:NextRequest){
   let body:{status?:string;note?:string;override?:boolean;overrideReason?:string};
   try{body=JSON.parse(raw) as typeof body;}catch{return NextResponse.json({error:'Invalid request.'},{status:400});}
   const status=body.status?.trim()||'';const note=typeof body.note==='string'?body.note.trim():null;const override=body.override===true;const overrideReason=typeof body.overrideReason==='string'?body.overrideReason.trim():null;
-  if(!allowedStatus.has(status))return NextResponse.json({error:'Invalid recruitment status.'},{status:400});
+  if(!isLauremRecruitmentStatus(status))return NextResponse.json({error:'Invalid recruitment status.'},{status:400});
   if(override&&!overrideReason)return NextResponse.json({error:'An override reason is required.'},{status:400});
   try{
     const client=db();
