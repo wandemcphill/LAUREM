@@ -42,14 +42,9 @@ begin
   select coalesce(array_agg(e.table_name order by e.table_name), array[]::text[])
   into rls_disabled_tables
   from unnest(expected_tables) e(table_name)
-  where not exists (
-    select 1
-    from pg_class c
-    join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public'
-      and c.relname = e.table_name
-      and c.relrowsecurity
-  );
+  join pg_class c on c.relname = e.table_name
+  join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+  where c.oid is not null and coalesce(c.relrowsecurity,false) = false;
 
   select coalesce(jsonb_agg(jsonb_build_object('table', e[1], 'column', e[2]) order by e[1], e[2]), '[]'::jsonb)
   into missing_columns
