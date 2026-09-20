@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const client = db();
   const { data: staff, error: staffError } = await client.from('staff_profiles')
-    .select('id,application_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,end_date,location,nmc_number,right_to_work_verified,dbs_verified,contract_id,created_at,updated_at')
+    .select('id,application_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,end_date,location,nmc_number,right_to_work_verified,dbs_verified,contract_id,address_line_1,address_line_2,city,county,postcode,country,profile_photo_path,profile_photo_updated_at,created_at,updated_at')
     .eq('id', staffId).maybeSingle();
   if (staffError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!staff) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
@@ -42,8 +42,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     onboarding = { package: packageResult.data, tasks: tasks || [] };
   }
 
+  const profilePhotoUrl = staff.profile_photo_path
+    ? `/api/admin/workforce/staff/${encodeURIComponent(staffId)}/photo?v=${encodeURIComponent(String(staff.profile_photo_updated_at || 'current'))}`
+    : null;
+
   return NextResponse.json({
-    staff,
+    staff: { ...staff, profile_photo_url: profilePhotoUrl },
     assignments: assignmentsResult.data || [],
     timesheets: timesheetsResult.data || [],
     leaveRequests: leaveResult.data || [],
