@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const fileEntry = form.get('file');
     const file = fileEntry instanceof File && fileEntry.size > 0 ? fileEntry : null;
     if (!title) return NextResponse.json({ error: 'Document title is required.' }, { status: 400 });
-    if (!['contract','job_description','offer_letter','policy','handbook','payslip','compliance','other'].includes(category)) return NextResponse.json({ error: 'Invalid document category.' }, { status: 400 });
+    if (!['contract','job_description','offer_letter','policy','handbook','payslip','compliance','visa_sponsorship','other'].includes(category)) return NextResponse.json({ error: 'Invalid document category.' }, { status: 400 });
     if (!file && !content && template !== 'job_description') return NextResponse.json({ error: 'Provide document content, select the job description template, or upload a PDF/file.' }, { status: 400 });
     if (file && file.size > MAX_FILE_BYTES) return NextResponse.json({ error: 'Files must be 10 MB or smaller.' }, { status: 400 });
     if (file && !ALLOWED_MIME.has(file.type)) return NextResponse.json({ error: 'Upload a PDF, text, Markdown, PNG or JPEG document. Text content can also be entered directly.' }, { status: 400 });
