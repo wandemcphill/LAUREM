@@ -139,19 +139,23 @@ export async function PATCH(request: NextRequest) {
   if (appError) return NextResponse.json({ error: 'Unable to load contract application.' }, { status: 500 });
   if (!app || !isInternationalNurseApplication(app)) return NextResponse.json({ error: 'Contract is not eligible for issue.' }, { status: 409 });
 
-  const now = new Date().toISOString();
-  const { data: updated, error: updateError } = await client.from('recruitment_contracts')
-    .update({ status: 'issued', issued_at: now, updated_at: now })
-    .eq('id', id).in('status', ['draft','issued']).select('*').maybeSingle();
-  if (updateError) return NextResponse.json({ error: 'Unable to issue contract.' }, { status: 500 });
-  if (!updated) return NextResponse.json({ error: 'Contract changed concurrently. Refresh and try again.' }, { status: 409 });
-
-  await client.from('recruitment_contract_tokens').update({ used_at: now }).eq('contract_id', id).is('used_at', null);
   const token = makeToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: id, token_hash: hashToken(token), expires_at: expiresAt, used_at: null });
-  if (tokenError) return NextResponse.json({ error: 'Unable to create contract acceptance link.' }, { status: 500 });
 
+  const { data: atomicResult, error: issueError } = await client.rpc('laurem_issue_recruitment_contract_with_token', {
+    p_contract_id: id,
+    p_token_hash: hashToken(token),
+    p_expires_at: expiresAt,
+    p_actor: session.email,
+  });
+
+  if (issueError || !atomicResult?.contract) {
+    const message = issueError?.message || 'Unable to issue contract.';
+    const status = message.includes('CONTRACT_ALREADY_ACCEPTED') || message.includes('CONTRACT_NOT_ISSUABLE') ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+
+  const updated = atomicResult.contract;
   const link = `${appUrl()}/contracts/accept/${token}`;
   const safeName = escapeHtml(app.full_name);
   const safeLink = escapeHtml(link);
