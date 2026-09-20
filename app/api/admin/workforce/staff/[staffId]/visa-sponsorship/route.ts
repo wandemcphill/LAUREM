@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 const STATUSES = new Set([
   'requested', 'admin_review', 'awaiting_payment', 'preparing_sms',
@@ -93,6 +94,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (paidInvoice) await client.from('staff_visa_case_events').insert({ visa_case_id:current.id, staff_id:staffId, event_type:'payment_recorded', actor_type:'admin', actor:session.email, metadata:{ invoice_number:paidInvoice.invoice_number, payment_reference:paidInvoice.payment_reference, payment_method:paidInvoice.payment_method } });
     }
     if (status || pathway || smsReference || cosNumber || adminNotes) {
+      const notificationStatus = status || (cosNumber ? 'cos_assigned' : pathway ? 'pathway_changed' : 'admin_reviewed');
+      await createLauremStaffNotification(client, {
+        staffId,
+        category: 'visa_sponsorship',
+        title: 'Visa sponsorship update',
+        body: cosNumber ? `Your Certificate of Sponsorship has been assigned: ${cosNumber}.` : `Your visa sponsorship case was updated to ${notificationStatus.replaceAll('_', ' ')}.`,
+        actionUrl: '/staff/visa-sponsorship',
+      });
       const eventType = status === 'submitted_to_sms' ? 'submitted_to_sms' : cosNumber ? 'cos_assigned' : pathway ? 'pathway_changed' : 'admin_reviewed';
       await client.from('staff_visa_case_events').insert({ visa_case_id:current.id, staff_id:staffId, event_type:eventType, actor_type:'admin', actor:session.email, metadata:{ status:status||null, pathway:pathway||null, sms_reference:smsReference||null, cos_number:cosNumber||null } });
     }
