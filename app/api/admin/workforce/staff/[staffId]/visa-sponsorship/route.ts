@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!current) return NextResponse.json({ error: 'No visa sponsorship case exists for this staff member.' }, { status: 404 });
     const currentStatus = String(current.status) as LauremVisaStatus;
     if (!isLauremVisaStatus(currentStatus)) throw new Error('Invalid visa case state stored in the database.');
-    if (status) assertLauremVisaStatusTransition(currentStatus, status);
+    if (status) assertLauremVisaStatusTransition(currentStatus, status as LauremVisaStatus);
     if (cosNumber) {
       if (status && status !== 'cos_assigned') return NextResponse.json({ error: 'A Certificate of Sponsorship number can only accompany the cos_assigned transition.' }, { status: 409 });
       assertLauremVisaCoSAssignment(currentStatus);
