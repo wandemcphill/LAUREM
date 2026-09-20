@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession, requestIp } from '@/lib/laurem-staff-auth';
-import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, participantConversationIds } from '@/lib/laurem-messaging';
+import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, getOrCreateAdminConversation, participantConversationIds } from '@/lib/laurem-messaging';
 
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
   if (!me || !['pending', 'active'].includes(me.employment_status)) return NextResponse.json({ error: 'Messaging unavailable.' }, { status: 403 });
   const mailbox = await ensureLauremMailbox(client, me);
   const ids = await participantConversationIds(client, session.staff_id);
-  if (!ids.length) return NextResponse.json({ mailbox: { ...mailbox, address: `${mailbox.handle}@${mailbox.namespace}` }, conversations: [] });
+  const base = { mailbox: { ...mailbox, address: `${mailbox.handle}@${mailbox.namespace}` }, adminRecipients: [{ id: '__laurem_admin__', name: 'LAUREM Admin / HR', title: 'Recruitment & Staff Support', portalAddress: '__laurem_admin__' }] };
+  if (!ids.length) return NextResponse.json({ ...base, conversations: [] });
   const { data: conversations } = await client.from('staff_message_conversations').select('id,updated_at,last_message_at').in('id', ids).order('last_message_at', { ascending: false, nullsFirst: false });
   const out: any[] = [];
   for (const conversation of conversations || []) {
@@ -23,14 +24,16 @@ export async function GET(req: NextRequest) {
     ]);
     const { data: otherMailbox } = otherId ? await client.from('staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : { data: null };
     const ownParticipant = (participants || []).find((p: any) => p.staff_id === session.staff_id);
+    const isAdminThread = (participants || []).length === 1;
     out.push({
       ...conversation,
-      other: other ? { ...other, address: otherMailbox ? `${otherMailbox.handle}@${otherMailbox.namespace}` : null } : { display: 'LAUREM Admin' },
+      other: other ? { ...other, address: otherMailbox ? `${otherMailbox.handle}@${otherMailbox.namespace}` : null } : { display: 'LAUREM Admin / HR', address: '__laurem_admin__' },
+      isAdminThread,
       latest,
       unread: Boolean(latest && latest.sender_staff_id !== session.staff_id && (!ownParticipant?.last_read_at || new Date(latest.created_at).getTime() > new Date(ownParticipant.last_read_at).getTime())),
     });
   }
-  return NextResponse.json({ mailbox: { ...mailbox, address: `${mailbox.handle}@${mailbox.namespace}` }, conversations: out });
+  return NextResponse.json({ ...base, conversations: out });
 }
 
 export async function POST(req: NextRequest) {
@@ -47,11 +50,17 @@ export async function POST(req: NextRequest) {
   if (limiterError) return NextResponse.json({ error: 'Unable to process message.' }, { status: 503 });
   if (!limiter?.allowed) return NextResponse.json({ error: 'Messaging rate limit reached. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 300) } });
 
-  const recipient = await findLauremStaffByAddress(client, to);
-  if (!recipient || recipient.id === session.staff_id) return NextResponse.json({ error: 'Unable to start a conversation with that LAUREM address.' }, { status: 404 });
-  if (!['pending', 'active'].includes(recipient.employment_status)) return NextResponse.json({ error: 'That staff member is not available for messaging.' }, { status: 403 });
-
-  const conversation = await getOrCreateConversation(client, session.staff_id, recipient.id);
+  let conversation;
+  let recipientStaffId: string | null = null;
+  if (to === '__laurem_admin__') {
+    conversation = await getOrCreateAdminConversation(client, session.staff_id);
+  } else {
+    const recipient = await findLauremStaffByAddress(client, to);
+    if (!recipient || recipient.id === session.staff_id) return NextResponse.json({ error: 'Unable to start a conversation with that LAUREM address.' }, { status: 404 });
+    if (!['pending', 'active'].includes(recipient.employment_status)) return NextResponse.json({ error: 'That staff member is not available for messaging.' }, { status: 403 });
+    recipientStaffId = recipient.id;
+    conversation = await getOrCreateConversation(client, session.staff_id, recipient.id);
+  }
   const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: conversation.id, sender_staff_id: session.staff_id, body: message }).select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at').single();
   if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
