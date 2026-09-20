@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         .eq('id', session.staff_id)
         .maybeSingle(),
       client.from('staff_assignments')
-        .select('id,client_name,location,scheduled_start,scheduled_end,status,notes')
+        .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes')
         .eq('staff_id', session.staff_id)
         .in('status', ['scheduled', 'confirmed'])
         .gte('scheduled_end', now.toISOString())
