@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     staffId,
     category: 'shift',
     title: 'New shift assigned',
-    body: `You have been assigned a new shift at ${location} on ${start.toLocaleDateString('en-GB', { dateStyle: 'medium' })} from ${start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} to ${end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
+    body: `You have been assigned a new shift at ${location} on ${start.toLocaleDateString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium' })} from ${start.toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' })} to ${end.toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' })}.`,
     actionUrl: '/staff/shifts',
   });
   return NextResponse.json({ assignment: created }, { status: 201 });
@@ -146,7 +146,7 @@ export async function PATCH(request: NextRequest) {
       title: statusChanged ? `Shift ${label}` : 'Shift updated',
       body: statusChanged
         ? `Your shift at ${updated.location} is now ${label}.`
-        : `Your shift at ${updated.location} on ${new Date(updated.scheduled_start).toLocaleDateString('en-GB', { dateStyle: 'medium' })} has been updated.`,
+        : `Your shift at ${updated.location} on ${new Date(updated.scheduled_start).toLocaleDateString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium' })} has been updated.`,
       actionUrl: '/staff/shifts',
     });
   }
