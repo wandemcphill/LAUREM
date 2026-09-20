@@ -3,11 +3,25 @@ import { db } from '@/lib/db';
 import { hashPassword, createStaffSession, hashActivationToken, setStaffSession, requestIp, STAFF_SESSION_TTL_SECONDS } from '@/lib/laurem-staff-auth';
 import { ensureLauremMailbox } from '@/lib/laurem-messaging';
 
+function activationResponse(
+  body: Record<string, unknown>,
+  status = 200,
+): NextResponse {
+  const response = NextResponse.json(body, { status });
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
+}
+
 export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const token = params.get('token')?.trim() || '';
   const email = params.get('email')?.trim().toLowerCase() || '';
-  if (!token || !email) return NextResponse.json({ ok: false, code: 'ACTIVATION_INVALID', error: 'This activation link is incomplete.' }, { status: 400 });
+  if (!token || !email) {
+    return activationResponse(
+      { ok: false, code: 'ACTIVATION_INVALID', error: 'This activation link is incomplete.' },
+      400,
+    );
+  }
 
   const client = db();
   const tokenHash = hashActivationToken(token);
@@ -19,33 +33,27 @@ export async function GET(req: NextRequest) {
 
   if (candidate) {
     if (candidate.activated_at || candidate.password_hash) {
-      return NextResponse.json({
+      return activationResponse({
         ok: false,
         code: 'ACTIVATION_USED',
         error: 'This activation link has already been used. Please sign in to your LAUREM Staff Portal.',
         loginUrl: '/staff/login?activation=used',
-      }, { status: 409 });
+      }, 409);
     }
     if (!candidate.activation_expires_at || new Date(candidate.activation_expires_at).getTime() <= Date.now()) {
-      return NextResponse.json({ ok: false, code: 'ACTIVATION_EXPIRED', error: 'This activation link has expired. Please request a new activation link.' }, { status: 410 });
+      return activationResponse(
+        { ok: false, code: 'ACTIVATION_EXPIRED', error: 'This activation link has expired. Please request a new activation link.' },
+        410,
+      );
     }
-    return NextResponse.json({ ok: true, status: 'ready' });
+    return activationResponse({ ok: true, status: 'ready' });
   }
 
-  const { data: activatedStaff } = await client.from('staff_profiles')
-    .select('id,activated_at,password_hash')
-    .eq('email', email)
-    .maybeSingle();
-  if (activatedStaff?.activated_at || activatedStaff?.password_hash) {
-    return NextResponse.json({
-      ok: false,
-      code: 'ACTIVATION_USED',
-      error: 'This activation link has already been used. Please sign in to your LAUREM Staff Portal.',
-      loginUrl: '/staff/login?activation=used',
-    }, { status: 409 });
-  }
-
-  return NextResponse.json({ ok: false, code: 'ACTIVATION_INVALID', error: 'This activation link is invalid or expired.' }, { status: 400 });
+  // Do not reveal whether the supplied email belongs to an existing staff account.
+  return activationResponse(
+    { ok: false, code: 'ACTIVATION_INVALID', error: 'This activation link is invalid or expired.' },
+    400,
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -54,7 +62,10 @@ export async function POST(req: NextRequest) {
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
   if (!token || !email || password.length < 10) {
-    return NextResponse.json({ error: 'A valid activation token, email and password of at least 10 characters are required.' }, { status: 400 });
+    return activationResponse(
+      { error: 'A valid activation token, email and password of at least 10 characters are required.' },
+      400,
+    );
   }
 
   const client = db();
@@ -65,20 +76,9 @@ export async function POST(req: NextRequest) {
     .eq('activation_token_hash', activationTokenHash)
     .maybeSingle();
 
+  // Keep invalid-token responses uniform so activation does not become an account-enumeration oracle.
   if (!candidate) {
-    const { data: activatedStaff } = await client.from('staff_profiles')
-      .select('id,activated_at,password_hash')
-      .eq('email', email)
-      .maybeSingle();
-    if (activatedStaff?.activated_at || activatedStaff?.password_hash) {
-      return NextResponse.json({
-        ok: false,
-        code: 'ACTIVATION_USED',
-        error: 'This activation link has already been used. Please sign in to your LAUREM Staff Portal.',
-        loginUrl: '/staff/login?activation=used',
-      }, { status: 409 });
-    }
-    return NextResponse.json({ error: 'This activation link is invalid or expired.' }, { status: 400 });
+    return activationResponse({ error: 'This activation link is invalid or expired.' }, 400);
   }
 
   const expectedSessionVersion = Math.max(candidate.session_version || 1, 1);
@@ -104,24 +104,24 @@ export async function POST(req: NextRequest) {
     const reason = error?.message || '';
     if (reason.includes('ACTIVATION_USED') || reason.includes('ACTIVATION_INVALID') || reason.includes('ACTIVATION_EXPIRED') || reason.includes('ACTIVATION_CHANGED')) {
       const used = reason.includes('ACTIVATION_USED');
-      return NextResponse.json({
+      return activationResponse({
         ok: false,
         code: used ? 'ACTIVATION_USED' : 'ACTIVATION_INVALID',
         error: used
           ? 'This activation link has already been used. Please sign in to your LAUREM Staff Portal.'
           : 'This activation link is invalid or expired. Please request a new activation link.',
         ...(used ? { loginUrl: '/staff/login?activation=used' } : {}),
-      }, { status: used ? 409 : 400 });
+      }, used ? 409 : 400);
     }
-    return NextResponse.json({ error: 'Unable to activate staff account.' }, { status: 500 });
+    return activationResponse({ error: 'Unable to activate staff account.' }, 500);
   }
 
   const mailbox = await ensureLauremMailbox(client, updated);
-  const response = NextResponse.json({
+  const response = activationResponse({
     ok: true,
     staff: {
       laurem_id: updated.laurem_id || updated.employee_number,
-      address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null,
+      address: mailbox ? mailbox.handle + '@' + mailbox.namespace : null,
     },
   });
   setStaffSession(response, tokenForSession);
