@@ -11,8 +11,9 @@ describe('LAUREM workforce operations acceptance contract', () => {
 
     expect(staffApi).toContain('buildWorkforceReadiness');
     expect(adminApi).toContain('buildWorkforceReadiness');
-    expect(staffPage).toContain('/api/staff/workforce-readiness');
-    expect(staffPage).toContain('OPERATIONS STATUS');
+    expect(staffPage).toContain('/api/staff/workforce-dashboard');
+    expect(staffPage).not.toContain("fetch('/api/staff/workforce-readiness'");
+    expect(staffPage).toContain("TODAY'S WORKFORCE STATE");
     expect(adminPage).toContain('/api/admin/workforce/readiness');
     expect(adminPage).toContain('WORKFORCE ACCEPTANCE');
   });
