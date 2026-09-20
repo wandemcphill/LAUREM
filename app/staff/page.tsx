@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Staff = { laurem_id:string|null; employee_number:string; full_name:string; email:string; phone:string|null; job_title:string; employment_status:string; start_date:string|null; location:string|null; portal_address:string|null };
+type Staff = { laurem_id:string|null; employee_number:string; full_name:string; email:string; phone:string|null; job_title:string; employment_status:string; start_date:string|null; location:string|null; portal_address:string|null; profile_photo_url?:string|null };
 type Shift = { id:string; client_name:string|null; location:string; scheduled_start:string; scheduled_end:string; status:string; notes:string|null };
 type Timesheet = { id:string; assignment_id:string|null; work_date:string; clock_in:string|null; clock_out:string|null; total_hours:number|null; status:string; notes:string|null };
 type LeaveRequest = { id:string; leave_type:string; start_date:string; end_date:string; total_days:number; reason:string|null; status:string; review_note:string|null };
@@ -39,6 +39,7 @@ export default function StaffPortalHome() {
   const [leaveReason,setLeaveReason] = useState('');
   const [submittingLeave,setSubmittingLeave] = useState(false);
   const [loggingOut,setLoggingOut] = useState(false);
+  const [photoFailed,setPhotoFailed] = useState(false);
 
   async function load(showSpinner=true) {
     if(showSpinner) setLoading(true); else setRefreshing(true);
@@ -57,7 +58,7 @@ export default function StaffPortalHome() {
       const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json()]);
       if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
       if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||'Unable to load the staff dashboard.');
-      setStaff(meBody.staff); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]);
+      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]);
       setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
@@ -98,8 +99,13 @@ export default function StaffPortalHome() {
   if(loading || !staff) return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}><div style={card}><strong>LAUREM STAFF PORTAL</strong><p style={muted}>Loading your workspace…</p></div></div></main>;
 
   return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}>
-    <header style={{...card,display:'flex',justifyContent:'space-between',gap:18,alignItems:'flex-start',flexWrap:'wrap'}}>
-      <div><div style={{fontSize:12,fontWeight:900,letterSpacing:1.4,color:'#0f766e'}}>LAUREM CARE · STAFF PORTAL</div><h1 style={{margin:'8px 0 5px',fontSize:34}}>Welcome, {staff.full_name}</h1><div style={muted}>{staff.job_title} · {staff.location||'Location not set'} · LAUREM ID {staff.laurem_id||staff.employee_number}</div></div>
+    <header style={{...card,display:'flex',justifyContent:'space-between',gap:18,alignItems:'center',flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:14,alignItems:'center',minWidth:0}}>
+        <div style={{width:72,height:72,borderRadius:'50%',overflow:'hidden',background:'#e6fffb',display:'grid',placeItems:'center',flexShrink:0}}>
+          {staff.profile_photo_url&&!photoFailed ? <img src={staff.profile_photo_url} alt='LAUREM staff photograph' onError={()=>setPhotoFailed(true)} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <span style={{fontWeight:900,color:'#0f766e',fontSize:24}}>{staff.full_name.split(' ').map((part)=>part[0]).filter(Boolean).slice(0,2).join('').toUpperCase()}</span>}
+        </div>
+        <div><div style={{fontSize:12,fontWeight:900,letterSpacing:1.4,color:'#0f766e'}}>LAUREM CARE · STAFF PORTAL</div><h1 style={{margin:'8px 0 5px',fontSize:34}}>Welcome, {staff.full_name}</h1><div style={muted}>{staff.job_title} · {staff.location||'Location not set'} · LAUREM ID {staff.laurem_id||staff.employee_number}</div></div>
+      </div>
       <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>{statusPill(staff.employment_status)}<button disabled={refreshing} onClick={()=>void load(false)} style={btn()}>{refreshing?'Refreshing…':'Refresh'}</button><button disabled={loggingOut} onClick={()=>void logout()} style={btn()}>{loggingOut?'Signing out…':'Sign out'}</button></div>
     </header>
 
