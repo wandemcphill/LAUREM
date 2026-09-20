@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+// Regression contract for the complete visa-support operational handoff.
 describe('LAUREM visa sponsorship operations contract', () => {
   it('exposes readiness to both staff and admin workflows', () => {
     const staffApi = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
