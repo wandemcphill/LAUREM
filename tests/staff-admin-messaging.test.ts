@@ -10,7 +10,7 @@ describe('LAUREM staff admin messaging', () => {
     expect(helper).toContain('admin:${staffId}');
     expect(route).toContain("'__laurem_admin__'");
     expect(route).toContain('getOrCreateAdminConversation');
-    expect(route).toContain("recipient_type: recipientStaffId ? 'staff' : 'laurem_admin'");
+    expect(route).toContain('recipient_staff_id: recipientStaffId');
   });
 
   it('exposes the admin recipient and identifies admin threads in the staff portal', () => {
