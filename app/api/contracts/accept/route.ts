@@ -63,13 +63,15 @@ export async function POST(request: NextRequest) {
     const loaded = await loadContract(request);
     if ('error' in loaded) return loaded.error;
     const action = body?.accepted ? 'accept' : 'decline';
-    const { data, error } = await loaded.client.rpc('consume_recruitment_contract_token', {
+    const { data, error } = await loaded.client.rpc('laurem_consume_recruitment_contract_token_v2', {
       p_token_hash: hashToken(token),
       p_action: action,
       p_accepted_by_name: typeof body?.acceptedByName === 'string' ? body.acceptedByName.trim() : null,
       p_decline_reason: typeof body?.declineReason === 'string' ? body.declineReason.trim() : null,
       p_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
       p_user_agent: request.headers.get('user-agent') || null,
+      p_signature_data: typeof body?.signatureData === 'string' ? body.signatureData.trim() : null,
+      p_attestation: typeof body?.attestation === 'string' ? body.attestation.trim() : null,
     });
     if (error) throw error;
     const result = (Array.isArray(data) ? data[0] : data) as { ok?: boolean; code?: string; status?: string } | null;
