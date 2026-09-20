@@ -16,6 +16,7 @@ describe('timesheet review notifications', () => {
     const migration = readFileSync('supabase/migrations/20260920_staff_timesheet_assignment_guard.sql', 'utf8');
     expect(staffRoute).toContain("error?.code === '23505'");
     expect(attendanceRoute).toContain("error?.code === '23505'");
+    expect(attendanceRoute).toContain("timeZone: 'Europe/London'");
     expect(migration).toContain('unique index');
     expect(migration).toContain('(staff_id, assignment_id)');
     expect(migration).toContain('where assignment_id is not null');
