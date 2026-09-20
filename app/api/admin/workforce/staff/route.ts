@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
-
-const transitions: Record<string, string[]> = {
-  pending: ['active'],
-  active: ['suspended', 'leaver'],
-  suspended: ['active', 'leaver'],
-  leaver: [],
-};
+import { LAUREM_STAFF_EMPLOYMENT_TRANSITIONS, isLauremStaffEmploymentStatus } from '@/lib/laurem-lifecycle-policy';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -32,7 +26,7 @@ export async function PATCH(request: NextRequest) {
   const nextStatus = typeof body?.employmentStatus === 'string' ? body.employmentStatus : '';
   const note = typeof body?.note === 'string' ? body.note.trim() : '';
   const endDate = typeof body?.endDate === 'string' ? body.endDate : null;
-  if (!['pending','active','suspended','leaver'].includes(nextStatus)) return NextResponse.json({ error: 'Invalid employment status.' }, { status: 400 });
+  if (!isLauremStaffEmploymentStatus(nextStatus)) return NextResponse.json({ error: 'Invalid employment status.' }, { status: 400 });
   if (nextStatus === 'leaver' && (!endDate || !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) return NextResponse.json({ error: 'A valid end date is required when marking staff as a leaver.' }, { status: 400 });
 
   const client = db();
@@ -40,7 +34,7 @@ export async function PATCH(request: NextRequest) {
   if (currentError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
   if (current.employment_status === nextStatus) return NextResponse.json({ error: 'Staff member is already in that status.' }, { status: 400 });
-  if (!transitions[current.employment_status]?.includes(nextStatus)) return NextResponse.json({ error: `Transition from ${current.employment_status} to ${nextStatus} is not allowed.` }, { status: 409 });
+  if (!isLauremStaffEmploymentStatus(current.employment_status) || !LAUREM_STAFF_EMPLOYMENT_TRANSITIONS[current.employment_status].includes(nextStatus)) return NextResponse.json({ error: `Transition from ${current.employment_status} to ${nextStatus} is not allowed.` }, { status: 409 });
 
   const patch: Record<string, unknown> = {
     employment_status: nextStatus,
