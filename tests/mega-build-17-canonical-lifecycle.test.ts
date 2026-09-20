@@ -34,6 +34,7 @@ describe('LAUREM canonical lifecycle policy', () => {
       expect(migration).toContain(transition);
     }
     expect(migration).toContain('laurem_normalize_role');
+    expect(migration).toContain('set search_path = public');
   });
 
   it('keeps the main route entry points on the same policy boundary', () => {
