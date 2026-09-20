@@ -57,14 +57,26 @@ export async function GET(
       checked('staff', client.from('staff_profiles').select('*').eq('application_id', id).maybeSingle()),
     ]);
 
-    let audit: any[] = [];
-    if (staffResult.data?.id) {
-      const staffAudit = await checked(
-        'workforce_audit',
-        client.from('workforce_audit_events').select('id,staff_id,assignment_id,entity_type,entity_id,event_type,actor,details,created_at').eq('staff_id', staffResult.data.id).order('created_at', { ascending: false }).limit(100),
-      );
-      audit = staffAudit.data || [];
-    }
+    const auditQuery = staffResult.data?.id
+      ? client.from('laurem_audit_events').select('id,lifecycle_area,entity_type,entity_id,application_id,staff_id,actor_type,actor,action,previous_state,new_state,reason,metadata,occurred_at').or(`application_id.eq.${id},staff_id.eq.${staffResult.data.id}`).order('occurred_at', { ascending: false }).limit(150)
+      : client.from('laurem_audit_events').select('id,lifecycle_area,entity_type,entity_id,application_id,staff_id,actor_type,actor,action,previous_state,new_state,reason,metadata,occurred_at').eq('application_id', id).order('occurred_at', { ascending: false }).limit(150);
+    const auditResult = await checked('canonical_audit', auditQuery);
+    const audit = (auditResult.data || []).map((event: any) => ({
+      id: event.id,
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+      event_type: event.action,
+      actor: event.actor,
+      details: {
+        lifecycleArea: event.lifecycle_area,
+        actorType: event.actor_type,
+        previousState: event.previous_state,
+        newState: event.new_state,
+        reason: event.reason,
+        metadata: event.metadata,
+      },
+      created_at: event.occurred_at,
+    }));
 
     return NextResponse.json({
       application,
