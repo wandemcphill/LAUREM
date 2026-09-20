@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
-type Policy={rule_key:string;area:string;title:string;description:string;owner_role:string;retention_days:number|null;action:string;requires_approval:boolean;active:boolean};
+type Policy={id:string;rule_key:string;area:string;title:string;description:string;owner_role:string;retention_days:number|null;action:string;requires_approval:boolean;active:boolean};
 type Finding={id:string;finding_type:string;severity:'critical'|'high'|'medium'|'low';rule_key:string|null;subject_type:string;subject_id:string|null;application_id:string|null;staff_id:string|null;title:string;detail:string;status:'open'|'acknowledged'|'held'|'resolved';last_detected_at:string;resolution_note:string|null};
 type Request={id:string;request_type:'export'|'deletion_review';subject_type:'application'|'staff';application_id:string|null;staff_id:string|null;requested_by:string;reason:string|null;status:'requested'|'approved'|'on_hold'|'completed'|'rejected';requested_at:string;reviewed_by:string|null;completed_at:string|null;resolution_note:string|null;manifest:any};
 
