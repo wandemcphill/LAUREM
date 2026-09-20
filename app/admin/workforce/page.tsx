@@ -7,6 +7,7 @@ type Staff = { id:string; employee_number:string; full_name:string; email:string
 type Assignment = { id:string; staff_id:string; client_name:string|null; location:string; scheduled_start:string; scheduled_end:string; status:string; notes:string|null; staff_profiles?: { employee_number:string; full_name:string; email:string; job_title:string; employment_status:string } };
 type Timesheet = { id:string; work_date:string; total_hours:number|null; status:string; staff_profiles?:{employee_number:string;full_name:string;job_title:string} };
 type LeaveRequest = { id:string; staff_id:string; leave_type:string; start_date:string; end_date:string; total_days:number; status:string; reason:string|null; staff_profiles?:{employee_number:string;full_name:string;job_title:string} };
+type WorkforceReadiness = { summary:{totalStaff:number;activeStaff:number;ready:number;attention:number;blocked:number;latestPayrollPeriod:any|null;generatedAt:string}; staff:{id:string;full_name:string;employee_number:string;job_title:string;readiness:{overall:'ready'|'attention'|'blocked';nextAction:string|null;lanes:{key:string;level:'ready'|'attention'|'blocked';label:string;detail:string;count:number}[]}}[] };
 
 function localInput(date: Date) { const d = new Date(date.getTime() - date.getTimezoneOffset()*60000); return d.toISOString().slice(0,16); }
 
@@ -16,6 +17,7 @@ export default function WorkforcePage() {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [leave, setLeave] = useState<LeaveRequest[]>([]);
   const [error, setError] = useState('');
+  const [workforceReadiness, setWorkforceReadiness] = useState<WorkforceReadiness|null>(null);
   const [busy, setBusy] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [clientName, setClientName] = useState('');
@@ -26,15 +28,16 @@ export default function WorkforcePage() {
   async function load() {
     setError('');
     try {
-      const [s,a,t,l] = await Promise.all([
+      const [s,a,t,l,r] = await Promise.all([
         fetch('/api/admin/workforce/staff',{cache:'no-store'}),
         fetch('/api/admin/workforce/assignments',{cache:'no-store'}),
         fetch('/api/admin/workforce/timesheets',{cache:'no-store'}),
         fetch('/api/admin/workforce/leave',{cache:'no-store'}),
+        fetch('/api/admin/workforce/readiness',{cache:'no-store'}),
       ]);
-      const [sp,ap,tp,lp] = await Promise.all([s.json(),a.json(),t.json(),l.json()]);
+      const [sp,ap,tp,lp,rp] = await Promise.all([s.json(),a.json(),t.json(),l.json(),r.json()]);
       if (!s.ok || !a.ok || !t.ok || !l.ok) throw new Error(sp.error || ap.error || tp.error || lp.error || 'Unable to load workforce data.');
-      setStaff(sp.staff||[]); setAssignments(ap.assignments||[]); setTimesheets(tp.timesheets||[]); setLeave(lp.requests||lp.leaveRequests||[]);
+      setStaff(sp.staff||[]); setAssignments(ap.assignments||[]); setTimesheets(tp.timesheets||[]); setLeave(lp.requests||lp.leaveRequests||[]); setWorkforceReadiness(r.ok ? rp : null);
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load workforce data.'); }
   }
   useEffect(()=>{void load();},[]);
@@ -63,6 +66,8 @@ export default function WorkforcePage() {
   return <main className="wrap" style={{padding:'36px 0 80px'}}>
     <div style={{display:'flex',justifyContent:'space-between',gap:16,flexWrap:'wrap',alignItems:'center'}}><div><Link href="/admin" style={{textDecoration:'none',color:'var(--muted)'}}>← Recruitment workspace</Link><h1 style={{fontSize:40,margin:'8px 0'}}>Workforce operations</h1><p style={{color:'var(--muted)',margin:0}}>Live staff status, assignments, timesheets and leave.</p></div><div style={{display:'flex',gap:8,alignItems:'center'}}><Link href="/admin/workforce/schedule" style={{padding:'9px 12px',border:'1px solid var(--line)',borderRadius:9,textDecoration:'none',color:'var(--ink)',fontWeight:800}}>Weekly schedule</Link><Link href="/admin/workforce/reports" style={{padding:'9px 12px',border:'1px solid var(--line)',borderRadius:9,textDecoration:'none',color:'var(--ink)',fontWeight:800}}>Reports</Link><span style={{padding:'8px 11px',borderRadius:999,background:'var(--soft)',fontWeight:800,fontSize:12}}>{activeStaff.length} active staff</span></div></div>
     {error && <div role="alert" className="card" style={{marginTop:18,padding:14,color:'#8a2323'}}>{error}</div>}
+
+    {workforceReadiness && <section style={{marginTop:24}}><div className="card" style={{padding:20}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'var(--accent)'}}>WORKFORCE ACCEPTANCE</div><h2 style={{margin:'6px 0 4px'}}>Operational readiness</h2><div style={{color:'var(--muted)'}}>One view of assignment, attendance, timesheet, leave and payroll exceptions.</div></div><div style={{display:'flex',gap:7,flexWrap:'wrap'}}><span style={{padding:'7px 10px',borderRadius:999,background:'#e8f7ee',color:'#166534',fontSize:12,fontWeight:800}}>{workforceReadiness.summary.ready} ready</span><span style={{padding:'7px 10px',borderRadius:999,background:'#fff4e5',color:'#9a3412',fontSize:12,fontWeight:800}}>{workforceReadiness.summary.attention} attention</span><span style={{padding:'7px 10px',borderRadius:999,background:'#fdecec',color:'#991b1b',fontSize:12,fontWeight:800}}>{workforceReadiness.summary.blocked} blocked</span></div></div><div style={{display:'grid',gap:8,marginTop:14}}>{workforceReadiness.staff.filter(row=>row.readiness.overall!=='ready').slice(0,8).map(row=><div key={row.id} style={{display:'flex',justifyContent:'space-between',gap:12,padding:'10px 0',borderTop:'1px solid var(--line)',flexWrap:'wrap'}}><div><Link href={`/admin/workforce/${encodeURIComponent(row.id)}`} style={{fontWeight:850,color:'var(--ink)',textDecoration:'none'}}>{row.full_name}</Link><div style={{color:'var(--muted)',fontSize:12}}>{row.employee_number} · {row.job_title}</div></div><div style={{fontSize:12,fontWeight:800,color:row.readiness.overall==='blocked'?'#991b1b':'#9a3412',maxWidth:620}}>{row.readiness.nextAction||row.readiness.overall}</div></div>)}{!workforceReadiness.staff.some(row=>row.readiness.overall!=='ready')&&<div style={{color:'var(--muted)',padding:'12px 0'}}>No active staff have operational exceptions.</div>}</div></div></section>}
 
     <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:16,marginTop:24}}>
       <article className="card" style={{padding:20}}><h2 style={{marginTop:0}}>Create assignment</h2><form onSubmit={addAssignment} style={{display:'grid',gap:10}}>
