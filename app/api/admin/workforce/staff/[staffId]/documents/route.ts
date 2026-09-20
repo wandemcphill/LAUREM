@@ -5,6 +5,7 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { renderLauremJobDescription } from '@/lib/laurem-job-description';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['application/pdf','text/plain','text/markdown','image/png','image/jpeg']);
@@ -119,6 +120,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
       }
     }
+
+    await createLauremStaffNotification(client, {
+      staffId,
+      category: category === 'visa_sponsorship' ? 'visa_sponsorship' : 'documents',
+      title: `New employment document: ${title}`,
+      body: requiresSignature ? 'A new document requires your review and electronic signature.' : 'A new document is available in your Staff Portal.',
+      actionUrl: `/staff/documents/${document.id}`,
+    });
 
     const portalLink = `${appUrl()}/staff/documents/${document.id}`;
     const email = await sendLauremEmail(client, {
