@@ -36,6 +36,7 @@ const LAUREM_TABLES = new Set([
   'payroll_periods',
   'payroll_entries',
   'notification_deliveries',
+  'staff_notifications',
   'workforce_audit_events',
   'staff_documents',
   'staff_document_events',
