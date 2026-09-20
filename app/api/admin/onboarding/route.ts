@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
+import { renderLauremJobDescription } from '@/lib/laurem-job-description';
+import { lauremCompany } from '@/lib/laurem-company-config';
+import { createHash } from 'node:crypto';
+import { sendLauremEmail } from '@/lib/laurem-email';
 import { readAdminSession } from '@/lib/admin-auth';
 import { hashToken, makeToken } from '@/lib/token';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
@@ -74,12 +78,47 @@ export async function POST(request: NextRequest) {
       ? `${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '')}/onboarding/${rawAccessToken}`
       : null;
 
-    const staff = portal
+    const staffId = portal?.staff.id || preparedStaff.id;
+    const staffSummary = portal
       ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id }
       : { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id };
 
+    await client.rpc('laurem_attach_accepted_contract_document', { p_staff_id: staffId, p_application_id: applicationId, p_actor: session.email });
+
+    const existingJobDescription = await client.from('staff_documents').select('id').eq('staff_id', staffId).eq('source_type', 'job_description').eq('source_key', String(preparedStaff.job_title || application.role_applied || '').trim().toLowerCase()).maybeSingle();
+    if (!existingJobDescription.data) {
+      const jobDescription = renderLauremJobDescription(preparedStaff.job_title || application.role_applied || 'Care Worker', preparedStaff.full_name);
+      const jobHash = createHash('sha256').update(jobDescription, 'utf8').digest('hex');
+      const { data: createdJobDocument, error: jobDocumentError } = await client.from('staff_documents').insert({
+        staff_id: staffId,
+        category: 'job_description',
+        title: `${preparedStaff.job_title || application.role_applied || 'Role'} Job Description`,
+        description: 'Role-specific employment job description issued as part of LAUREM staff onboarding.',
+        mime_type: 'text/plain',
+        content_text: jobDescription,
+        document_sha256: jobHash,
+        source_type: 'job_description',
+        source_key: String(preparedStaff.job_title || application.role_applied || '').trim().toLowerCase(),
+        status: 'issued',
+        requires_signature: true,
+        signature_status: 'pending',
+        issuer_name: lauremCompany.documentIssuer.name,
+        issuer_title: lauremCompany.documentIssuer.title,
+        employer_name: lauremCompany.documentIssuer.employer,
+        issued_by_actor: session.email,
+        issued_at: new Date().toISOString(),
+      }).select('id,title').single();
+      if (!jobDocumentError && createdJobDocument) {
+        await client.from('staff_document_events').insert({ document_id: createdJobDocument.id, staff_id: staffId, event_type: 'created', actor_type: 'admin', actor: session.email, metadata: { source_type:'job_description', document_sha256:jobHash } });
+        await sendLauremEmail(client, {
+          eventType:'staff.document.issued', entityId:createdJobDocument.id, idempotencyKey:`staff.document.issued/${createdJobDocument.id}/${session.email}`,
+          payload:{ from:process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>', to:[preparedStaff.email], reply_to:lauremCompany.publicEmails.manager, subject:'Your LAUREM Job Description is ready', text:`Hello ${preparedStaff.full_name},\\n\\nYour LAUREM job description is now available in your Staff Portal. Please review and sign it online.\\n\\n${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\\/$/,'')}/staff/documents/${createdJobDocument.id}\\n\\nKind regards,\\n${lauremCompany.documentIssuer.name}\\n${lauremCompany.documentIssuer.title}\\n${lauremCompany.documentIssuer.employer}`, html:`<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><p style="font-weight:800;color:#0f766e">LAUREM CARE</p><h1>Your job description is ready</h1><p>Hello ${preparedStaff.full_name},</p><p>Your role-specific job description is available in your Staff Portal and requires your electronic signature.</p><p><a href="${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\\/$/,'')}/staff/documents/${createdJobDocument.id}" style="background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Review and sign online</a></p><p>Kind regards,<br>${lauremCompany.documentIssuer.name}<br>${lauremCompany.documentIssuer.title}<br>${lauremCompany.documentIssuer.employer}</p></div>`}
+        });
+      }
+    }
+
     return NextResponse.json({
-      staff,
+      staff: staffSummary,
       audience,
       package: updatedPackage,
       tasks: finalTasks || [],
