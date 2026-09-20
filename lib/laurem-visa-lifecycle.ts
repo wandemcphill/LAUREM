@@ -41,6 +41,20 @@ export function canTransitionLauremVisaCase(from: LauremVisaStatus, to: LauremVi
   return from === to || NEXT_VISA_STATUSES[from].includes(to);
 }
 
+export function isLauremVisaTerminalStatus(status: LauremVisaStatus) {
+  return status === 'completed' || status === 'declined' || status === 'withdrawn';
+}
+
+export function canAssignLauremVisaCoS(status: LauremVisaStatus) {
+  return !isLauremVisaTerminalStatus(status);
+}
+
+export function assertLauremVisaCoSAssignment(status: LauremVisaStatus) {
+  if (!canAssignLauremVisaCoS(status)) {
+    throw new LauremVisaLifecycleError(status, 'cos_assigned');
+  }
+}
+
 export function assertLauremVisaStatusTransition(from: LauremVisaStatus, to: LauremVisaStatus) {
   if (!canTransitionLauremVisaCase(from, to)) throw new LauremVisaLifecycleError(from, to);
 }
