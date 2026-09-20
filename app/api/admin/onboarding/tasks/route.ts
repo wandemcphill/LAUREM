@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { calculateOnboardingStatus } from '@/lib/laurem-onboarding';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -46,11 +47,22 @@ export async function PATCH(request: NextRequest) {
     }).eq('id', id).select('*').single();
     if (updateError) throw updateError;
 
+    const { data: packageOwner, error: packageOwnerError } = await client.from('staff_onboarding_packages').select('staff_id,title').eq('id', task.package_id).maybeSingle();
+    if (packageOwnerError) throw packageOwnerError;
     const { data: tasks, error: taskListError } = await client.from('staff_onboarding_tasks').select('status,required,acknowledgement_required,acknowledged_at').eq('package_id', task.package_id);
     if (taskListError) throw taskListError;
     const onboardingStatus = calculateOnboardingStatus(tasks || []);
     const { data: updatedPackage, error: packageError } = await client.from('staff_onboarding_packages').update({ status: onboardingStatus, completed_at: onboardingStatus === 'complete' ? now : null, updated_at: now }).eq('id', task.package_id).select('*').single();
     if (packageError) throw packageError;
+    if (packageOwner?.staff_id) {
+      await createLauremStaffNotification(client, {
+        staffId: packageOwner.staff_id,
+        category: 'onboarding',
+        title: `Onboarding task ${nextStatus}`,
+        body: `Your onboarding task was marked ${nextStatus.replaceAll('_', ' ')}: ${updatedTask.title}.`,
+        actionUrl: '/staff/onboarding',
+      });
+    }
     return NextResponse.json({ task: updatedTask, package: updatedPackage });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.task_update_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
