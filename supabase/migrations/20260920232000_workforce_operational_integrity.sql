@@ -50,6 +50,8 @@ begin
     return new;
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended('laurem-workforce:' || new.staff_id::text, 0));
+
   select id, staff_id, scheduled_start, scheduled_end, status
   into assignment_row
   from public.laurem_staff_assignments
@@ -93,6 +95,38 @@ create trigger trg_laurem_timesheet_assignment_integrity
 before insert or update on public.laurem_staff_timesheets
 for each row execute function public.laurem_assert_timesheet_assignment_integrity();
 
+create or replace function public.laurem_lock_timesheet_payroll_period()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  period_id uuid;
+  work_day date;
+begin
+  work_day := coalesce(new.work_date, old.work_date);
+
+  select p.id
+  into period_id
+  from public.laurem_payroll_periods p
+  where work_day between p.period_start and p.period_end
+  order by p.created_at desc
+  limit 1;
+
+  if period_id is not null then
+    perform pg_advisory_xact_lock(hashtextextended('laurem-payroll:' || period_id::text, 0));
+  end if;
+
+  return coalesce(new, old);
+end;
+$;
+
+drop trigger if exists trg_laurem_timesheet_payroll_serialization on public.laurem_staff_timesheets;
+create trigger trg_laurem_timesheet_payroll_serialization
+before insert or update or delete on public.laurem_staff_timesheets
+for each row execute function public.laurem_lock_timesheet_payroll_period();
+
 create or replace function public.laurem_validate_payroll_processing()
 returns trigger
 language plpgsql
@@ -101,6 +135,8 @@ set search_path = public
 as $$
 begin
   if new.status = 'processing' then
+    perform pg_advisory_xact_lock(hashtextextended('laurem-payroll:' || new.id::text, 0));
+
     if exists (
       select 1
       from public.laurem_payroll_entries e
@@ -147,5 +183,6 @@ before update of status on public.laurem_payroll_periods
 for each row execute function public.laurem_validate_payroll_processing();
 
 revoke all on function public.laurem_guard_assignment_attendance_mutation() from public, anon, authenticated;
+revoke all on function public.laurem_lock_timesheet_payroll_period() from public, anon, authenticated;
 revoke all on function public.laurem_assert_timesheet_assignment_integrity() from public, anon, authenticated;
 revoke all on function public.laurem_validate_payroll_processing() from public, anon, authenticated;
