@@ -81,6 +81,11 @@ begin
   end if;
 
   if new.clock_in is not null
+     and new.clock_in > assignment_row.scheduled_end then
+    raise exception 'TIMESHEET_CLOCK_IN_AFTER_ASSIGNMENT';
+  end if;
+
+  if new.clock_in is not null
      and new.clock_out is not null
      and new.clock_out <= new.clock_in then
     raise exception 'TIMESHEET_CLOCK_ORDER_INVALID';
