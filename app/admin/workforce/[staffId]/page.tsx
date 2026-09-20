@@ -16,7 +16,17 @@ type Audit = { id:string; entity_type:string|null; entity_id:string|null; event_
 
 type Availability = { id:string; effective_from:string; full_time:boolean; part_time:boolean; days:boolean; nights:boolean; weekends:boolean; notes:string|null; created_at:string };
 type DocumentsSummary = { total:number; signaturePending:number; latestIssuedAt:string|null };
-type StaffPayload = { staff:Staff; assignments:Assignment[]; timesheets:Timesheet[]; leaveRequests:LeaveRequest[]; payrollEntries:PayrollEntry[]; onboarding:{package:Record<string, unknown>;tasks:Task[]}|null; audit:Audit[]; availability:Availability|null; documentsSummary:DocumentsSummary };
+type OperationalState = {
+  level:'clear'|'active'|'attention'|'blocked';
+  status:'inactive'|'on_shift'|'attendance_open'|'awaiting_timesheet_review'|'timesheet_resubmission'|'leave_pending'|'upcoming_shift'|'payroll_open'|'clear';
+  label:string;
+  detail:string;
+  currentAssignmentId:string|null;
+  upcomingAssignmentId:string|null;
+  openAttendanceTimesheetId:string|null;
+  counts:{upcomingAssignments:number;pendingTimesheets:number;rejectedTimesheets:number;pendingLeave:number;openPayrollEntries:number};
+};
+type StaffPayload = { staff:Staff; assignments:Assignment[]; timesheets:Timesheet[]; leaveRequests:LeaveRequest[]; payrollEntries:PayrollEntry[]; onboarding:{package:Record<string, unknown>;tasks:Task[]}|null; audit:Audit[]; availability:Availability|null; documentsSummary:DocumentsSummary; operationalState:OperationalState };
 
 function dateTime(value:string|null) { return value ? new Date(value).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }) : 'Not set'; }
 function dateOnly(value:string|null) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString([], { dateStyle:'medium' }) : 'Not set'; }
@@ -99,6 +109,30 @@ export default function Staff360Page({ params }: { params:Promise<{ staffId:stri
       <Metric label="Upcoming shifts" value={stats.upcoming}/><Metric label="Pending timesheets" value={stats.pendingTimesheets}/><Metric label="Pending leave" value={stats.pendingLeave}/><Metric label="Onboarding" value={`${onboardingProgress}%`}/><Metric label="Open payroll" value={stats.openPayroll}/>
     </section>
 
+    <section className="card" style={{padding:18,marginTop:20}}>
+      <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'flex-start',flexWrap:'wrap'}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'var(--accent)'}}>OPERATIONAL STATE</div>
+          <h2 style={{margin:'6px 0 4px'}}>{data.operationalState.label}</h2>
+          <div style={{color:'var(--muted)',maxWidth:760}}>{data.operationalState.detail}</div>
+        </div>
+        <span style={{
+          padding:'7px 10px',
+          borderRadius:999,
+          background:data.operationalState.level==='blocked'?'#fdecec':data.operationalState.level==='attention'?'#fff4e5':data.operationalState.level==='active'?'#e8f7ee':'var(--soft)',
+          color:data.operationalState.level==='blocked'?'#991b1b':data.operationalState.level==='attention'?'#9a3412':data.operationalState.level==='active'?'#166534':'var(--ink)',
+          fontSize:12,fontWeight:900
+        }}>{data.operationalState.level.toUpperCase()}</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:8,marginTop:14}}>
+        <OperationalMetric label="Upcoming assignments" value={data.operationalState.counts.upcomingAssignments}/>
+        <OperationalMetric label="Pending timesheets" value={data.operationalState.counts.pendingTimesheets}/>
+        <OperationalMetric label="Rejected timesheets" value={data.operationalState.counts.rejectedTimesheets}/>
+        <OperationalMetric label="Pending leave" value={data.operationalState.counts.pendingLeave}/>
+        <OperationalMetric label="Open payroll" value={data.operationalState.counts.openPayrollEntries}/>
+      </div>
+    </section>
+
     <section className="card" style={{padding:6,marginTop:20,overflowX:'auto'}}><nav style={{display:'flex',minWidth:'max-content'}}>{tabs.map(item=><button key={item} onClick={()=>setTab(item)} style={{...tabButton,background:tab===item?'var(--ink)':'transparent',color:tab===item?'white':'var(--ink)'}}>{item}</button>)}</nav></section>
 
     {tab==='Overview'&&<Overview staff={s} data={data} stats={stats}/>} 
@@ -122,6 +156,7 @@ export default function Staff360Page({ params }: { params:Promise<{ staffId:stri
   }
 }
 
+function OperationalMetric({label,value}:{label:string;value:number}) { return <div style={{padding:12,border:'1px solid var(--line)',borderRadius:10}}><div style={{fontSize:22,fontWeight:900}}>{value}</div><div style={{marginTop:3,color:'var(--muted)',fontSize:12}}>{label}</div></div>; }
 function Metric({label,value}:{label:string;value:string|number}) { return <article className="card" style={{padding:'15px 16px'}}><div style={{fontSize:26,fontWeight:900}}>{value}</div><div style={{marginTop:3,color:'var(--muted)',fontSize:12}}>{label}</div></article>; }
 function TableSection({title,children}:{title:string;children:React.ReactNode}) { return <section style={{marginTop:20}}><h2>{title}</h2>{children}</section>; }
 function Empty({label}:{label:string}) { return <div className="card" style={{padding:20,color:'var(--muted)'}}>{label}</div>; }

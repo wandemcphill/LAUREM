@@ -120,6 +120,20 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Only active staff can hold scheduled or confirmed assignments.' }, { status: 409 });
   }
 
+  if (['cancelled', 'no_show'].includes(nextStatus) && !['cancelled', 'no_show'].includes(existing.status)) {
+    const { data: linkedTimesheets, error: timesheetError } = await client.from('staff_timesheets')
+      .select('id,clock_in,status')
+      .eq('assignment_id', id)
+      .limit(20);
+    if (timesheetError) return NextResponse.json({ error: 'Unable to validate assignment attendance state.' }, { status: 500 });
+    const hasAttendanceOrSubmittedTimesheet = (linkedTimesheets || []).some((timesheet: any) =>
+      Boolean(timesheet.clock_in) || ['submitted', 'approved', 'paid'].includes(timesheet.status),
+    );
+    if (hasAttendanceOrSubmittedTimesheet) {
+      return NextResponse.json({ error: 'This assignment cannot be cancelled or marked no-show after attendance or a submitted timesheet exists.' }, { status: 409 });
+    }
+  }
+
   const finalStart = patch.scheduled_start ? new Date(String(patch.scheduled_start)) : new Date(existing.scheduled_start);
   const finalEnd = patch.scheduled_end ? new Date(String(patch.scheduled_end)) : new Date(existing.scheduled_end);
   if (finalEnd <= finalStart) return NextResponse.json({ error: 'Scheduled end must be later than scheduled start.' }, { status: 400 });
@@ -133,6 +147,9 @@ export async function PATCH(request: NextRequest) {
     .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at').single();
   if (error || !updated) {
     if (isOverlapConstraintError(error)) return NextResponse.json({ error: 'The updated assignment overlaps another scheduled assignment.' }, { status: 409 });
+    if (error?.message?.includes('ASSIGNMENT_HAS_ATTENDANCE_OR_TIMESHEET')) {
+      return NextResponse.json({ error: 'This assignment cannot be cancelled or marked no-show after attendance or a submitted timesheet exists.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Unable to update assignment.' }, { status: 500 });
   }
   await client.from('workforce_audit_events').insert({ assignment_id: id, staff_id: existing.staff_id, event_type: 'assignment.updated', actor: session.email, details: patch });
