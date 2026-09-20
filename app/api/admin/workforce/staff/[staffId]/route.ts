@@ -29,7 +29,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     client.from('staff_leave_requests').select('id,staff_id,leave_type,start_date,end_date,total_days,reason,status,reviewed_by,reviewed_at,review_note,created_at,updated_at').eq('staff_id', staffId).order('start_date', { ascending: false }).limit(100),
     client.from('staff_onboarding_packages').select('*').eq('staff_id', staffId).maybeSingle(),
     client.from('workforce_audit_events').select('id,staff_id,entity_type,entity_id,event_type,actor,details,created_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(60),
-    client.from('payroll_entries').select('id,payroll_period_id,staff_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(100),\n    client.from('staff_availability').select('id,staff_id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').eq('staff_id', staffId).lte('effective_from', new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())).order('effective_from', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    client.from('payroll_entries').select('id,payroll_period_id,staff_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(100),
+    client.from('staff_availability').select('id,staff_id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').eq('staff_id', staffId).lte('effective_from', new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())).order('effective_from', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const failed = [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult].find((result) => result.error);
@@ -53,7 +54,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     leaveRequests: leaveResult.data || [],
     payrollEntries: payrollResult.data || [],
     onboarding,
-    audit: auditResult.data || [],\n    availability: availabilityResult.data || null,\n    actor: session.email,
+    audit: auditResult.data || [],
+    availability: availabilityResult.data || null,
+    actor: session.email,
   });
 }
 
