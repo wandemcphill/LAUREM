@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { LEAVE_TRANSITIONS, transitionAllowed } from '@/lib/laurem-workforce-policy';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -62,6 +63,14 @@ export async function PATCH(request: NextRequest) {
     }
     return NextResponse.json({ error: 'Unable to update leave request.' }, { status: 500 });
   }
+
+  await createLauremStaffNotification(client, {
+    staffId: current.staff_id,
+    category: 'leave',
+    title: `Leave request ${nextStatus}`,
+    body: `Your ${current.leave_type} leave request for ${current.start_date} to ${current.end_date} was ${nextStatus}.${reviewNote ? ` Review note: ${reviewNote}` : ''}`,
+    actionUrl: '/staff',
+  });
 
   await client.from('workforce_audit_events').insert({
     staff_id: current.staff_id,
