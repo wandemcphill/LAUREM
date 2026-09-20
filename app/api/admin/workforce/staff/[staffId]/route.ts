@@ -23,16 +23,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (staffError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!staff) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
 
-  const [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult] = await Promise.all([
+  const [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult] = await Promise.all([
     client.from('staff_assignments').select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at').eq('staff_id', staffId).order('scheduled_start', { ascending: false }).limit(100),
     client.from('staff_timesheets').select('id,staff_id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,approved_by,approved_at,created_at,updated_at').eq('staff_id', staffId).order('work_date', { ascending: false }).limit(100),
     client.from('staff_leave_requests').select('id,staff_id,leave_type,start_date,end_date,total_days,reason,status,reviewed_by,reviewed_at,review_note,created_at,updated_at').eq('staff_id', staffId).order('start_date', { ascending: false }).limit(100),
     client.from('staff_onboarding_packages').select('*').eq('staff_id', staffId).maybeSingle(),
     client.from('workforce_audit_events').select('id,staff_id,entity_type,entity_id,event_type,actor,details,created_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(60),
     client.from('payroll_entries').select('id,payroll_period_id,staff_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(100),
+    client.from('staff_availability').select('id,staff_id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').eq('staff_id', staffId).lte('effective_from', new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())).order('effective_from', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
-  const failed = [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult].find((result) => result.error);
+  const failed = [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult].find((result) => result.error);
   if (failed?.error) return NextResponse.json({ error: 'Unable to load the complete staff workspace.' }, { status: 500 });
 
   let onboarding = null as { package: unknown; tasks: unknown[] } | null;
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     payrollEntries: payrollResult.data || [],
     onboarding,
     audit: auditResult.data || [],
+    availability: availabilityResult.data || null,
     actor: session.email,
   });
 }
