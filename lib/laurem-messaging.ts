@@ -91,6 +91,28 @@ export async function getOrCreateConversation(client: SupabaseClient, a: string,
   return conversation;
 }
 
+export async function getOrCreateAdminConversation(client: SupabaseClient, staffId: string) {
+  const key = `admin:${staffId}`;
+  const existing = await client.from('staff_message_conversations')
+    .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
+  if (existing.data) return existing.data;
+
+  const { data: conversation, error } = await client.from('staff_message_conversations')
+    .insert({ direct_key: key, created_by_staff_id: null })
+    .select('id,direct_key,created_at,updated_at,last_message_at').single();
+  if (error || !conversation) {
+    const retry = await client.from('staff_message_conversations')
+      .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
+    if (retry.data) return retry.data;
+    throw error || new Error('Unable to create LAUREM admin conversation.');
+  }
+
+  const { error: participantError } = await client.from('staff_message_participants')
+    .insert({ conversation_id: conversation.id, staff_id: staffId });
+  if (participantError) throw participantError;
+  return conversation;
+}
+
 export async function participantConversationIds(client: SupabaseClient, staffId: string) {
   const { data, error } = await client.from('staff_message_participants').select('conversation_id').eq('staff_id', staffId);
   if (error) throw error;
