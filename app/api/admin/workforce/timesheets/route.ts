@@ -114,8 +114,8 @@ export async function PATCH(request: NextRequest) {
     if (error?.message?.includes('TIMESHEET_PAYROLL_PERIOD_LOCKED') || error?.message?.includes('APPROVED_TIMESHEET_IS_IMMUTABLE')) {
       return NextResponse.json({ error: 'This timesheet is locked because payroll is processing or closed.' }, { status: 409 });
     }
-    if (error?.message?.includes('TIMESHEET_WORK_DATE_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_IN_TOO_EARLY') || error?.message?.includes('TIMESHEET_ASSIGNMENT_NOT_ACTIVE') || error?.message?.includes('TIMESHEET_ASSIGNMENT_STAFF_MISMATCH')) {
-      return NextResponse.json({ error: 'The assigned timesheet does not match the assignment schedule.' }, { status: 409 });
+    if (error?.message?.includes('TIMESHEET_WORK_DATE_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_IN_TOO_EARLY') || error?.message?.includes('TIMESHEET_ASSIGNMENT_NOT_ACTIVE') || error?.message?.includes('TIMESHEET_ASSIGNMENT_STAFF_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_ORDER_INVALID') || error?.message?.includes('ASSIGNMENT_NOT_FOUND_FOR_TIMESHEET') || error?.message?.includes('SUBMITTED_ASSIGNED_TIMESHEET_CANNOT_BE_DETACHED')) {
+      return NextResponse.json({ error: 'The assigned timesheet does not satisfy workforce integrity rules.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
   }
