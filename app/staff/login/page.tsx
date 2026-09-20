@@ -1,9 +1,11 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function StaffLoginPage() {
+function StaffLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activationUsed = searchParams.get('activation') === 'used';
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -33,6 +35,7 @@ export default function StaffLoginPage() {
         <div style={{ fontSize: 12, fontWeight: 900, color: '#0f766e', letterSpacing: 1.4 }}>LAUREM CARE</div>
         <h1>Staff Portal</h1>
         <p style={{ color: '#627d98' }}>Use the LAUREM ID issued after onboarding.</p>
+        {activationUsed && <div role="status" style={{ marginBottom: 12, padding: 12, background: '#fff8e7', border: '1px solid #f2d49b', borderRadius: 10, color: '#7a4f00', lineHeight: 1.5 }}>That activation link has already been used. Your account is active, so please sign in with your LAUREM ID and password.</div>}
         <input required placeholder="LAU-001000" value={id} onChange={(event) => setId(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 11, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 10 }} />
         <input required type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 11, border: '1px solid #cbd5e1', borderRadius: 10 }} />
         <div style={{ textAlign: 'right', marginTop: 10 }}><a href="/staff/password-reset" style={{ color: '#0f766e', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>Forgot your password?</a></div><button disabled={busy} style={{ width: '100%', marginTop: 12, padding: 12, border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>{busy ? 'Signing in…' : 'Sign in'}</button>
@@ -40,4 +43,8 @@ export default function StaffLoginPage() {
       </form>
     </main>
   );
+}
+
+export default function Page() {
+  return <Suspense fallback={<main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'system-ui' }}>Loading Staff Portal…</main>}><StaffLoginPage /></Suspense>;
 }

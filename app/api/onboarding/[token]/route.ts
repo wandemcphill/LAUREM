@@ -50,14 +50,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { data: updatedPackage, error: updatePackageError } = await client.from('staff_onboarding_packages').update({ status, completed_at: status === 'complete' ? now : null, updated_at: now }).eq('id', packageRow.id).select('id,staff_id,audience,title,status,completed_at').single();
     if (updatePackageError) throw updatePackageError;
 
-    if (status === 'complete') {
-      const { data: staff } = await client.from('staff_profiles').select('employment_status').eq('id', packageRow.staff_id).maybeSingle();
-      if (staff?.employment_status === 'pending') {
-        await client.from('staff_profiles').update({ employment_status: 'active', updated_at: now }).eq('id', packageRow.staff_id);
-      }
-    }
-
-    return NextResponse.json({ task: updatedTask, package: updatedPackage, staffActivated: status === 'complete' });
+    return NextResponse.json({
+      task: updatedTask,
+      package: updatedPackage,
+      staffActivated: false,
+      staffReadyForHire: status === 'complete',
+    });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'onboarding.public_acknowledge_failed', reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to record acknowledgement.' }, { status: 500 });
