@@ -148,8 +148,8 @@ export async function PATCH(req: NextRequest) {
   }).eq('id', id).eq('staff_id', session.staff_id).select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at').single();
   if (error || !updated) {
     if (lockedError(error)) return NextResponse.json({ error: 'This timesheet is locked because its payroll period is processing or closed.' }, { status: 409 });
-    if (error?.message?.includes('TIMESHEET_WORK_DATE_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_IN_TOO_EARLY') || error?.message?.includes('TIMESHEET_ASSIGNMENT_NOT_ACTIVE') || error?.message?.includes('TIMESHEET_ASSIGNMENT_STAFF_MISMATCH')) {
-      return NextResponse.json({ error: 'The assigned timesheet does not match the assignment schedule.' }, { status: 409 });
+    if (error?.message?.includes('TIMESHEET_WORK_DATE_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_IN_TOO_EARLY') || error?.message?.includes('TIMESHEET_ASSIGNMENT_NOT_ACTIVE') || error?.message?.includes('TIMESHEET_ASSIGNMENT_STAFF_MISMATCH') || error?.message?.includes('TIMESHEET_CLOCK_ORDER_INVALID') || error?.message?.includes('ASSIGNMENT_NOT_FOUND_FOR_TIMESHEET') || error?.message?.includes('SUBMITTED_ASSIGNED_TIMESHEET_CANNOT_BE_DETACHED')) {
+      return NextResponse.json({ error: 'The assigned timesheet does not satisfy workforce integrity rules.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
   }
