@@ -222,11 +222,17 @@ export default function Candidate360Page() {
     setNotice('');
     setAssessmentLink('');
     try {
-      const response = await fetch(`/api/admin/applications?id=${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
+      const hireAction = status === 'Hired';
+      const response = await fetch(
+        hireAction
+          ? `/api/admin/applications/hire?id=${encodeURIComponent(id)}`
+          : `/api/admin/applications?id=${encodeURIComponent(id)}`,
+        {
+          method: hireAction ? 'POST' : 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: hireAction ? undefined : JSON.stringify({ status }),
+        },
+      );
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Unable to update status.');
       if (status === 'Interview' && body.assessmentEmail?.link) {
@@ -235,6 +241,15 @@ export default function Candidate360Page() {
           body.assessmentEmail.status === 'sent'
             ? 'Candidate moved to Interview. The private first-stage assessment was emailed and the link is ready to copy below.'
             : 'Candidate moved to Interview. The private assessment link was created, but email delivery needs attention.',
+        );
+      } else if (hireAction) {
+        const activationStatus = body.activation?.status;
+        setNotice(
+          activationStatus === 'sent'
+            ? 'Candidate is now Hired. The employment document package was issued together and the staff portal activation email was sent.'
+            : activationStatus === 'failed'
+              ? 'Candidate is now Hired and the employment document package was issued, but staff portal activation email delivery needs attention.'
+              : 'Candidate is now Hired. The employment document package was issued and portal activation is ready.',
         );
       } else {
         setNotice('Candidate status updated.');
