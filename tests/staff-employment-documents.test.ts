@@ -37,12 +37,15 @@ describe('LAUREM staff employment documents', () => {
     expect(contract).toContain('signatureData');
   });
 
-  it('auto-issues the staff job description after gated onboarding', () => {
-    const source = readFileSync('app/api/admin/onboarding/route.ts', 'utf8');
-    expect(source).toContain('laurem_attach_accepted_contract_document');
-    expect(source).toContain('renderLauremJobDescription');
-    expect(source).toContain("source_type: 'job_description'");
-    expect(source).toContain("signature_status: 'pending'");
+  it('defers employment document issuance until the Hired transition', () => {
+    const onboarding = readFileSync('app/api/admin/onboarding/route.ts', 'utf8');
+    expect(onboarding).toContain('activationDeferredUntilHired');
+    expect(onboarding).toContain('activation_token_hash: null');
+    expect(onboarding).not.toContain('provisionLauremStaffPortal');
+
+    const hireRoute = readFileSync('app/api/admin/applications/hire/route.ts', 'utf8');
+    expect(hireRoute).toContain('laurem_issue_staff_employment_document_package');
+    expect(hireRoute).toContain('provisionLauremStaffPortal');
   });
 
   it('keeps the configured employer signatory consistent', () => {
