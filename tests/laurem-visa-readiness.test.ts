@@ -14,6 +14,7 @@ const base = {
   },
 };
 
+// The readiness contract is deliberately application-level because the underlying visa case schema is already sufficient.
 describe('LAUREM visa operational readiness', () => {
   it('requires linked identity, passport data, current switch-route visa data and paid invoice', () => {
     const notReady = buildLauremVisaReadiness({ ...base, invoiceStatus: 'issued' });
