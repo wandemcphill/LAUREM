@@ -54,11 +54,13 @@ jobs:
           trap cleanup EXIT
 
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:10000/api/health; then
+            if curl --fail --silent --show-error http://127.0.0.1:10000/api/health > /tmp/laurem-health-response.json; then
+              node -e "const fs=require('node:fs'); const body=JSON.parse(fs.readFileSync('/tmp/laurem-health-response.json','utf8')); if(body.ok!==true || body.service!=='laurem-recruitment-platform') process.exit(1);"
               exit 0
             fi
             sleep 1
           done
 
           cat /tmp/laurem-health.log
+          cat /tmp/laurem-health-response.json 2>/dev/null || true
           exit 1
