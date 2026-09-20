@@ -6,6 +6,7 @@ import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { renderLauremJobDescription } from '@/lib/laurem-job-description';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
+import { assertLauremVisaCoSAssignment, isLauremVisaStatus, type LauremVisaStatus } from '@/lib/laurem-visa-lifecycle';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['application/pdf','text/plain','text/markdown','image/png','image/jpeg']);
@@ -98,11 +99,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (visaCaseError) throw visaCaseError;
       if (visaCase) {
         const now = new Date().toISOString();
-        const nextStatus = ['completed', 'declined', 'withdrawn'].includes(visaCase.status) ? visaCase.status : 'cos_assigned';
-        const { error: visaUpdateError } = await client.from('staff_visa_cases')
-          .update({ status: nextStatus, cos_assigned_at: now, updated_at: now })
-          .eq('id', visaCase.id);
-        if (visaUpdateError) throw visaUpdateError;
+        const currentStatus = String(visaCase.status) as LauremVisaStatus;
+        if (!isLauremVisaStatus(currentStatus)) throw new Error('Invalid visa case state stored in the database.');
+        let nextStatus = currentStatus;
+        if (currentStatus !== 'completed') {
+          assertLauremVisaCoSAssignment(currentStatus);
+          nextStatus = 'cos_assigned';
+          const { error: visaUpdateError } = await client.from('staff_visa_cases')
+            .update({ status: nextStatus, cos_assigned_at: now, updated_at: now })
+            .eq('id', visaCase.id)
+            .eq('status', currentStatus);
+          if (visaUpdateError) throw visaUpdateError;
+        }
 
         await client.from('staff_visa_case_events').insert({
           visa_case_id: visaCase.id,
@@ -114,7 +122,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             document_id: document.id,
             document_title: title,
             document_category: category,
-            previous_case_status: visaCase.status,
+            previous_case_status: currentStatus,
             next_case_status: nextStatus,
           },
         });
