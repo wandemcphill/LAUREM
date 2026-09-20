@@ -22,6 +22,60 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ periods: periodsQuery.data || [], entries: entries.data || [] });
 }
 
+async function validatePayrollPeriodCompleteness(
+  client: ReturnType<typeof db>,
+  periodId: string,
+  start: string,
+  end: string,
+) {
+  const [{ data: approvedTimesheets, error: timesheetError }, { data: entries, error: entryError }] = await Promise.all([
+    client.from('staff_timesheets').select('staff_id,total_hours').gte('work_date', start).lte('work_date', end).eq('status', 'approved'),
+    client.from('payroll_entries').select('staff_id,approved_hours,hourly_rate,gross_amount').eq('payroll_period_id', periodId),
+  ]);
+
+  if (timesheetError || entryError) {
+    return { ok: false as const, error: 'Unable to validate payroll entries.' };
+  }
+
+  const approvedByStaff = new Map<string, number>();
+  for (const row of approvedTimesheets || []) {
+    const hours = Number(row.total_hours);
+    if (!Number.isFinite(hours) || hours <= 0) continue;
+    approvedByStaff.set(row.staff_id, Number(((approvedByStaff.get(row.staff_id) || 0) + hours).toFixed(2)));
+  }
+
+  const entryByStaff = new Map<string, { hours: number; rate: number | null; gross: number | null }>();
+  for (const row of entries || []) {
+    const hours = Number(row.approved_hours);
+    const rate = row.hourly_rate == null ? null : Number(row.hourly_rate);
+    const gross = row.gross_amount == null ? null : Number(row.gross_amount);
+    entryByStaff.set(row.staff_id, {
+      hours: Number.isFinite(hours) ? Number(hours.toFixed(2)) : 0,
+      rate: Number.isFinite(rate ?? NaN) ? rate : null,
+      gross: Number.isFinite(gross ?? NaN) ? gross : null,
+    });
+  }
+
+  const staffIds = new Set([...approvedByStaff.keys(), ...entryByStaff.keys()]);
+  const mismatches = [...staffIds].filter((staffId) => {
+    const approvedHours = approvedByStaff.get(staffId) || 0;
+    const entry = entryByStaff.get(staffId);
+    if (!entry) return approvedHours !== 0;
+    const grossExpected = entry.rate == null ? null : Number((entry.hours * entry.rate).toFixed(2));
+    return entry.hours !== approvedHours || entry.rate == null || entry.gross == null || entry.gross !== grossExpected;
+  });
+
+  if (mismatches.length) {
+    return {
+      ok: false as const,
+      error: 'Payroll entries are out of date or incomplete. Regenerate the open payroll period before processing.',
+      mismatches,
+    };
+  }
+
+  return { ok: true as const };
+}
+
 async function generateEntries(client: ReturnType<typeof db>, periodId: string, start: string, end: string, actor: string) {
   const { data: timesheets, error: tsError } = await client.from('staff_timesheets')
     .select('staff_id,total_hours').gte('work_date',start).lte('work_date',end).eq('status','approved');
@@ -164,9 +218,9 @@ export async function PATCH(request: NextRequest) {
     const { count, error: countError } = await client.from('payroll_entries').select('id', { count: 'exact', head: true }).eq('payroll_period_id', id);
     if (countError) return NextResponse.json({ error:'Unable to validate payroll entries.' }, { status:500 });
     if ((count || 0) === 0) return NextResponse.json({ error:'A payroll period cannot enter processing without payroll entries.' }, { status:409 });
-    const { data: incomplete, error: entryError } = await client.from('payroll_entries').select('id,staff_id').eq('payroll_period_id', id).or('hourly_rate.is.null,gross_amount.is.null');
-    if (entryError) return NextResponse.json({ error:'Unable to validate payroll entries.' }, { status:500 });
-    if (incomplete?.length) return NextResponse.json({ error:'All payroll entries require a valid hourly rate and gross amount before processing.' }, { status:409 });
+
+    const validation = await validatePayrollPeriodCompleteness(client, id, String(current.period_start), String(current.period_end));
+    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
   }
 
   const now = new Date().toISOString();
@@ -180,15 +234,17 @@ export async function PATCH(request: NextRequest) {
     entity_type:'payroll_period', entity_id:id, event_type:'payroll.period_status_changed', actor:session.email,
     details:{ periodId:id, from:current.status, to:status },
   });
-  if (status === 'processing') {
+  if (status === 'processing' || status === 'closed') {
     const { data: entries } = await client.from('payroll_entries').select('staff_id').eq('payroll_period_id', id).limit(1000);
     const uniqueStaffIds = [...new Set((entries || []).map((entry: any) => entry.staff_id).filter(Boolean))];
     for (const staffId of uniqueStaffIds) {
       await createLauremStaffNotification(client, {
         staffId,
         category: 'payroll',
-        title: 'Payroll is being processed',
-        body: `Your LAUREM payroll period for ${current.period_start} to ${current.period_end} has entered processing.`,
+        title: status === 'processing' ? 'Payroll is being processed' : 'Payroll period closed',
+        body: status === 'processing'
+          ? `Your LAUREM payroll period for ${current.period_start} to ${current.period_end} has entered processing.`
+          : `Your LAUREM payroll period for ${current.period_start} to ${current.period_end} is now closed.`,
         actionUrl: '/staff/payroll',
       });
     }
