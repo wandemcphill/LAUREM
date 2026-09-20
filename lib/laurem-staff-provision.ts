@@ -33,6 +33,14 @@ export async function provisionLauremStaffPortal(applicationId: string) {
   if (staffError) throw staffError;
   if (!staff) throw new Error('Staff profile must be created by the gated onboarding flow before portal provisioning.');
 
+  const { data: lifecyclePolicy, error: lifecyclePolicyError } = await client.rpc('laurem_evaluate_staff_lifecycle', {
+    p_application_id: applicationId,
+    p_transition: 'portal_provision',
+    p_reentry_override: false,
+  });
+  if (lifecyclePolicyError) throw lifecyclePolicyError;
+  if (!lifecyclePolicy?.ok) throw new Error(lifecyclePolicy?.reason || 'Canonical lifecycle policy blocked portal provisioning.');
+
   const mailbox = await ensureLauremMailbox(client, staff);
   const rawToken = makeActivationToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
