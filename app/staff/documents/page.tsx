@@ -2,28 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function StaffDocumentsPage() {
-  const router = useRouter();
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetch('/api/staff/documents', { cache: 'no-store' }).then(async (response) => {
-      if (response.status === 401) { router.replace('/staff/login'); return; }
-      const data = await response.json().catch(() => ({}));
-      if (response.ok) setDocuments(data.documents || []);
-      else setError(data.error || 'Unable to load documents.');
-    });
-  }, [router]);
-
-  return <main style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: 'system-ui', padding: 24, color: '#102a43' }}>
-    <div style={{ maxWidth: 1050, margin: '0 auto' }}>
-      <button onClick={() => router.push('/staff')} style={{ border: 0, background: 'transparent', padding: 0, color: '#0f766e', fontWeight: 800 }}>← Staff Portal</button>
-      <h1>My Documents</h1>
-      <p style={{ color: '#627d98' }}>Documents associated with your LAUREM employment record.</p>
-      {error && <p style={{ color: '#b42318' }}>{error}</p>}
-      {!error && documents.length === 0 && <div style={{ background: '#fff', border: '1px solid #e5eaf0', borderRadius: 14, padding: 22 }}>No employment documents are currently available.</div>}
-      <div style={{ display: 'grid', gap: 12 }}>{documents.map((document) => <article key={document.id} style={{ background: '#fff', border: '1px solid #e5eaf0', borderRadius: 14, padding: 18 }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><strong>{document.document_type}</strong><span style={{ fontSize: 12, fontWeight: 800 }}>{String(document.status).toUpperCase()}</span></div><p style={{ marginBottom: 5 }}>{document.original_filename}</p><p style={{ color: '#627d98', margin: 0 }}>{document.uploaded_at ? new Date(document.uploaded_at).toLocaleString('en-GB') : '—'}</p>{document.review_note && <p style={{ color: '#486581' }}>{document.review_note}</p>}</article>)}</div>
-    </div>
-  </main>;
+export default function StaffDocumentsPage(){
+ const router=useRouter(); const [rows,setRows]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
+ useEffect(()=>{fetch('/api/staff/documents',{cache:'no-store'}).then(async r=>{if(r.status===401){router.replace('/staff/login');return;}const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Unable to load documents.');setRows(b.documents||[]);setLoading(false);}).catch(e=>{setError(e instanceof Error?e.message:'Unable to load documents.');setLoading(false);});},[router]);
+ return <main style={{minHeight:'100vh',background:'#f4f7fb',fontFamily:'system-ui',padding:'24px 18px 60px',color:'#102a43'}}><div style={{maxWidth:1050,margin:'0 auto'}}><button onClick={()=>router.push('/staff')} style={{border:0,background:'transparent',padding:0,color:'#0f766e',fontWeight:800}}>← Staff Portal</button><header style={{margin:'18px 0 20px'}}><div style={{fontSize:12,fontWeight:900,letterSpacing:1.4,color:'#0f766e'}}>EMPLOYMENT RECORDS</div><h1 style={{margin:'7px 0 4px'}}>My Documents</h1><p style={{color:'#627d98',margin:0}}>Contracts, job descriptions, policies and other documents issued to you by LAUREM Care.</p></header>{error&&<div style={{background:'#fff4f4',border:'1px solid #f3cccc',padding:14,borderRadius:12,color:'#8a2323'}}>{error}</div>}{loading?<div style={{background:'#fff',padding:22,borderRadius:14,border:'1px solid #e5eaf0'}}>Loading documents…</div>:!rows.length?<div style={{background:'#fff',padding:22,borderRadius:14,border:'1px solid #e5eaf0'}}>No employment documents have been issued to your portal yet.</div>:<section style={{display:'grid',gap:12}}>{rows.map((row)=><article key={row.id} style={{background:'#fff',padding:18,borderRadius:14,border:'1px solid #e5eaf0'}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><div><strong style={{fontSize:18}}>{row.title}</strong><div style={{color:'#627d98',fontSize:13,marginTop:4}}>{row.category.replaceAll('_',' ')} · Issued {new Date(row.issued_at).toLocaleDateString('en-GB')}</div></div><span style={{padding:'6px 9px',borderRadius:999,background:row.signature_status==='signed'?'#e7f8ef':row.signature_status==='pending'?'#fff4d8':'#edf2f7',fontSize:12,fontWeight:900}}>{row.signature_status==='pending'?'SIGNATURE REQUIRED':row.signature_status==='signed'?'SIGNED ONLINE':'AVAILABLE'}</span></div>{row.description&&<p style={{color:'#627d98',lineHeight:1.55}}>{row.description}</p>}<div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',marginTop:14,flexWrap:'wrap'}}><div style={{color:'#627d98',fontSize:12}}>Issued by {row.issuer_name}, {row.issuer_title}, for {row.employer_name}</div><button onClick={()=>router.push(`/staff/documents/${row.id}`)} style={{background:'#102a43',color:'#fff',border:0,padding:'10px 14px',borderRadius:9,fontWeight:900}}>{row.signature_status==='pending'?'Review & sign online':'Open document'}</button></div></article>)}</section>}</div></main>;
 }
