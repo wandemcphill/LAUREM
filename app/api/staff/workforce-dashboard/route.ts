@@ -114,7 +114,6 @@ export async function GET(request: NextRequest) {
     }
 
     const openAttendance = timesheets.filter((row: any) => row.clock_in && !row.clock_out);
-    const scheduledIds = assignments.map((row: any) => row.id);
     let overdueAttendance = 0;
     if (openAttendance.length) {
       const openAssignmentIds = [...new Set(openAttendance.map((row: any) => row.assignment_id).filter(Boolean))];
