@@ -37,6 +37,8 @@ const LAUREM_TABLES = new Set([
   'payroll_entries',
   'notification_deliveries',
   'workforce_audit_events',
+  'staff_documents',
+  'staff_document_events',
 ]);
 
 const LAUREM_RPC_NAMES = new Set([
@@ -50,6 +52,8 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_create_second_interview_invitation',
   'laurem_complete_round1',
   'laurem_complete_round2',
+  'laurem_sign_staff_document',
+  'laurem_attach_accepted_contract_document',
 ]);
 
 function mapTableName(name: string) {
