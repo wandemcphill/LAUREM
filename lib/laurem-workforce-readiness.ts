@@ -47,7 +47,7 @@ export function buildWorkforceReadiness(input: {
         : input.openAttendance > 0
           ? String(input.openAttendance) + ' attendance record(s) are currently open.'
           : 'No open attendance exception.',
-      count: input.openAttendance + input.overdueAttendance,
+      count: input.openAttendance,
     },
     {
       key: 'timesheet',
