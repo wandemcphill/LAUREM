@@ -7,7 +7,7 @@ Verified against Supabase project `xjnzmkaaxytwbgftrnxn` on 20 September 2026.
 | Postgres engine | 17 |
 | Postgres release | 17.6.1.155 |
 | Supabase project status | ACTIVE_HEALTHY |
-| Migration rows recorded in `supabase_migrations.schema_migrations` | 124 |
+| Migration rows recorded in `supabase_migrations.schema_migrations` | 126 |
 | Historical recovery baseline | `20260920184540` |
 | Historical recovery migration | `laurem_missing_fk_indexes_20260920` |
 | Source-controlled governance migration | `20260920213203` |
