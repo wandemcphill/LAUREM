@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { TIMESHEET_TRANSITIONS, transitionAllowed } from '@/lib/laurem-workforce-policy';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 function validTimestamp(value: unknown) {
   return typeof value === 'string' && Number.isFinite(new Date(value).getTime());
@@ -99,6 +100,16 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'This timesheet is locked because payroll is processing or closed.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
+  }
+
+  if (requestedStatus === 'approved' || requestedStatus === 'rejected') {
+    await createLauremStaffNotification(client, {
+      staffId: current.staff_id,
+      category: 'timesheet',
+      title: `Timesheet ${requestedStatus}`,
+      body: `Your timesheet for ${current.work_date} was ${requestedStatus} by LAUREM Admin.${note ? ` Note: ${note}` : ''}`,
+      actionUrl: '/staff/timesheets',
+    });
   }
 
   await client.from('workforce_audit_events').insert({

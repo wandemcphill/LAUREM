@@ -96,14 +96,17 @@ export async function POST(request: NextRequest) {
     const { data: created, error } = await client.from('staff_timesheets').insert({
       staff_id: session.staff_id,
       assignment_id: assignment.id,
-      work_date: now.slice(0, 10),
+      work_date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date(now)),
       clock_in: now,
       break_minutes: 0,
       status: 'draft',
       notes: null,
     }).select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at').single();
 
-    if (error || !created) return NextResponse.json({ error: 'Unable to clock in.' }, { status: 500 });
+    if (error || !created) {
+      if (error?.code === '23505') return NextResponse.json({ error: 'A timesheet already exists for this assignment.' }, { status: 409 });
+      return NextResponse.json({ error: 'Unable to clock in.' }, { status: 500 });
+    }
     return NextResponse.json({ timesheet: created }, { status: 201 });
   }
 
