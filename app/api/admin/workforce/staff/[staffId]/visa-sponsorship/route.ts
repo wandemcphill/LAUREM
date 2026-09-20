@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { assertLauremVisaCoSAssignment, assertLauremVisaStatusTransition, isLauremVisaStatus, type LauremVisaStatus } from '@/lib/laurem-visa-lifecycle';
+import { buildLauremVisaReadiness, canAdvanceLauremVisaToSmsSubmission } from '@/lib/laurem-visa-readiness';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ staffId: string }> }) {
   const session = readAdminSession(request);
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq('staff_id', staffId).eq('category','visa_sponsorship').order('issued_at',{ascending:false});
     if (documentError) throw documentError;
 
-    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
+    const readiness = visaCase ? buildLauremVisaReadiness({ pathway: visaCase.pathway, staff: staff as Record<string, unknown>, application: application as Record<string, unknown>, additionalInformation: (visaCase.additional_information || {}) as Record<string, unknown>, invoiceStatus: invoice?.status || null }) : null;
+    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], readiness, smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
   } catch (error) {
     console.error(JSON.stringify({ level:'error', event:'admin.staff.visa.load_failed', reason:error instanceof Error?error.message:String(error) }));
     return NextResponse.json({ error: 'Unable to load the visa sponsorship case.' }, { status: 500 });
@@ -68,7 +70,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!current) return NextResponse.json({ error: 'No visa sponsorship case exists for this staff member.' }, { status: 404 });
     const currentStatus = String(current.status) as LauremVisaStatus;
     if (!isLauremVisaStatus(currentStatus)) throw new Error('Invalid visa case state stored in the database.');
+
+    const { data: staff, error: staffError } = await client.from('staff_profiles')
+      .select('id,application_id,full_name,email,job_title,start_date')
+      .eq('id', staffId).maybeSingle();
+    if (staffError) throw staffError;
+    const { data: application, error: applicationError } = current.application_id
+      ? await client.from('recruitment_applications').select('id,full_name,email,role_applied,start_date').eq('id', current.application_id).maybeSingle()
+      : { data: null, error: null };
+    if (applicationError) throw applicationError;
+
+    const { data: currentInvoice, error: invoiceError } = await client.from('staff_visa_invoices')
+      .select('*').eq('visa_case_id', current.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if (invoiceError) throw invoiceError;
+
+    const readiness = buildLauremVisaReadiness({
+      pathway: status === '' && pathway ? pathway : (pathway || current.pathway),
+      staff: staff as Record<string, unknown> | null,
+      application: application as Record<string, unknown> | null,
+      additionalInformation: (current.additional_information || {}) as Record<string, unknown>,
+      invoiceStatus: currentInvoice?.status || (markPaid ? 'paid' : null),
+    });
+
     if (status) assertLauremVisaStatusTransition(currentStatus, status as LauremVisaStatus);
+    if (!canAdvanceLauremVisaToSmsSubmission({ targetStatus: status, readiness })) {
+      return NextResponse.json({
+        error: 'The visa case is not ready for SMS preparation/submission.',
+        readiness,
+      }, { status: 409 });
+    }
     if (cosNumber) {
       if (status && status !== 'cos_assigned') return NextResponse.json({ error: 'A Certificate of Sponsorship number can only accompany the cos_assigned transition.' }, { status: 409 });
       assertLauremVisaCoSAssignment(currentStatus);

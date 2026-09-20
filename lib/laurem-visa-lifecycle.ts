@@ -46,7 +46,7 @@ export function isLauremVisaTerminalStatus(status: LauremVisaStatus) {
 }
 
 export function canAssignLauremVisaCoS(status: LauremVisaStatus) {
-  return !isLauremVisaTerminalStatus(status);
+  return status === 'submitted_to_sms' || status === 'cos_pending' || status === 'cos_assigned';
 }
 
 export function assertLauremVisaCoSAssignment(status: LauremVisaStatus) {

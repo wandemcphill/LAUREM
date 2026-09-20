@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { moneyGbp, visaPathwayLabel, type LauremVisaPathway } from '@/lib/laurem-visa-sponsorship';
 
-type Data = { staff:any; application:any; case:any; invoice:any; events:any[]; visaDocuments:any[]; smsUrl:string };
+type Readiness = { ready: boolean; readyForSmsSubmission: boolean; items: { key:string; label:string; ready:boolean }[]; missing:string[] };
+type Data = { staff:any; application:any; case:any; invoice:any; events:any[]; readiness:Readiness|null; visaDocuments:any[]; smsUrl:string };
 const card:React.CSSProperties={background:'#fff',border:'1px solid #e5eaf0',borderRadius:16,padding:20};
 const muted:React.CSSProperties={color:'var(--muted)'};
 const button=(primary=false):React.CSSProperties=>({border:primary?'0':'1px solid var(--line)',background:primary?'var(--ink)':'#fff',color:primary?'#fff':'var(--ink)',borderRadius:9,padding:'10px 13px',fontWeight:800,cursor:'pointer',textDecoration:'none'});
@@ -38,6 +39,16 @@ export default function AdminVisaSponsorshipPage(){
    <label style={{fontSize:12,fontWeight:800}}>SMS reference<input value={smsReference} onChange={e=>setSmsReference(e.target.value)} style={input}/></label>
    <label style={{fontSize:12,fontWeight:800}}>CoS number<input value={cosNumber} onChange={e=>setCosNumber(e.target.value)} style={input}/></label>
   </div><label style={{display:'block',fontSize:12,fontWeight:800,marginTop:12}}>Admin notes<textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4} style={{...input,resize:'vertical',marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch()} style={{...button(true),marginTop:12}}>{busy?'Saving…':'Save case'}</button></section>
+  <section className='card' style={{padding:20,marginTop:16}}>
+   <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+    <div><h2 style={{margin:'0 0 5px'}}>Operational readiness</h2><p style={muted}>This checklist governs LAUREM's internal preparation/submission workflow. It does not determine UK immigration eligibility.</p></div>
+    {data.readiness && <span style={{padding:'7px 10px',borderRadius:999,background:data.readiness.ready?'#e8f7ee':'#fff4e5',color:data.readiness.ready?'#166534':'#9a3412',fontSize:12,fontWeight:800}}>{data.readiness.ready?'READY FOR SMS':'ACTION NEEDED'}</span>}
+   </div>
+   <div style={{display:'grid',gap:8,marginTop:12}}>
+    {(data.readiness?.items||[]).map(item=><div key={item.key} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderTop:'1px solid var(--line)'}}><span aria-hidden='true' style={{width:22,height:22,borderRadius:999,display:'grid',placeItems:'center',background:item.ready?'#e8f7ee':'#fff4e5',color:item.ready?'#166534':'#9a3412',fontWeight:900}}>{item.ready?'✓':'!'}</span><span style={{fontWeight:700,fontSize:13}}>{item.label}</span></div>)}
+   </div>
+   {!!data.readiness?.missing.length && <p style={{...muted,fontSize:12,marginBottom:0}}>Status changes into SMS preparation/submission will remain blocked until these items are complete.</p>}
+  </section>
   <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:16,marginTop:16}}>
    <article className='card' style={{padding:20}}><h2 style={{marginTop:0}}>Recruitment information available to LAUREM</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:13}}>{[['Full name',data.application?.full_name],['DOB',data.application?.date_of_birth],['Nationality',data.application?.nationality],['Country',data.application?.current_country||data.application?.country_of_residence],['Role',data.application?.role_applied||data.staff.job_title],['Start date',data.application?.start_date||data.staff.start_date],['Living in UK',data.application?.living_in_uk],['Work permission',data.application?.work_permission],['Requires sponsorship',data.application?.requires_sponsorship],['Email',data.application?.email],['Phone',data.application?.phone],['Address',data.application?.address]].map(([label,value])=><div key={String(label)}><div style={muted}>{label}</div><strong>{value||'Not recorded'}</strong></div>)}</div></article>
    <article className='card' style={{padding:20}}><h2 style={{marginTop:0}}>Invoice</h2><div style={{fontSize:30,fontWeight:900}}>{moneyGbp(invoice?.amount_pence||200000)}</div><div style={{...muted,marginTop:4}}>{invoice?.invoice_number||'No invoice'}</div><div style={{marginTop:12}}>{badge(invoice?.status||'issued')}</div>{invoice?.status==='issued'&&<><label style={{display:'block',marginTop:14,fontSize:12,fontWeight:800}}>Payment reference<input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} style={{...input,marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch({markPaid:true,paymentReference,paymentMethod:'admin-recorded'})} style={{...button(true),marginTop:10}}>Mark invoice paid</button></>}</article>

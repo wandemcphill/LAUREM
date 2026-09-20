@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { moneyGbp, visaPathwayLabel, type LauremVisaPathway } from '@/lib/laurem-visa-sponsorship';
 
+type Readiness = { ready: boolean; readyForSmsSubmission: boolean; items: { key: string; label: string; ready: boolean }[]; missing: string[] };
+
 type Data = {
   staff: any;
   application: any;
@@ -11,6 +13,7 @@ type Data = {
   case: any;
   invoice: any;
   events: any[];
+  readiness: Readiness | null;
   visaDocuments: any[];
 };
 
@@ -117,6 +120,23 @@ export default function StaffVisaSponsorshipPage() {
       <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:14,marginTop:14}}>
         <article style={card}><h2 style={{marginTop:0}}>Information already held</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14}}><Info label="Full name" value={data.application.full_name}/><Info label="Date of birth" value={data.application.date_of_birth}/><Info label="Nationality" value={data.application.nationality}/><Info label="Current country" value={data.application.current_country||data.application.country_of_residence}/><Info label="Role applied for" value={data.application.role_applied||data.staff.job_title}/><Info label="Start date" value={data.application.start_date||data.staff.start_date}/><Info label="Living in UK" value={data.application.living_in_uk}/><Info label="Work permission" value={data.application.work_permission}/><Info label="Requires sponsorship" value={data.application.requires_sponsorship}/><Info label="Phone" value={data.application.phone}/><Info label="Email" value={data.application.email}/><Info label="Address" value={data.application.address}/></div></article>
         <article style={card}><h2 style={{marginTop:0}}>£2,000 LAUREM invoice</h2><div style={{fontSize:30,fontWeight:900}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)}</div><div style={{...muted,marginTop:4}}>{invoice?.invoice_number||'Invoice being prepared'}</div><div style={{marginTop:15,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}><strong>{invoice?.description}</strong><p style={{...muted,margin:'7px 0 0'}}>Status: {invoice?.status||'issued'} · Issued {invoice?.issue_date||'today'}</p></div><p style={{...muted,fontSize:12,lineHeight:1.5}}>This is a LAUREM service invoice. It is not presented as a UK government visa fee. Payment instructions and final terms will appear here once configured by LAUREM management.</p><button onClick={()=>window.print()} style={{...button(),marginTop:7}}>Print / Save invoice</button></article>
+      </section>
+
+      <section style={{...card,marginTop:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+          <div>
+            <h2 style={{margin:'0 0 5px'}}>Case readiness</h2>
+            <p style={{...muted,margin:0}}>LAUREM uses this operational checklist before the case can move into SMS preparation/submission. It is not a statement of UK immigration eligibility.</p>
+          </div>
+          <span style={{padding:'7px 10px',borderRadius:999,background:data.readiness?.ready?'#e8f7ee':'#fff4e5',color:data.readiness?.ready?'#166534':'#9a3412',fontSize:12,fontWeight:900}}>{data.readiness?.ready?'READY FOR SMS':'ACTION NEEDED'}</span>
+        </div>
+        <div style={{display:'grid',gap:9,marginTop:14}}>
+          {(data.readiness?.items||[]).map(item=><div key={item.key} style={{display:'flex',gap:10,alignItems:'center',padding:'9px 0',borderTop:'1px solid #edf2f7'}}>
+            <span aria-hidden="true" style={{width:22,height:22,borderRadius:999,display:'grid',placeItems:'center',background:item.ready?'#e8f7ee':'#fff4e5',color:item.ready?'#166534':'#9a3412',fontWeight:900}}>{item.ready?'✓':'!'}</span>
+            <span style={{fontWeight:700,fontSize:13}}>{item.label}</span>
+          </div>)}
+        </div>
+        {!!data.readiness?.missing.length && <p style={{...muted,fontSize:12,marginBottom:0}}>Complete the highlighted items, then LAUREM staff can continue the case.</p>}
       </section>
 
       <section style={{...card,marginTop:14}}>
