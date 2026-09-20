@@ -96,12 +96,13 @@ describe('workforce integrity migration', () => {
   it('contains assignment attendance protection and payroll freshness checks', async () => {
     const fs = await import('node:fs/promises');
     const sql = await fs.readFile('supabase/migrations/20260920232000_workforce_operational_integrity.sql', 'utf8');
+    const upperBound = await fs.readFile('supabase/migrations/20260920234100_workforce_clockin_upper_bound.sql', 'utf8');
     expect(sql).toContain('ASSIGNMENT_HAS_ATTENDANCE_OR_TIMESHEET');
     expect(sql).toContain('SUBMITTED_ASSIGNED_TIMESHEET_CANNOT_BE_DETACHED');
     expect(sql).toContain('TIMESHEET_WORK_DATE_MISMATCH');
-    expect(sql).toContain('TIMESHEET_CLOCK_IN_AFTER_ASSIGNMENT');
     expect(sql).toContain('PAYROLL_ENTRIES_OUT_OF_DATE');
     expect(sql).toContain('PAYROLL_ENTRIES_INVALID');
     expect(sql).toContain('pg_advisory_xact_lock');
+    expect(upperBound).toContain('TIMESHEET_CLOCK_IN_AFTER_ASSIGNMENT');
   });
 });
