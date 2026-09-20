@@ -86,6 +86,40 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     await client.from('staff_document_events').insert({ document_id: document.id, staff_id: staffId, event_type: 'created', actor_type: 'admin', actor: session.email, metadata: { category, requires_signature: requiresSignature, document_sha256: documentHash } });
 
+    if (category === 'visa_sponsorship') {
+      const { data: visaCase, error: visaCaseError } = await client.from('staff_visa_cases')
+        .select('id,status')
+        .eq('staff_id', staffId)
+        .not('status', 'in', '(declined,withdrawn)')
+        .order('requested_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (visaCaseError) throw visaCaseError;
+      if (visaCase) {
+        const now = new Date().toISOString();
+        const nextStatus = ['completed', 'declined', 'withdrawn'].includes(visaCase.status) ? visaCase.status : 'cos_assigned';
+        const { error: visaUpdateError } = await client.from('staff_visa_cases')
+          .update({ status: nextStatus, cos_assigned_at: now, updated_at: now })
+          .eq('id', visaCase.id);
+        if (visaUpdateError) throw visaUpdateError;
+
+        await client.from('staff_visa_case_events').insert({
+          visa_case_id: visaCase.id,
+          staff_id: staffId,
+          event_type: 'document_uploaded',
+          actor_type: 'admin',
+          actor: session.email,
+          metadata: {
+            document_id: document.id,
+            document_title: title,
+            document_category: category,
+            previous_case_status: visaCase.status,
+            next_case_status: nextStatus,
+          },
+        });
+      }
+    }
+
     const portalLink = `${appUrl()}/staff/documents/${document.id}`;
     const email = await sendLauremEmail(client, {
       eventType: 'staff.document.issued',
