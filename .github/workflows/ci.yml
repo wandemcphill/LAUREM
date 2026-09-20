@@ -12,12 +12,13 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: 22.12.0
 
       - name: Bootstrap or install locked dependencies
         shell: bash
@@ -26,10 +27,38 @@ jobs:
           if [ -f package-lock.json ]; then
             npm ci --no-audit --no-fund
           else
-            npm install --legacy-peer-deps --no-audit --no-fund
+            npm install --no-audit --no-fund
           fi
 
-      - run: npm audit --audit-level=high
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Application health smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm start -- -p 10000 > /tmp/laurem-health.log 2>&1 &
+          pid=$!
+          cleanup() {
+            kill "$pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:10000/api/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/laurem-health.log
+          exit 1
