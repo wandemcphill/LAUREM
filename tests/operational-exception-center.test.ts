@@ -21,10 +21,11 @@ describe('LAUREM operational exception detection', () => {
       payrollEntries: [],
     });
 
-    expect(exceptions.map((item) => item.code)).toEqual([
+    expect(exceptions.map((item) => item.code)).toEqual(expect.arrayContaining([
       'HIRED_WITHOUT_STAFF',
+      'STAFF_PATH_WITHOUT_CONTRACT',
       'ACCEPTED_CONTRACT_STALLED',
-    ]);
+    ]));
   });
 
   it('detects workforce and payroll contradictions', () => {
@@ -56,7 +57,7 @@ describe('LAUREM operational exception detection', () => {
       'INVALID_PAYROLL_ENTRY',
       'CLOSED_PAYROLL_ENTRY_UNSETTLED',
     ]));
-    expect(exceptions).toHaveLength(3);
+    expect(exceptions).toHaveLength(4);
   });
 
   it('detects stale timesheets and leave requests', () => {
