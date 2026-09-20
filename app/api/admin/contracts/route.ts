@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest) {
   const email = await sendLauremEmail(client, {
     eventType: 'contract_issued',
     entityId: id,
-    idempotencyKey: `contract:issued:${id}:${now}`,
+    idempotencyKey: `contract:issued:${id}:${updated.issued_at}`,
     payload: {
       from: lauremCompany.candidateCommunications.senderAddress,
       to: [app.email],
