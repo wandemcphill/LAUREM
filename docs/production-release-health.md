@@ -1,25 +1,38 @@
 # LAUREM production release health
 
-## Runtime health endpoint
+## Runtime health endpoints
 
-The production service exposes a lightweight database-backed probe at:
+The production service exposes two distinct health contracts.
+
+### Liveness
 
 `GET /api/health`
 
-The endpoint returns:
+This is intentionally lightweight and dependency-free so Render can use it safely as the service Health Check Path.
 
-- `200` and `ok: true` when the application can reach the LAUREM recruitment database.
-- `503` and `ok: false` when the database probe fails.
+It returns:
 
-The public response intentionally contains no database error message, secret, environment variable value, or internal schema inventory.
+- `200` with `ok: true` when the Next.js process is responding.
+- the deployed release commit when Render provides it.
+- no database details, environment values, credentials or internal errors.
 
-## Render health-check configuration
-
-For the Render web service `laurem-blueprint`, configure the service Health Check Path as:
+Recommended Render Health Check Path:
 
 `/api/health`
 
-The current Render integration can inspect the setting but cannot mutate that service setting, so this remains a Dashboard configuration step.
+### Database readiness
+
+`GET /api/health/ready`
+
+This performs a lightweight server-side database probe against the LAUREM recruitment schema.
+
+It returns:
+
+- `200` and `ok: true` when the database is reachable.
+- `503` and `ok: false` when the database probe fails.
+- database probe latency, but no raw database error or secret.
+
+This endpoint is the runtime readiness signal for deeper operational monitoring. It is not the Render liveness probe.
 
 ## Administrative dependency health
 
@@ -33,7 +46,10 @@ It performs the broader release-readiness check covering required environment va
 
 A release is not complete until:
 
-1. CI passes dependency audit, typecheck, tests, production build, and health smoke test.
+1. CI passes dependency audit, typecheck, tests, production build, and the public liveness smoke test.
 2. Render deploy reaches `live`.
-3. The public health endpoint returns `200`.
-4. The authenticated admin system health endpoint reports the expected production dependencies.
+3. `/api/health` returns `200`.
+4. `/api/health/ready` returns `200` in an environment with production Supabase configuration.
+5. The authenticated admin system health endpoint reports the expected production dependencies.
+
+The current Render integration can inspect the Health Check Path but cannot mutate that service setting, so configuring `/api/health` remains a Dashboard configuration step.
