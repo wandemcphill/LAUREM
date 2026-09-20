@@ -25,7 +25,7 @@ describe('LAUREM staff profile self service', () => {
     expect(route).toContain("image/jpeg");
     expect(photo).toContain("getStaffSession(req)");
     expect(photo).toContain("from(PHOTO_BUCKET).download");
-    expect(photo).toContain("Cache-Control');
+    expect(photo).toContain("'Cache-Control'");
   });
 
   it('audits profile and photo changes and serves the UI from the staff workspace', () => {
