@@ -179,5 +179,18 @@ export async function PATCH(request: NextRequest) {
     entity_type:'payroll_period', entity_id:id, event_type:'payroll.period_status_changed', actor:session.email,
     details:{ periodId:id, from:current.status, to:status },
   });
+  if (status === 'processing') {
+    const { data: entries } = await client.from('payroll_entries').select('staff_id').eq('payroll_period_id', id).limit(1000);
+    const uniqueStaffIds = [...new Set((entries || []).map((entry: any) => entry.staff_id).filter(Boolean))];
+    for (const staffId of uniqueStaffIds) {
+      await createLauremStaffNotification(client, {
+        staffId,
+        category: 'payroll',
+        title: 'Payroll is being processed',
+        body: `Your LAUREM payroll period for ${current.period_start} to ${current.period_end} has entered processing.`,
+        actionUrl: '/staff/payroll',
+      });
+    }
+  }
   return NextResponse.json({ period:data });
 }
