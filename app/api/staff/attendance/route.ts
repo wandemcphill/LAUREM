@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     const { data: created, error } = await client.from('staff_timesheets').insert({
       staff_id: session.staff_id,
       assignment_id: assignment.id,
-      work_date: now.slice(0, 10),
+      work_date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date(now)),
       clock_in: now,
       break_minutes: 0,
       status: 'draft',
