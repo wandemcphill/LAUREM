@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Staff = { laurem_id:string|null; employee_number:string; full_name:string; email:string; phone:string|null; job_title:string; employment_status:string; start_date:string|null; location:string|null; portal_address:string|null; profile_photo_url?:string|null };
+type Staff = { laurem_id:string|null; employee_number:string; full_name:string; email:string; phone:string|null; job_title:string; employment_status:string; start_date:string|null; location:string|null; portal_address:string|null; address_line_1:string|null; city:string|null; postcode:string|null; country:string|null; profile_photo_path:string|null; profile_photo_url?:string|null };
 type Shift = { id:string; client_name:string|null; location:string; scheduled_start:string; scheduled_end:string; status:string; notes:string|null };
 type Timesheet = { id:string; assignment_id:string|null; work_date:string; clock_in:string|null; clock_out:string|null; total_hours:number|null; status:string; notes:string|null };
 type LeaveRequest = { id:string; leave_type:string; start_date:string; end_date:string; total_days:number; reason:string|null; status:string; review_note:string|null };
 type MessageSummary = { id:string; subject:string|null; updated_at:string|null; latest_message?:{body:string|null;created_at:string|null;sender_name:string|null} };
 type OnboardingTask = { id:string; title:string; required:boolean; status:string; acknowledgement_required:boolean; acknowledged_at:string|null };
 type Onboarding = { title:string; status:string; tasks:OnboardingTask[] };
-type NotificationSummary = { id:string; title:string; body:string; read_at:string|null; action_url:string|null; created_at:string };
+type NotificationSummary = { id:string; title:string; body:string; read_at:string|null; action_url:string|null; created_at:string };\ntype StaffDocument = { id:string; title:string; signature_status:string; category:string; issued_at:string };\ntype AvailabilitySummary = { id:string; effective_from:string; full_time:boolean; part_time:boolean; days:boolean; nights:boolean; weekends:boolean; notes:string|null };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -29,7 +29,7 @@ export default function StaffPortalHome() {
   const [leave,setLeave] = useState<LeaveRequest[]>([]);
   const [messages,setMessages] = useState<MessageSummary[]>([]);
   const [onboarding,setOnboarding] = useState<Onboarding|null>(null);
-  const [notifications,setNotifications] = useState<NotificationSummary[]>([]);
+  const [notifications,setNotifications] = useState<NotificationSummary[]>([]);\n  const [documents,setDocuments] = useState<StaffDocument[]>([]);\n  const [availability,setAvailability] = useState<AvailabilitySummary|null>(null);
   const [loading,setLoading] = useState(true);
   const [refreshing,setRefreshing] = useState(false);
   const [error,setError] = useState('');
@@ -45,20 +45,20 @@ export default function StaffPortalHome() {
     if(showSpinner) setLoading(true); else setRefreshing(true);
     setError('');
     try {
-      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes] = await Promise.all([
+      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes] = await Promise.all([
         fetch('/api/staff/me',{cache:'no-store'}),
         fetch('/api/staff/shifts',{cache:'no-store'}),
         fetch('/api/staff/timesheets',{cache:'no-store'}),
         fetch('/api/staff/leave',{cache:'no-store'}),
         fetch('/api/staff/messages',{cache:'no-store'}),
         fetch('/api/staff/onboarding',{cache:'no-store'}),
-        fetch('/api/staff/notifications',{cache:'no-store'}),
+        fetch('/api/staff/notifications',{cache:'no-store'}),\n        fetch('/api/staff/documents',{cache:'no-store'}),\n        fetch('/api/staff/availability',{cache:'no-store'}),
       ]);
-      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
-      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json()]);
+      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
+      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json()]);
       if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
-      if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||'Unable to load the staff dashboard.');
-      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]);
+      if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok || !documentRes.ok || !availabilityRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||documentBody.error||availabilityBody.error||'Unable to load the staff dashboard.');
+      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null);
       setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
@@ -90,7 +90,7 @@ export default function StaffPortalHome() {
     pendingLeave:leave.filter(r=>r.status==='pending').length,
   }),[shifts,timesheets,leave]);
 
-  const onboardingProgress = useMemo(()=>{
+  const readiness = useMemo(()=>{\n    if(!staff) return { profile:0, availability:Boolean(availability), documents:documents.length>0, notifications:notifications.some(n=>!n.read_at) };\n    const fields=[staff.phone,staff.address_line_1,staff.city,staff.postcode,staff.country,staff.profile_photo_path];\n    return { profile:Math.round(fields.filter(Boolean).length/fields.length*100), availability:Boolean(availability), documents:documents.length>0, notifications:notifications.some(n=>!n.read_at) };\n  },[staff,availability,documents,notifications]);\n\n  const onboardingProgress = useMemo(()=>{
     const required = onboarding?.tasks.filter(task=>task.required) || [];
     const done = required.filter(task=>(task.status==='completed'||task.status==='waived') && (!task.acknowledgement_required || Boolean(task.acknowledged_at))).length;
     return required.length ? Math.round((done/required.length)*100) : onboarding ? 100 : 0;
@@ -115,7 +115,7 @@ export default function StaffPortalHome() {
       <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/>
     </section>
 
-    {onboarding && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>ONBOARDING</div><h2 style={{margin:'5px 0 4px'}}>{onboarding.title}</h2><div style={muted}>{onboardingProgress}% of required items fully complete · {statusPill(onboarding.status)}</div></div><button onClick={()=>router.push('/staff/onboarding')} style={btn(true)}>Open onboarding</button></div><div style={{height:10,background:'#edf2f7',borderRadius:99,overflow:'hidden',marginTop:15}}><div style={{width:`${onboardingProgress}%`,height:'100%',background:'#102a43'}}/></div><div style={{display:'flex',gap:14,flexWrap:'wrap',marginTop:10,fontSize:12}}><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.status!=='completed'&&t.status!=='waived').length} required items still open</span><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.acknowledgement_required&&!t.acknowledged_at).length} acknowledgements pending</span></div></section>}
+    <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>WORKFORCE READINESS</div><h2 style={{margin:'5px 0 4px'}}>Your staff record at a glance</h2><div style={muted}>Keep these four areas current so your Staff Portal stays complete and useful.</div></div><button onClick={()=>router.push('/staff/profile')} style={btn()}>Open profile</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,marginTop:15}}><ReadinessCard title='Profile' value={readiness.profile===100?'Complete':readiness.profile+'% complete'} text={readiness.profile===100?'Phone, address and photograph are present.':'Add missing contact/address/photo details.'} href='/staff/profile'/><ReadinessCard title='Availability' value={readiness.availability?'Recorded':'Not set'} text={readiness.availability?'Current work preferences are recorded.':'Tell LAUREM how you prefer to work.'} href='/staff/availability'/><ReadinessCard title='Documents' value={documents.length?documents.length+' issued':'None issued'} text={documents.some(d=>d.signature_status==='pending')?'A document needs your signature.':'Review your employment documents.'} href='/staff/documents'/><ReadinessCard title='Notifications' value={notifications.filter(n=>!n.read_at).length?notifications.filter(n=>!n.read_at).length+' unread':'All caught up'} text='Keep track of workforce updates and decisions.' href='/staff/notifications'/></div></section>\n\n    {onboarding && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>ONBOARDING</div><h2 style={{margin:'5px 0 4px'}}>{onboarding.title}</h2><div style={muted}>{onboardingProgress}% of required items fully complete · {statusPill(onboarding.status)}</div></div><button onClick={()=>router.push('/staff/onboarding')} style={btn(true)}>Open onboarding</button></div><div style={{height:10,background:'#edf2f7',borderRadius:99,overflow:'hidden',marginTop:15}}><div style={{width:`${onboardingProgress}%`,height:'100%',background:'#102a43'}}/></div><div style={{display:'flex',gap:14,flexWrap:'wrap',marginTop:10,fontSize:12}}><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.status!=='completed'&&t.status!=='waived').length} required items still open</span><span style={muted}>{onboarding.tasks.filter(t=>t.required&&t.acknowledgement_required&&!t.acknowledged_at).length} acknowledgements pending</span></div></section>}
 
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(290px,.9fr)',gap:14,marginTop:14}}>
       <article style={card}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><h2 style={{margin:'0 0 4px'}}>Next shift</h2><div style={muted}>Your nearest scheduled assignment</div></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>router.push('/staff/shifts')} style={btn()}>View shifts</button><button onClick={()=>router.push('/staff/availability')} style={btn()}>Availability</button></div></div>{shifts[0]?<div style={{marginTop:18,padding:16,borderRadius:12,background:'#f7fafc'}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><strong>{shifts[0].client_name||'LAUREM Assignment'}</strong>{statusPill(shifts[0].status)}</div><div style={{marginTop:7}}>{shifts[0].location}</div><div style={{...muted,marginTop:5}}>{fmtDateTime(shifts[0].scheduled_start)} → {fmtDateTime(shifts[0].scheduled_end)}</div>{shifts[0].notes&&<p style={{...muted,whiteSpace:'pre-wrap'}}>{shifts[0].notes}</p>}</div>:<Empty text="No upcoming shifts are currently scheduled."/>}</article>
