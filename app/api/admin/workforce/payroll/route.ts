@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { PAYROLL_PERIOD_TRANSITIONS, transitionAllowed } from '@/lib/laurem-workforce-policy';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 const statuses = new Set(['open','processing','closed']);
 
