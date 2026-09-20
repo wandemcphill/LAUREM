@@ -107,6 +107,17 @@ export async function POST(request: NextRequest) {
       if (error?.code === '23505') return NextResponse.json({ error: 'A timesheet already exists for this assignment.' }, { status: 409 });
       return NextResponse.json({ error: 'Unable to clock in.' }, { status: 500 });
     }
+
+    await client.from('workforce_audit_events').insert({
+      staff_id: session.staff_id,
+      assignment_id: assignment.id,
+      entity_type: 'timesheet',
+      entity_id: created.id,
+      event_type: 'attendance.clocked_in',
+      actor: session.staff_id,
+      details: { assignmentId: assignment.id, clockIn: created.clock_in },
+    });
+
     return NextResponse.json({ timesheet: created }, { status: 201 });
   }
 
@@ -136,6 +147,17 @@ export async function POST(request: NextRequest) {
       .select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at').single();
 
     if (error || !updated) return NextResponse.json({ error: 'Unable to clock out. The attendance record may already have been updated.' }, { status: 409 });
+
+    await client.from('workforce_audit_events').insert({
+      staff_id: session.staff_id,
+      assignment_id: assignment.id,
+      entity_type: 'timesheet',
+      entity_id: updated.id,
+      event_type: 'attendance.clocked_out',
+      actor: session.staff_id,
+      details: { assignmentId: assignment.id, clockOut: updated.clock_out, breakMinutes, totalHours: updated.total_hours },
+    });
+
     return NextResponse.json({ timesheet: updated });
   }
 
