@@ -30,17 +30,25 @@ describe('LAUREM workforce cross-lifecycle integrity', () => {
     expect(validateAssignedTimesheet(assignment, {
       assignmentId: assignment.id,
       workDate: '2027-01-10',
-      clockIn: '2027-01-10T07:00:00.000Z',
+      clockIn: '2027-01-10T09:00:00.000Z',
       clockOut: '2027-01-10T18:00:00.000Z',
     })).toEqual({ ok: true });
 
-    const result = validateAssignedTimesheet(assignment, {
+    const early = validateAssignedTimesheet(assignment, {
       assignmentId: assignment.id,
       workDate: '2027-01-10',
       clockIn: '2027-01-10T06:59:59.000Z',
       clockOut: '2027-01-10T17:00:00.000Z',
     });
-    expect(result.ok).toBe(false);
+    expect(early.ok).toBe(false);
+
+    const late = validateAssignedTimesheet(assignment, {
+      assignmentId: assignment.id,
+      workDate: '2027-01-10',
+      clockIn: '2027-01-10T17:00:00.001Z',
+      clockOut: '2027-01-10T18:00:00.000Z',
+    });
+    expect(late).toMatchObject({ ok: false });
   });
 
   it('builds a coherent staff operational snapshot', () => {
@@ -91,6 +99,7 @@ describe('workforce integrity migration', () => {
     expect(sql).toContain('ASSIGNMENT_HAS_ATTENDANCE_OR_TIMESHEET');
     expect(sql).toContain('SUBMITTED_ASSIGNED_TIMESHEET_CANNOT_BE_DETACHED');
     expect(sql).toContain('TIMESHEET_WORK_DATE_MISMATCH');
+    expect(sql).toContain('TIMESHEET_CLOCK_IN_AFTER_ASSIGNMENT');
     expect(sql).toContain('PAYROLL_ENTRIES_OUT_OF_DATE');
     expect(sql).toContain('PAYROLL_ENTRIES_INVALID');
     expect(sql).toContain('pg_advisory_xact_lock');
