@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
 import { renderLauremJobDescription } from '@/lib/laurem-job-description';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
+import { LauremLifecycleError, validateLauremStaffTransition, type LauremLifecycleErrorCode } from '@/lib/laurem-lifecycle';
 
 export async function POST(request: NextRequest) {
   const session = readAdminSession(request);
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (applicationError) throw applicationError;
     if (!application) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+
+    await validateLauremStaffTransition(client, id);
 
     if (!['Onboarding', 'Hired'].includes(application.status)) {
       return NextResponse.json({ error: 'A candidate must be in Onboarding before they can be marked Hired.' }, { status: 409 });
@@ -126,6 +129,17 @@ export async function POST(request: NextRequest) {
       activation,
     }, { status: application.status === 'Hired' ? 200 : 201 });
   } catch (error) {
+    if (error instanceof LauremLifecycleError) {
+      const statusByCode: Record<LauremLifecycleErrorCode, number> = {
+        APPLICATION_NOT_FOUND: 404,
+        CONTRACT_REQUIRED: 409,
+        CONTRACT_ROLE_MISMATCH: 409,
+        READINESS_INCOMPLETE: 409,
+        STAFF_CONTRACT_MISMATCH: 409,
+      };
+      const details = error.details?.readiness ? { readiness: error.details.readiness } : undefined;
+      return NextResponse.json({ error: error.message, ...details }, { status: statusByCode[error.code] });
+    }
     console.error(JSON.stringify({
       level: 'error',
       event: 'admin.application.hire_failed',
