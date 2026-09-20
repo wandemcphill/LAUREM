@@ -17,6 +17,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(sql).toContain('alter table public.laurem_staff_visa_cases enable row level security');
     expect(sql).toContain('revoke all on public.laurem_staff_visa_cases, public.laurem_staff_visa_invoices, public.laurem_staff_visa_case_events from anon, authenticated');
     expect(sql).toContain('grant execute on function public.laurem_request_staff_visa_sponsorship(uuid,text) to service_role');
+    expect(sql).toContain("'candidate_information_updated'");
   });
 
   it('uses existing recruitment information and does not create a second candidate identity form', () => {
