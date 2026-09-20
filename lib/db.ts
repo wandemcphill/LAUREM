@@ -47,6 +47,7 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_record_evidence_review',
   'laurem_transition_application_status',
   'laurem_consume_staff_auth_attempt',
+  'laurem_consume_recruitment_contract_token_v2',
   'laurem_activate_staff_account',
   'create_international_nurse_contract_template_meta',
   'laurem_create_second_interview_invitation',
