@@ -42,6 +42,8 @@ The authenticated admin endpoint remains:
 
 It performs the broader release-readiness check covering required environment variables, the LAUREM-owned schema contract, database reachability, and the private document storage bucket.
 
+The schema portion now comes from the service-role-only `laurem_verify_release_schema()` database contract. It checks the 38-table LAUREM lifecycle surface, RLS posture, critical employment/visa columns, required performance/FK indexes, and the recovered migration baseline.
+
 ## Release rule
 
 A release is not complete until:
