@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
   const totalDays = inclusiveCalendarDays(startDate, endDate);
   if (totalDays === null) return NextResponse.json({ error: 'Valid start and end dates are required, and end date must be on or after start date.' }, { status: 400 });
 
-  const { data, error } = await db().from('staff_leave_requests').insert({
+  const client = db();
+  const { data, error } = await client.from('staff_leave_requests').insert({
     staff_id: session.staff_id,
     leave_type: leaveType,
     start_date: startDate,
@@ -62,6 +63,21 @@ export async function POST(req: NextRequest) {
     if (conflict) return NextResponse.json({ error: conflict }, { status: 409 });
     return NextResponse.json({ error: 'Unable to submit leave request.' }, { status: 500 });
   }
+
+  await client.from('workforce_audit_events').insert({
+    staff_id: session.staff_id,
+    entity_type: 'leave_request',
+    entity_id: data.id,
+    event_type: 'leave.submitted',
+    actor: session.staff_id,
+    details: {
+      leaveType,
+      startDate,
+      endDate,
+      totalDays,
+    },
+  });
+
   return NextResponse.json({ request: data }, { status: 201 });
 }
 
