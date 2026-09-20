@@ -71,24 +71,6 @@ begin
   )
   returning * into v_token;
 
-  insert into public.recruitment_audit_log(
-    application_id,
-    actor,
-    event_type,
-    metadata
-  )
-  values (
-    v_contract.application_id,
-    p_actor,
-    'contract_issued',
-    jsonb_build_object(
-      'contract_id', v_contract.id,
-      'token_id', v_token.id,
-      'version', v_contract.version,
-      'atomic_workflow', true
-    )
-  );
-
   return jsonb_build_object(
     'contract', to_jsonb(v_contract),
     'token_id', v_token.id
