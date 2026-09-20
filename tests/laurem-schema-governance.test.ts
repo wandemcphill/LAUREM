@@ -38,8 +38,9 @@ describe('LAUREM schema governance contract', () => {
     const docs = readFileSync('docs/production-database-baseline.md', 'utf8');
     const readme = readFileSync('supabase/README.md', 'utf8');
 
-    expect(docs).toContain('124');
+    expect(docs).toContain('126');
     expect(docs).toContain('20260920184540');
+    expect(docs).toContain('20260920213318');
     expect(docs).toContain('20260920213203');
     expect(docs).toContain('20260920213318');
     expect(readme).toContain('historical migration chain');
