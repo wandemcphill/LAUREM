@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function StaffLoginPage() {
+function StaffLoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activationUsed = searchParams.get('activation') === 'used';
@@ -43,4 +43,8 @@ export default function StaffLoginPage() {
       </form>
     </main>
   );
+}
+
+export default function Page() {
+  return <Suspense fallback={<main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'system-ui' }}>Loading Staff Portal…</main>}><StaffLoginPage /></Suspense>;
 }
