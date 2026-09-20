@@ -92,7 +92,7 @@ describe('operational exception migration', () => {
     expect(sql).toContain('laurem_operational_exceptions');
     expect(sql).toContain('laurem_operational_exception_events');
     expect(sql).toContain('dedupe_key');
-    expect(sql).toContain('status in (\'open\', \'acknowledged\', \'resolved\', \'dismissed\')');
+    expect(sql).toMatch(/status\s+in\s+\('open',\s*'acknowledged',\s*'resolved',\s*'dismissed'\)/);
     expect(sql).toContain('revoke all on table public.laurem_operational_exceptions');
   });
 });
