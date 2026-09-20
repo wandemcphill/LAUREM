@@ -51,7 +51,7 @@ export default function StaffPortalHome() {
     if(showSpinner) setLoading(true); else setRefreshing(true);
     setError('');
     try {
-      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes] = await Promise.all([
+      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes,workforceRes] = await Promise.all([
         fetch('/api/staff/me',{cache:'no-store'}),
         fetch('/api/staff/shifts',{cache:'no-store'}),
         fetch('/api/staff/timesheets',{cache:'no-store'}),
@@ -63,11 +63,11 @@ export default function StaffPortalHome() {
         fetch('/api/staff/availability',{cache:'no-store'}),
         fetch('/api/staff/workforce-readiness',{cache:'no-store'}),
       ]);
-      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
-      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody,workforceBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json(),fetch('/api/staff/workforce-readiness',{cache:'no-store'}).then(async (response) => ({ ok: response.ok, body: await response.json() }))]);
+      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes,workforceRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
+      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody,workforceBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json(),workforceRes.json()]);
       if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
       if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok || !documentRes.ok || !availabilityRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||documentBody.error||availabilityBody.error||'Unable to load the staff dashboard.');
-      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null); setWorkforceReadiness(workforceBody.ok ? workforceBody.body.readiness || null : null);
+      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null); setWorkforceReadiness(workforceRes.ok ? workforceBody.readiness || null : null);
       setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
