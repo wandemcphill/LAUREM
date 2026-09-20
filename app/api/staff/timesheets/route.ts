@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     notes: notes || null,
   }).select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at').single();
   if (error || !created) {
+    if (error?.code === '23505') return NextResponse.json({ error: 'A timesheet already exists for this assignment. Use the existing attendance record.' }, { status: 409 });
     if (lockedError(error)) return NextResponse.json({ error: 'This date is inside a locked payroll period and cannot be changed.' }, { status: 409 });
     return NextResponse.json({ error: 'Unable to submit timesheet.' }, { status: 500 });
   }
