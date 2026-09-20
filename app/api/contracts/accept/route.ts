@@ -28,6 +28,9 @@ function rpcErrorResponse(code: string) {
     case 'CONTRACT_NOT_FOUND': return NextResponse.json({ error: 'Contract not found.' }, { status: 404 });
     case 'CONTRACT_UNAVAILABLE': return NextResponse.json({ error: 'This contract is not available for acceptance.' }, { status: 409 });
     case 'NAME_REQUIRED': return NextResponse.json({ error: 'Your full name is required to accept the contract.' }, { status: 400 });
+    case 'ATTESTATION_REQUIRED': return NextResponse.json({ error: 'Electronic-signature attestation is required.' }, { status: 400 });
+    case 'ATTESTATION_INVALID': return NextResponse.json({ error: 'Invalid electronic-signature attestation.' }, { status: 400 });
+    case 'INVALID_IP': return NextResponse.json({ error: 'Unable to record the signing environment.' }, { status: 400 });
     case 'INVALID_ACTION': return NextResponse.json({ error: 'Invalid contract action.' }, { status: 400 });
     case 'TOKEN_CONSUMPTION_RACE': return NextResponse.json({ error: 'This contract link has already been processed.' }, { status: 409 });
     default: return NextResponse.json({ error: 'Unable to process the contract request.' }, { status: 409 });
@@ -58,18 +61,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const token = request.headers.get('x-contract-token') || '';
   if (!token) return NextResponse.json({ error: 'Contract token is required.' }, { status: 400 });
-  const body = await request.json().catch(() => null) as { accepted?: boolean; acceptedByName?: string; declineReason?: string } | null;
+  const body = await request.json().catch(() => null) as { accepted?: boolean; acceptedByName?: string; declineReason?: string; signatureData?: string; attestation?: string } | null;
   try {
     const loaded = await loadContract(request);
     if ('error' in loaded) return loaded.error;
     const action = body?.accepted ? 'accept' : 'decline';
-    const { data, error } = await loaded.client.rpc('consume_recruitment_contract_token', {
+    const { data, error } = await loaded.client.rpc('laurem_consume_recruitment_contract_token_v2', {
       p_token_hash: hashToken(token),
       p_action: action,
       p_accepted_by_name: typeof body?.acceptedByName === 'string' ? body.acceptedByName.trim() : null,
       p_decline_reason: typeof body?.declineReason === 'string' ? body.declineReason.trim() : null,
       p_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
       p_user_agent: request.headers.get('user-agent') || null,
+      p_signature_data: typeof body?.signatureData === 'string' ? body.signatureData.trim() : null,
+      p_attestation: typeof body?.attestation === 'string' ? body.attestation.trim() : null,
     });
     if (error) throw error;
     const result = (Array.isArray(data) ? data[0] : data) as { ok?: boolean; code?: string; status?: string } | null;

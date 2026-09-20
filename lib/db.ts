@@ -37,6 +37,8 @@ const LAUREM_TABLES = new Set([
   'payroll_entries',
   'notification_deliveries',
   'workforce_audit_events',
+  'staff_documents',
+  'staff_document_events',
 ]);
 
 const LAUREM_RPC_NAMES = new Set([
@@ -45,11 +47,14 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_record_evidence_review',
   'laurem_transition_application_status',
   'laurem_consume_staff_auth_attempt',
+  'laurem_consume_recruitment_contract_token_v2',
   'laurem_activate_staff_account',
   'create_international_nurse_contract_template_meta',
   'laurem_create_second_interview_invitation',
   'laurem_complete_round1',
   'laurem_complete_round2',
+  'laurem_sign_staff_document',
+  'laurem_attach_accepted_contract_document',
 ]);
 
 function mapTableName(name: string) {

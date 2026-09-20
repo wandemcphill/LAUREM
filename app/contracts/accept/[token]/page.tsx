@@ -1,36 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function ContractAcceptancePage({ params }: { params: Promise<{ token: string }> }) {
-  const [token, setToken] = useState<string>('');
-  const [contract, setContract] = useState<{ contract_content?: string; status?: string } | null>(null);
-  const [name, setName] = useState('');
-  const [declineReason, setDeclineReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => { params.then((p) => setToken(p.token)); }, [params]);
-
-  useEffect(() => {
-    if (!token) return;
-    fetch(`/api/contracts/accept?token=${encodeURIComponent(token)}`, { headers: { 'x-contract-token': token } })
-      .then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body.error || 'Unable to load contract.'); return body; })
-      .then((body) => setContract(body.contract))
-      .catch((error) => setMessage(error instanceof Error ? error.message : 'Unable to load contract.'));
-  }, [token]);
-
-  async function respond(accepted: boolean) {
-    setBusy(true); setMessage(null);
-    try {
-      const response = await fetch('/api/contracts/accept', { method: 'POST', headers: { 'content-type': 'application/json', 'x-contract-token': token }, body: JSON.stringify({ accepted, acceptedByName: name, declineReason }) });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || 'Unable to process your response.');
-      setMessage(accepted ? 'Your contract has been accepted. Laurem will proceed with your onboarding.' : 'Your response has been recorded. Laurem will contact you regarding the next steps.');
-      setContract((current) => current ? { ...current, status: accepted ? 'accepted' : 'declined' } : current);
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to process your response.'); }
-    finally { setBusy(false); }
-  }
-
-  return <main className="wrap" style={{ padding: '38px 0 80px', maxWidth: 980 }}><section className="card" style={{ padding: 28 }}><p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '.08em' }}>LAUREM CAREGROUP</p><h1>Employment contract</h1>{message && <div role="alert" style={{ padding: 14, margin: '16px 0', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--soft)' }}>{message}</div>}{contract?.contract_content && <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'Arial, sans-serif', lineHeight: 1.65, borderTop: '1px solid var(--line)', paddingTop: 22 }}>{contract.contract_content}</pre>}{contract?.status === 'accepted' || contract?.status === 'declined' ? null : <><div style={{ marginTop: 24 }}><label>Full name used for acceptance<input value={name} onChange={(e) => setName(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 12, border: '1px solid var(--line)', borderRadius: 9 }} /></label></div><div style={{ marginTop: 16 }}><label>Reason for declining (optional)<textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} rows={4} style={{ display: 'block', width: '100%', marginTop: 6, padding: 12, border: '1px solid var(--line)', borderRadius: 9 }} /></label></div><div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}><button disabled={busy || !name.trim()} onClick={() => respond(true)} style={{ background: 'var(--ink)', color: 'white', border: 0, padding: '12px 18px', borderRadius: 9, fontWeight: 800 }}>Accept contract</button><button disabled={busy} onClick={() => respond(false)} style={{ background: 'white', color: 'var(--ink)', border: '1px solid var(--line)', padding: '12px 18px', borderRadius: 9, fontWeight: 800 }}>Decline</button></div></>}</section></main>;
+  const [token,setToken]=useState(''); const [contract,setContract]=useState<any>(null); const [name,setName]=useState(''); const [declineReason,setDeclineReason]=useState(''); const [agree,setAgree]=useState(false); const [busy,setBusy]=useState(false); const [message,setMessage]=useState<string|null>(null);
+  const canvasRef=useRef<HTMLCanvasElement|null>(null); const drawing=useRef(false);
+  const attestation='I confirm that I have read and understood this employment contract and agree to sign it electronically.';
+  useEffect(()=>{params.then(p=>setToken(p.token));},[params]);
+  useEffect(()=>{if(!token)return;fetch(`/api/contracts/accept?token=${encodeURIComponent(token)}`,{headers:{'x-contract-token':token}}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.error||'Unable to load contract.');return b;}).then(b=>setContract(b.contract)).catch(e=>setMessage(e instanceof Error?e.message:'Unable to load contract.'));},[token]);
+  function point(e:React.PointerEvent<HTMLCanvasElement>){const c=canvasRef.current;if(!c)return null;const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};}
+  function start(e:React.PointerEvent<HTMLCanvasElement>){const c=canvasRef.current;if(!c)return;drawing.current=true;c.setPointerCapture(e.pointerId);const p=point(e);const x=c.getContext('2d');if(!p||!x)return;x.beginPath();x.moveTo(p.x,p.y);}
+  function draw(e:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;const c=canvasRef.current;if(!c)return;const p=point(e);const x=c.getContext('2d');if(!p||!x)return;x.lineWidth=2.2;x.lineCap='round';x.strokeStyle='#173a31';x.lineTo(p.x,p.y);x.stroke();}
+  function clear(){const c=canvasRef.current;const x=c?.getContext('2d');if(c&&x)x.clearRect(0,0,c.width,c.height);}
+  async function respond(accepted:boolean){setBusy(true);setMessage(null);try{const signatureData=canvasRef.current?.toDataURL('image/png')||null;const response=await fetch('/api/contracts/accept',{method:'POST',headers:{'content-type':'application/json','x-contract-token':token},body:JSON.stringify({accepted,acceptedByName:name,declineReason,signatureData,attestation})});const b=await response.json().catch(()=>({}));if(!response.ok)throw new Error(b.error||'Unable to process your response.');setMessage(accepted?'Your contract has been signed electronically. LAUREM will proceed with your onboarding.':'Your response has been recorded. LAUREM will contact you regarding the next steps.');setContract((current:any)=>current?{...current,status:accepted?'accepted':'declined'}:current);}catch(e){setMessage(e instanceof Error?e.message:'Unable to process your response.');}finally{setBusy(false);}}
+  return <main className='wrap' style={{padding:'38px 0 80px',maxWidth:1000}}><section className='card' style={{padding:28}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>LAUREM CARE</p><h1>Employment contract</h1><p style={{color:'var(--muted)'}}>Review and sign your contract online. You do not need to download or print it.</p>{message&&<div role='alert' style={{padding:14,margin:'16px 0',border:'1px solid var(--line)',borderRadius:10,background:'var(--soft)'}}>{message}</div>}{contract?.contract_content&&<pre style={{whiteSpace:'pre-wrap',fontFamily:'Arial,sans-serif',lineHeight:1.65,borderTop:'1px solid var(--line)',paddingTop:22}}>{contract.contract_content}</pre>}{contract?.status==='accepted'||contract?.status==='declined'?null:<><section style={{marginTop:24,paddingTop:20,borderTop:'1px solid var(--line)'}}><h2>Electronic signature</h2><p style={{color:'var(--muted)',lineHeight:1.6}}>Enter your full legal name and optionally draw your signature. The platform records the signing timestamp, document fingerprint, IP address and browser details.</p><label>Full legal name<input value={name} onChange={e=>setName(e.target.value)} style={{display:'block',width:'100%',marginTop:6,padding:12,border:'1px solid var(--line)',borderRadius:9}} /></label><div style={{marginTop:14,fontWeight:800,fontSize:13}}>Optional handwritten signature</div><canvas ref={canvasRef} width={900} height={180} onPointerDown={start} onPointerMove={draw} onPointerUp={()=>{drawing.current=false}} onPointerCancel={()=>{drawing.current=false}} style={{width:'100%',height:180,border:'1px solid var(--line)',borderRadius:10,marginTop:7,touchAction:'none'}}/><button type='button' onClick={clear} style={{marginTop:7,border:'1px solid var(--line)',background:'white',padding:'8px 11px',borderRadius:8,fontWeight:700}}>Clear signature</button><label style={{display:'flex',gap:9,alignItems:'flex-start',marginTop:16,fontSize:13,lineHeight:1.5}}><input type='checkbox' checked={agree} onChange={e=>setAgree(e.target.checked)} style={{marginTop:3}}/><span>{attestation}</span></label></section><div style={{marginTop:20}}><label>Reason for declining (optional)<textarea value={declineReason} onChange={e=>setDeclineReason(e.target.value)} rows={3} style={{display:'block',width:'100%',marginTop:6,padding:12,border:'1px solid var(--line)',borderRadius:9}} /></label></div><div style={{display:'flex',gap:10,marginTop:18,flexWrap:'wrap'}}><button disabled={busy||!name.trim()||!agree} onClick={()=>void respond(true)} style={{background:'var(--ink)',color:'white',border:0,padding:'12px 18px',borderRadius:9,fontWeight:800}}>{busy?'Signing…':'Sign contract electronically'}</button><button disabled={busy} onClick={()=>void respond(false)} style={{background:'white',color:'var(--ink)',border:'1px solid var(--line)',padding:'12px 18px',borderRadius:9,fontWeight:800}}>Decline</button></div></>}</section></main>;
 }
