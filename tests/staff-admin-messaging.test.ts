@@ -11,6 +11,7 @@ describe('LAUREM staff admin messaging', () => {
     expect(route).toContain("'__laurem_admin__'");
     expect(route).toContain('getOrCreateAdminConversation');
     expect(route).toContain('recipient_staff_id: recipientStaffId');
+    expect(route).toContain("event_type: 'staff.message.sent'");
   });
 
   it('exposes the admin recipient and identifies admin threads in the staff portal', () => {
