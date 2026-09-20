@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 const statuses = new Set(['scheduled','confirmed','completed','cancelled','no_show']);
 
@@ -78,6 +79,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unable to create assignment.' }, { status: 500 });
   }
   await client.from('workforce_audit_events').insert({ assignment_id: created.id, staff_id: staffId, event_type: 'assignment.created', actor: session.email, details: { location, scheduledStart: start.toISOString(), scheduledEnd: end.toISOString() } });
+  await createLauremStaffNotification(client, {
+    staffId,
+    category: 'shift',
+    title: 'New shift assigned',
+    body: `You have been assigned a new shift at ${location} on ${start.toLocaleDateString('en-GB', { dateStyle: 'medium' })} from ${start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} to ${end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
+    actionUrl: '/staff/shifts',
+  });
   return NextResponse.json({ assignment: created }, { status: 201 });
 }
 
@@ -128,5 +136,19 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Unable to update assignment.' }, { status: 500 });
   }
   await client.from('workforce_audit_events').insert({ assignment_id: id, staff_id: existing.staff_id, event_type: 'assignment.updated', actor: session.email, details: patch });
+  const scheduleChanged = ['client_name','location','scheduled_start','scheduled_end'].some((key) => key in patch);
+  const statusChanged = nextStatus !== existing.status;
+  if (scheduleChanged || statusChanged) {
+    const label = statusChanged ? nextStatus.replaceAll('_', ' ') : 'updated';
+    await createLauremStaffNotification(client, {
+      staffId: existing.staff_id,
+      category: 'shift',
+      title: statusChanged ? `Shift ${label}` : 'Shift updated',
+      body: statusChanged
+        ? `Your shift at ${updated.location} is now ${label}.`
+        : `Your shift at ${updated.location} on ${new Date(updated.scheduled_start).toLocaleDateString('en-GB', { dateStyle: 'medium' })} has been updated.`,
+      actionUrl: '/staff/shifts',
+    });
+  }
   return NextResponse.json({ assignment: updated });
 }
