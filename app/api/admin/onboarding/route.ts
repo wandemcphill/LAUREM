@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
       ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id }
       : { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id };
 
-    await client.rpc('laurem_attach_accepted_contract_document', { p_staff_id: staffId, p_application_id: applicationId, p_actor: session.email });
+    const { error: contractDocumentError } = await client.rpc('laurem_attach_accepted_contract_document', { p_staff_id: staffId, p_application_id: applicationId, p_actor: session.email });
+    if (contractDocumentError) throw contractDocumentError;
 
     const existingJobDescription = await client.from('staff_documents').select('id').eq('staff_id', staffId).eq('source_type', 'job_description').eq('source_key', String(preparedStaff.job_title || application.role_applied || '').trim().toLowerCase()).maybeSingle();
     if (!existingJobDescription.data) {
