@@ -15,6 +15,8 @@ describe('LAUREM atomic staff onboarding', () => {
     expect(migration).toContain("jsonb_to_recordset");
     expect(migration).toContain("laurem_transition_application_status");
     expect(migration).toContain("app_row.status not in ('Onboarding', 'Hired')");
+    expect(migration).toContain('laurem_normalize_role');
+    expect(migration).toContain('laurem_evaluate_staff_lifecycle');
     expect(migration).toContain("revoke all on function public.laurem_prepare_staff_onboarding_atomic");
   });
 });
