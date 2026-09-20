@@ -18,7 +18,7 @@ describe('LAUREM mega lifecycle readiness contract', () => {
       'Second Interview', 'Documents', 'Sponsorship', 'Offer',
       'Onboarding', 'Hired', 'Rejected', 'Withdrawn',
     ]) {
-      expect(route).toContain(status);
+      expect(lifecycle).toContain("'" + status + "'");
     }
 
     expect(route).toContain("client.rpc('laurem_transition_application_status'");
@@ -37,7 +37,7 @@ describe('LAUREM mega lifecycle readiness contract', () => {
   it('keeps the staff sponsorship workspace authenticated and atomic', () => {
     const route = read('app/api/staff/visa-sponsorship/route.ts');
     expect(route).toContain('getStaffSession(request)');
-    expect(route).toContain("client.rpc('laurem_request_staff_visa_sponsorship'");
+    expect(route).toContain("db().rpc('laurem_request_staff_visa_sponsorship'");
     expect(route).toContain("['visa_switch','international_sponsorship']");
     expect(route).toContain("from('staff_visa_cases')");
     expect(route).toContain("from('staff_visa_case_events')");
