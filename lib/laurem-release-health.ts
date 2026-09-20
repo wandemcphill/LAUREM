@@ -58,7 +58,22 @@ export type ReleaseHealth = {
   dependencies: {
     environment: { ok: boolean; missing: string[] };
     database: { ok: boolean; latencyMs: number; error: string | null };
-    schema: { ok: boolean; missing: string[] };
+    schema: {
+      ok: boolean;
+      missing: string[];
+      contract: {
+        ok: boolean;
+        contractVersion: number | null;
+        expectedTableCount: number | null;
+        missingTables: string[];
+        rlsDisabledTables: string[];
+        missingColumns: Array<{ table: string; column: string }>;
+        missingIndexes: string[];
+        baselineMigrationPresent: boolean;
+        latestMigration: { version: string; name: string } | null;
+        error: string | null;
+      };
+    };
     storage: { ok: boolean; bucketPresent: boolean; error: string | null };
   };
 };
@@ -82,17 +97,36 @@ export async function checkReleaseHealth(client: SupabaseClient): Promise<Releas
   const { error: databaseError } = await client.from('recruitment_applications').select('id', { head: true, count: 'exact' });
   const latencyMs = Date.now() - started;
 
-  const schemaResults = await Promise.all(EXPECTED_PORTAL_TABLES.map(async (table) => {
-    const { error } = await client.from(table).select('id', { head: true, count: 'exact' });
-    return { table, error };
-  }));
-  const missingTables = schemaResults.filter(({ error }) => Boolean(error)).map(({ table }) => table);
+  const { data: schemaContract, error: schemaContractError } = await client.rpc('laurem_verify_release_schema');
+  const contract = schemaContract && typeof schemaContract === 'object'
+    ? schemaContract as Record<string, unknown>
+    : {};
+  const missingTables = Array.isArray(contract.missing_tables)
+    ? contract.missing_tables.filter((value): value is string => typeof value === 'string')
+    : [];
+  const rlsDisabledTables = Array.isArray(contract.rls_disabled_tables)
+    ? contract.rls_disabled_tables.filter((value): value is string => typeof value === 'string')
+    : [];
+  const missingIndexes = Array.isArray(contract.missing_indexes)
+    ? contract.missing_indexes.filter((value): value is string => typeof value === 'string')
+    : [];
+  const missingColumns = Array.isArray(contract.missing_columns)
+    ? contract.missing_columns
+        .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object')
+        .map((value) => ({ table: typeof value.table === 'string' ? value.table : 'unknown', column: typeof value.column === 'string' ? value.column : 'unknown' }))
+    : [];
+  const latestMigration = contract.latest_migration && typeof contract.latest_migration === 'object'
+    ? contract.latest_migration as Record<string, unknown>
+    : null;
+  const schemaContractOk = schemaContractError
+    ? false
+    : contract.ok === true;
 
   const { data: buckets, error: bucketError } = await client.storage.listBuckets();
   const bucketPresent = Array.isArray(buckets) && buckets.some((bucket) => bucket.name === REQUIRED_PRIVATE_BUCKET);
 
   const databaseOk = !databaseError;
-  const schemaOk = missingTables.length === 0;
+  const schemaOk = schemaContractOk && missingTables.length === 0 && rlsDisabledTables.length === 0 && missingColumns.length === 0 && missingIndexes.length === 0;
   const storageOk = !bucketError && bucketPresent;
   const environmentOk = missingEnvironment.length === 0;
 
@@ -103,7 +137,24 @@ export async function checkReleaseHealth(client: SupabaseClient): Promise<Releas
     dependencies: {
       environment: { ok: environmentOk, missing: missingEnvironment },
       database: { ok: databaseOk, latencyMs, error: databaseError ? errorMessage(databaseError) : null },
-      schema: { ok: schemaOk, missing: missingTables },
+      schema: {
+        ok: schemaOk,
+        missing: missingTables,
+        contract: {
+          ok: schemaContractOk,
+          contractVersion: typeof contract.contract_version === 'number' ? contract.contract_version : null,
+          expectedTableCount: typeof contract.expected_table_count === 'number' ? contract.expected_table_count : null,
+          missingTables,
+          rlsDisabledTables,
+          missingColumns,
+          missingIndexes,
+          baselineMigrationPresent: contract.baseline_migration_present === true,
+          latestMigration: latestMigration && typeof latestMigration.version === 'string' && typeof latestMigration.name === 'string'
+            ? { version: latestMigration.version, name: latestMigration.name }
+            : null,
+          error: schemaContractError ? errorMessage(schemaContractError) : null,
+        },
+      },
       storage: { ok: storageOk, bucketPresent, error: bucketError ? errorMessage(bucketError) : null },
     },
   };

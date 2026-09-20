@@ -14,7 +14,8 @@ describe('LAUREM production health contracts', () => {
 
   it('keeps database readiness on a separate non-secret-bearing endpoint', () => {
     const route = readFileSync('app/api/health/ready/route.ts', 'utf8');
-    expect(route).toContain("db().from('recruitment_applications')");
+    expect(route).toContain("const client = db();");
+    expect(route).toContain("client.from('recruitment_applications')");
     expect(route).toContain("select('id', { head: true, count: 'exact' })");
     expect(route).toContain("status: 503");
     expect(route).toContain("response.headers.set('cache-control', 'no-store, max-age=0')");

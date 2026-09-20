@@ -15,8 +15,11 @@ function releaseCommit() {
 export async function GET() {
   const started = Date.now();
   try {
-    const { error } = await db().from('recruitment_applications').select('id', { head: true, count: 'exact' });
+    const client = db();
+    const { error } = await client.from('recruitment_applications').select('id', { head: true, count: 'exact' });
     if (error) throw error;
+    const { data: schemaContract, error: schemaError } = await client.rpc('laurem_verify_release_schema');
+    if (schemaError || !schemaContract || typeof schemaContract !== 'object' || (schemaContract as Record<string, unknown>).ok !== true) throw schemaError || new Error('SCHEMA_NOT_READY');
     const response = NextResponse.json({
       ok: true,
       service: 'laurem-recruitment-platform',

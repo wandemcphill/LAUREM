@@ -26,7 +26,22 @@ export async function GET(request: NextRequest) {
       dependencies: {
         environment: { ok: false, missing: [] },
         database: { ok: false, latencyMs: 0, error: 'Health check failed.' },
-        schema: { ok: false, missing: [] },
+        schema: {
+          ok: false,
+          missing: [],
+          contract: {
+            ok: false,
+            contractVersion: null,
+            expectedTableCount: null,
+            missingTables: [],
+            rlsDisabledTables: [],
+            missingColumns: [],
+            missingIndexes: [],
+            baselineMigrationPresent: false,
+            latestMigration: null,
+            error: 'Health check failed.',
+          },
+        },
         storage: { ok: false, bucketPresent: false, error: 'Health check failed.' },
       },
     }, { status: 503, headers: { 'cache-control': 'no-store' } });

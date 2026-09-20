@@ -60,6 +60,7 @@ const LAUREM_RPC_NAMES = new Set([
   'laurem_sign_staff_document',
   'laurem_attach_accepted_contract_document',
   'laurem_request_staff_visa_sponsorship',
+  'laurem_verify_release_schema',
 ]);
 
 function mapTableName(name: string) {
