@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest) {
     await client.from('staff_visa_case_events').insert({
       visa_case_id: currentCase.id,
       staff_id: session.staff_id,
-      event_type: 'admin_reviewed',
+      event_type: 'candidate_information_updated',
       actor_type: 'staff',
       actor: session.email,
       metadata: { action: 'candidate_information_updated' },
