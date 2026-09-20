@@ -8,6 +8,10 @@ function read(path: string) {
 describe('LAUREM mega lifecycle readiness contract', () => {
   it('keeps recruitment status changes behind the atomic lifecycle RPC', () => {
     const route = read('app/api/admin/applications/route.ts');
+    const lifecycle = read('lib/laurem-recruitment-lifecycle.ts');
+
+    expect(route).toContain("isLauremRecruitmentStatus(status)");
+    expect(lifecycle).toContain('LAUREM_RECRUITMENT_STATUSES');
 
     for (const status of [
       'Enquiry', 'Invited', 'Application', 'Screening', 'Interview',
