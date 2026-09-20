@@ -178,12 +178,20 @@ export async function PATCH(request: NextRequest) {
       metadata: { action: 'candidate_information_updated' },
     });
 
+    const { data: currentInvoice, error: invoiceError } = await client.from('staff_visa_invoices')
+      .select('status')
+      .eq('visa_case_id', currentCase.id)
+      .order('created_at',{ascending:false})
+      .limit(1)
+      .maybeSingle();
+    if (invoiceError) throw invoiceError;
+
     const readiness = buildLauremVisaReadiness({
       pathway: currentCase.pathway,
       staff: { id: session.staff_id },
       application: { id: currentCase.application_id },
       additionalInformation: additional,
-      invoiceStatus: null,
+      invoiceStatus: currentInvoice?.status || null,
     });
     return NextResponse.json({ case: data, readiness });
   } catch (error) {
