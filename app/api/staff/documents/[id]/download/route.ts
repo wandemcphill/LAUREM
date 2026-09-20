@@ -6,7 +6,7 @@ const BUCKET = 'laurem-private-documents';
 
 function safeFilename(value: string, mimeType: string) {
   const cleaned = value
-    .replace(/[\\/:*?"<>\|\x00-\x1F]/g, '_')
+    .replace(/[\\/:*?"<>|\x00-\x1F]/g, '_')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/^\.+|\.+$/g, '')
@@ -46,6 +46,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'This document is not available for download.' }, { status: 409 });
   }
 
+  let body: Blob;
+  if (document.storage_path) {
+    const { data, error: downloadError } = await client.storage.from(BUCKET).download(document.storage_path);
+    if (downloadError || !data) {
+      return NextResponse.json({ error: 'Unable to prepare the document download.' }, { status: 500 });
+    }
+    body = data;
+  } else {
+    body = new Blob([document.content_text ?? ''], { type: document.mime_type || 'text/plain;charset=utf-8' });
+  }
+
   const now = new Date().toISOString();
   await client
     .from('staff_documents')
@@ -66,28 +77,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     },
   });
 
-  let body: Blob;
-  if (document.storage_path) {
-    const { data, error: downloadError } = await client.storage.from(BUCKET).download(document.storage_path);
-    if (downloadError || !data) {
-      return NextResponse.json({ error: 'Unable to prepare the document download.' }, { status: 500 });
-    }
-    body = data;
-  } else {
-    body = new Blob([document.content_text], { type: document.mime_type || 'text/plain;charset=utf-8' });
-  }
-
-  const filename = safeFilename(
-    document.original_filename || \`${document.title}${document.signature_status === "signed" ? " - Signed" : ""}\`,
-    document.mime_type || 'application/octet-stream',
-  );
+  const baseFilename = document.original_filename ||
+    document.title + (document.signature_status === 'signed' ? ' - Signed' : '');
+  const filename = safeFilename(baseFilename, document.mime_type || 'application/octet-stream');
   const encodedFilename = encodeURIComponent(filename);
+  const disposition = 'attachment; filename="' + filename.replace(/"/g, '') +
+    '"; filename*=UTF-8\'\'' + encodedFilename;
 
   return new NextResponse(body, {
     status: 200,
     headers: {
       'Content-Type': document.mime_type || 'application/octet-stream',
-      'Content-Disposition': \`attachment; filename="\${filename.replace(/"/g, '')}"; filename*=UTF-8''\${encodedFilename}\`,
+      'Content-Disposition': disposition,
       'Cache-Control': 'private, no-store, max-age=0',
       'X-Content-Type-Options': 'nosniff',
     },
