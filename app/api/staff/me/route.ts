@@ -41,19 +41,6 @@ export async function PATCH(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const limiter = await checkRateLimit({
-    key: `staff-profile-update:${session.staff_id}`,
-    limit: 20,
-    windowMs: 10 * 60 * 1000,
-    request: req,
-  });
-  if (!limiter.allowed) {
-    return NextResponse.json(
-      { error: 'Too many profile updates. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(limiter.retryAfterSeconds || 60) } },
-    );
-  }
-
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const editable = [
     'phone',
@@ -100,19 +87,6 @@ export async function PATCH(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-
-  const limiter = await checkRateLimit({
-    key: `staff-profile-photo:${session.staff_id}`,
-    limit: 6,
-    windowMs: 60 * 60 * 1000,
-    request: req,
-  });
-  if (!limiter.allowed) {
-    return NextResponse.json(
-      { error: 'Too many photograph uploads. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(limiter.retryAfterSeconds || 60) } },
-    );
-  }
 
   const form = await req.formData();
   const file = form.get('photo');
