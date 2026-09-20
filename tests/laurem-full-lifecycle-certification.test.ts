@@ -49,7 +49,7 @@ describe('LAUREM end-to-end lifecycle certification', () => {
     const staffVisa = source('app/api/staff/visa-sponsorship/route.ts');
     const visaMigration = source('supabase/migrations/20260920_staff_visa_sponsorship.sql');
 
-    expect(staffVisa).toContain("getStaffSession()");
+    expect(staffVisa).toContain('getStaffSession(request)');
     expect(staffVisa).toContain("from('recruitment_applications')");
     expect(staffVisa).toContain("rpc('laurem_request_staff_visa_sponsorship'");
     expect(visaMigration).toContain('case_snapshot jsonb');
