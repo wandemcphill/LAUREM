@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+// Source-contract checks remain credential-free so CI can certify the operational surface safely.
 describe('LAUREM workforce operations acceptance contract', () => {
   it('exposes the shared readiness contract to staff and admin', () => {
     const staffApi = readFileSync('app/api/staff/workforce-readiness/route.ts', 'utf8');
