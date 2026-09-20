@@ -44,12 +44,13 @@ export function validateAssignedTimesheet(
   const clockInMs = new Date(input.clockIn).getTime();
   const clockOutMs = new Date(input.clockOut).getTime();
   const scheduledStartMs = new Date(assignment.scheduled_start).getTime();
+  const scheduledEndMs = new Date(assignment.scheduled_end).getTime();
 
   if (clockOutMs <= clockInMs) {
     return { ok: false, error: 'Clock-out must be later than clock-in.' };
   }
 
-  if (!Number.isFinite(scheduledStartMs)) {
+  if (!Number.isFinite(scheduledStartMs) || !Number.isFinite(scheduledEndMs)) {
     return { ok: false, error: 'The assignment schedule is invalid.' };
   }
 
@@ -60,6 +61,9 @@ export function validateAssignedTimesheet(
   const earliestClockIn = scheduledStartMs - 2 * 60 * 60 * 1000;
   if (clockInMs < earliestClockIn) {
     return { ok: false, error: 'Clock-in cannot be more than 2 hours before the assignment.' };
+  }
+  if (clockInMs > scheduledEndMs) {
+    return { ok: false, error: 'Clock-in cannot occur after the assignment has ended.' };
   }
 
   return { ok: true };
