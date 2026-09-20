@@ -14,6 +14,8 @@ type NotificationSummary = { id:string; title:string; body:string; read_at:strin
 type StaffDocument = { id:string; title:string; signature_status:string; category:string; issued_at:string };
 type AvailabilitySummary = { id:string; effective_from:string; full_time:boolean; part_time:boolean; days:boolean; nights:boolean; weekends:boolean; notes:string|null };
 type WorkforceReadiness = { overall:'ready'|'attention'|'blocked'; nextAction:string|null; lanes:{key:string;level:'ready'|'attention'|'blocked';label:string;detail:string;count:number}[] };
+type PayrollEntry = { id:string; payroll_period_id:string; approved_hours:number|null; hourly_rate:number|null; gross_amount:number|null; status:string; notes:string|null; created_at:string; updated_at:string; payroll_periods?:{period_start:string;period_end:string;pay_date:string|null;status:string}|null };
+type OperationalState = { level:'clear'|'active'|'attention'|'blocked'; status:string; label:string; detail:string; currentAssignmentId:string|null; upcomingAssignmentId:string|null; openAttendanceTimesheetId:string|null; counts:{upcomingAssignments:number;pendingTimesheets:number;rejectedTimesheets:number;pendingLeave:number;openPayrollEntries:number} };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -36,6 +38,8 @@ export default function StaffPortalHome() {
   const [documents,setDocuments] = useState<StaffDocument[]>([]);
   const [availability,setAvailability] = useState<AvailabilitySummary|null>(null);
   const [workforceReadiness,setWorkforceReadiness] = useState<WorkforceReadiness|null>(null);
+  const [operationalState,setOperationalState] = useState<OperationalState|null>(null);
+  const [payroll,setPayroll] = useState<PayrollEntry[]>([]);
   const [loading,setLoading] = useState(true);
   const [refreshing,setRefreshing] = useState(false);
   const [error,setError] = useState('');
@@ -51,24 +55,24 @@ export default function StaffPortalHome() {
     if(showSpinner) setLoading(true); else setRefreshing(true);
     setError('');
     try {
-      const [me,shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes,workforceRes] = await Promise.all([
-        fetch('/api/staff/me',{cache:'no-store'}),
-        fetch('/api/staff/shifts',{cache:'no-store'}),
-        fetch('/api/staff/timesheets',{cache:'no-store'}),
-        fetch('/api/staff/leave',{cache:'no-store'}),
-        fetch('/api/staff/messages',{cache:'no-store'}),
-        fetch('/api/staff/onboarding',{cache:'no-store'}),
-        fetch('/api/staff/notifications',{cache:'no-store'}),
-        fetch('/api/staff/documents',{cache:'no-store'}),
-        fetch('/api/staff/availability',{cache:'no-store'}),
-        fetch('/api/staff/workforce-readiness',{cache:'no-store'}),
-      ]);
-      if(me.status===401 || [shiftRes,timesheetRes,leaveRes,messageRes,onboardingRes,notificationRes,documentRes,availabilityRes,workforceRes].some(r=>r.status===401)){ router.replace('/staff/login'); return; }
-      const [meBody,shiftBody,timesheetBody,leaveBody,messageBody,onboardingBody,notificationBody,documentBody,availabilityBody,workforceBody] = await Promise.all([me.json(),shiftRes.json(),timesheetRes.json(),leaveRes.json(),messageRes.json(),onboardingRes.json(),notificationRes.json(),documentRes.json(),availabilityRes.json(),workforceRes.json()]);
-      if(!me.ok) throw new Error(meBody.error||'Unable to load staff profile.');
-      if(!shiftRes.ok || !timesheetRes.ok || !leaveRes.ok || !messageRes.ok || !onboardingRes.ok || !notificationRes.ok || !documentRes.ok || !availabilityRes.ok) throw new Error(shiftBody.error||timesheetBody.error||leaveBody.error||messageBody.error||onboardingBody.error||notificationBody.error||documentBody.error||availabilityBody.error||'Unable to load the staff dashboard.');
-      setStaff(meBody.staff); setPhotoFailed(false); setShifts(shiftBody.shifts||[]); setTimesheets(timesheetBody.timesheets||[]); setLeave(leaveBody.requests||[]); setMessages(messageBody.conversations||[]); setNotifications(notificationBody.notifications||[]); setDocuments(documentBody.documents||[]); setAvailability(availabilityBody.current||null); setWorkforceReadiness(workforceRes.ok ? workforceBody.readiness || null : null);
-      setOnboarding(onboardingBody.package ? { title:onboardingBody.package.title, status:onboardingBody.package.status, tasks:onboardingBody.tasks||[] } : null);
+      const response = await fetch('/api/staff/workforce-dashboard',{cache:'no-store'});
+      if(response.status===401){ router.replace('/staff/login'); return; }
+      const body = await response.json();
+      if(!response.ok) throw new Error(body.error||'Unable to load the staff dashboard.');
+
+      setStaff(body.staff);
+      setPhotoFailed(false);
+      setShifts(body.shifts||[]);
+      setTimesheets(body.timesheets||[]);
+      setLeave(body.leave||[]);
+      setMessages(body.messages||[]);
+      setNotifications(body.notifications||[]);
+      setDocuments(body.documents||[]);
+      setAvailability(body.availability||null);
+      setWorkforceReadiness(body.readiness||null);
+      setOperationalState(body.operationalState||null);
+      setPayroll(body.payroll?.entries||[]);
+      setOnboarding(body.onboarding ? { title:String(body.onboarding.package?.title||'Onboarding'), status:String(body.onboarding.package?.status||'active'), tasks:body.onboarding.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
   }
@@ -97,7 +101,10 @@ export default function StaffPortalHome() {
     submitted:timesheets.filter(t=>t.status==='submitted').length,
     approvedHours:timesheets.filter(t=>['approved','paid'].includes(t.status)).reduce((sum,t)=>sum+(Number(t.total_hours)||0),0),
     pendingLeave:leave.filter(r=>r.status==='pending').length,
-  }),[shifts,timesheets,leave]);
+    unreadMessages:messages.filter(m=>Boolean(m.latest_message?.created_at)).length,
+    unreadNotifications:notifications.filter(n=>!n.read_at).length,
+    openPayroll:payroll.filter(p=>!['paid','void'].includes(p.status)).length,
+  }),[shifts,timesheets,leave,messages,notifications,payroll]);
 
   const readiness = useMemo(()=>{
     if(!staff) return { profile:0, availability:Boolean(availability), documents:documents.length>0, notifications:notifications.some(n=>!n.read_at) };
@@ -127,10 +134,34 @@ export default function StaffPortalHome() {
     {error&&<div role="alert" style={{...card,marginTop:14,color:'#b42318'}}>{error}</div>}
 
     <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:10,marginTop:14}}>
-      <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/>
+      <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/><Metric label="Open payroll" value={metrics.openPayroll}/>
     </section>
 
     {workforceReadiness && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>OPERATIONS STATUS</div><h2 style={{margin:'5px 0 4px'}}>Workforce operations</h2><div style={muted}>{workforceReadiness.nextAction || 'No operational exceptions detected.'}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:workforceReadiness.overall==='ready'?'#e8f7ee':workforceReadiness.overall==='attention'?'#fff4e5':'#fdecec',color:workforceReadiness.overall==='ready'?'#166534':workforceReadiness.overall==='attention'?'#9a3412':'#991b1b',fontSize:12,fontWeight:900}}>{workforceReadiness.overall.toUpperCase()}</span></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:9,marginTop:14}}>{workforceReadiness.lanes.map(lane=><div key={lane.key} style={{padding:12,border:'1px solid #e5eaf0',borderRadius:12}}><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>{lane.label}</div><strong style={{display:'block',marginTop:4}}>{lane.level==='ready'?'Ready':lane.level==='attention'?'Needs attention':'Blocked'}</strong><div style={{...muted,fontSize:12,marginTop:4,lineHeight:1.45}}>{lane.detail}</div></div>)}</div></section>}
+
+    {operationalState && <section style={{...card,marginTop:14,borderLeft:`5px solid ${operationalState.level==='blocked'?'#991b1b':operationalState.level==='attention'?'#9a3412':operationalState.level==='active'?'#166534':'#0f766e'}`}}>
+      <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'flex-start',flexWrap:'wrap'}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>TODAY'S WORKFORCE STATE</div>
+          <h2 style={{margin:'5px 0 4px'}}>{operationalState.label}</h2>
+          <div style={muted}>{operationalState.detail}</div>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {operationalState.status==='on_shift' && <button onClick={()=>router.push('/staff/attendance')} style={btn(true)}>Open attendance</button>}
+          {['awaiting_timesheet_review','timesheet_resubmission'].includes(operationalState.status) && <button onClick={()=>router.push('/staff/timesheets')} style={btn(true)}>Review timesheets</button>}
+          {operationalState.status==='leave_pending' && <button onClick={()=>router.push('/staff/leave')} style={btn(true)}>View leave</button>}
+          {operationalState.status==='payroll_open' && <button onClick={()=>router.push('/staff/payroll')} style={btn(true)}>View payroll</button>}
+          {operationalState.status==='upcoming_shift' && <button onClick={()=>router.push('/staff/shifts')} style={btn(true)}>View next shift</button>}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:8,marginTop:14}}>
+        <MiniMetric label="Upcoming" value={operationalState.counts.upcomingAssignments}/>
+        <MiniMetric label="Pending timesheets" value={operationalState.counts.pendingTimesheets}/>
+        <MiniMetric label="Rejected timesheets" value={operationalState.counts.rejectedTimesheets}/>
+        <MiniMetric label="Pending leave" value={operationalState.counts.pendingLeave}/>
+        <MiniMetric label="Open payroll" value={operationalState.counts.openPayrollEntries}/>
+      </div>
+    </section>}
 
     <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>WORKFORCE READINESS</div><h2 style={{margin:'5px 0 4px'}}>Your staff record at a glance</h2><div style={muted}>Keep these four areas current so your Staff Portal stays complete and useful.</div></div><button onClick={()=>router.push('/staff/profile')} style={btn()}>Open profile</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,marginTop:15}}><ReadinessCard title='Profile' value={readiness.profile===100?'Complete':readiness.profile+'% complete'} text={readiness.profile===100?'Phone, address and photograph are present.':'Add missing contact/address/photo details.'} href='/staff/profile'/><ReadinessCard title='Availability' value={readiness.availability?'Recorded':'Not set'} text={readiness.availability?'Current work preferences are recorded.':'Tell LAUREM how you prefer to work.'} href='/staff/availability'/><ReadinessCard title='Documents' value={documents.length?documents.length+' issued':'None issued'} text={documents.some(d=>d.signature_status==='pending')?'A document needs your signature.':'Review your employment documents.'} href='/staff/documents'/><ReadinessCard title='Notifications' value={notifications.filter(n=>!n.read_at).length?notifications.filter(n=>!n.read_at).length+' unread':'All caught up'} text='Keep track of workforce updates and decisions.' href='/staff/notifications'/></div></section>
 
@@ -139,6 +170,11 @@ export default function StaffPortalHome() {
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(290px,.9fr)',gap:14,marginTop:14}}>
       <article style={card}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><h2 style={{margin:'0 0 4px'}}>Next shift</h2><div style={muted}>Your nearest scheduled assignment</div></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>router.push('/staff/shifts')} style={btn()}>View shifts</button><button onClick={()=>router.push('/staff/availability')} style={btn()}>Availability</button></div></div>{shifts[0]?<div style={{marginTop:18,padding:16,borderRadius:12,background:'#f7fafc'}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><strong>{shifts[0].client_name||'LAUREM Assignment'}</strong>{statusPill(shifts[0].status)}</div><div style={{marginTop:7}}>{shifts[0].location}</div><div style={{...muted,marginTop:5}}>{fmtDateTime(shifts[0].scheduled_start)} → {fmtDateTime(shifts[0].scheduled_end)}</div>{shifts[0].notes&&<p style={{...muted,whiteSpace:'pre-wrap'}}>{shifts[0].notes}</p>}</div>:<Empty text="No upcoming shifts are currently scheduled."/>}</article>
       <article style={card}><h2 style={{margin:'0 0 4px'}}>Quick access</h2><div style={{...muted,marginBottom:14}}>Everything you use most often.</div><div style={{display:'grid',gap:9}}>{[['Onboarding','/staff/onboarding'],['Visa & Sponsorship','/staff/visa-sponsorship'],['Notifications',notifications.some(n=>!n.read_at)?'/staff/notifications · New':'/staff/notifications'],['Messages','/staff/messages'],['Attendance','/staff/attendance'],['Timesheets','/staff/timesheets'],['Payroll','/staff/payroll'],['My Profile','/staff/profile'],['Documents','/staff/documents'],['Availability & Preferences','/staff/availability'],['My Shifts','/staff/shifts']].map(([label,path])=><button key={path} onClick={()=>router.push(path)} style={{...btn(),textAlign:'left'}}>{label}<span style={{float:'right'}}>→</span></button>)}</div></article>
+    </section>
+
+    <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.35fr) minmax(300px,.9fr)',gap:14,marginTop:14}}>
+      <article style={card}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><h2 style={{margin:'0 0 4px'}}>Payroll</h2><div style={muted}>Latest approved hours, rate and gross amount</div></div><button onClick={()=>router.push('/staff/payroll')} style={btn()}>Open payroll</button></div>{payroll[0]?<div style={{marginTop:15,padding:15,borderRadius:12,background:'#f7fafc'}}><div style={{display:'flex',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><strong>{payroll[0].approved_hours ?? 0} approved hours</strong>{statusPill(payroll[0].status)}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,marginTop:10}}><Info label="Hourly rate" value={payroll[0].hourly_rate==null?'Not set':`£${Number(payroll[0].hourly_rate).toFixed(2)}`}/><Info label="Gross" value={payroll[0].gross_amount==null?'Not set':`£${Number(payroll[0].gross_amount).toFixed(2)}`}/><Info label="Pay date" value={payroll[0].payroll_periods?.pay_date ? fmtDate(payroll[0].payroll_periods.pay_date) : 'Not set'}/></div></div>:<Empty text="No payroll entry has been published yet."/>}</article>
+      <article style={card}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><h2 style={{margin:'0 0 4px'}}>Notifications</h2><div style={muted}>Latest decisions and workforce updates</div></div><button onClick={()=>router.push('/staff/notifications')} style={btn()}>View all</button></div><div style={{display:'grid',gap:9,marginTop:13}}>{notifications.slice(0,4).map(n=><button key={n.id} onClick={()=>router.push(n.action_url||'/staff/notifications')} style={{textAlign:'left',border:0,borderTop:'1px solid #edf2f7',background:'#fff',padding:'11px 0',cursor:'pointer'}}><div style={{display:'flex',justifyContent:'space-between',gap:8}}><strong>{n.title}</strong>{!n.read_at&&<span style={{fontSize:10,fontWeight:900,color:'#b42318'}}>NEW</span>}</div><div style={{...muted,fontSize:12,marginTop:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.body}</div></button>)}{!notifications.length&&<Empty text="No notifications yet."/>}</div></article>
     </section>
 
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.35fr) minmax(300px,.9fr)',gap:14,marginTop:14}}>
@@ -153,6 +189,7 @@ export default function StaffPortalHome() {
 }
 
 function Metric({label,value}:{label:string;value:string|number}) { return <article style={card}><div style={{fontSize:27,fontWeight:900}}>{value}</div><div style={{...muted,fontSize:12,marginTop:3}}>{label}</div></article>; }
+function MiniMetric({label,value}:{label:string;value:string|number}) { return <div style={{padding:11,border:'1px solid #e5eaf0',borderRadius:10}}><div style={{fontSize:20,fontWeight:900}}>{value}</div><div style={{...muted,fontSize:11,marginTop:2}}>{label}</div></div>; }
 function Info({label,value}:{label:string;value:string}) { return <div><div style={{...muted,fontSize:12}}>{label}</div><strong style={{display:'block',marginTop:4,overflowWrap:'anywhere'}}>{value}</strong></div>; }
 function ReadinessCard({title,value,text,href}:{title:string;value:string;text:string;href:string}) { return <button onClick={()=>{window.location.href=href;}} style={{textAlign:'left',border:'1px solid #e5eaf0',background:'#fff',borderRadius:12,padding:14,cursor:'pointer'}}><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>{title}</div><strong style={{display:'block',fontSize:18,marginTop:5}}>{value}</strong><div style={{...muted,fontSize:12,marginTop:5,lineHeight:1.45}}>{text}</div><div style={{marginTop:10,color:'#0f766e',fontSize:12,fontWeight:900}}>Open →</div></button>; }
 function Empty({text}:{text:string}) { return <div style={{...muted,padding:'14px 0'}}>{text}</div>; }
