@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
-
-const STATUSES = new Set([
-  'requested', 'admin_review', 'awaiting_payment', 'preparing_sms',
-  'submitted_to_sms', 'cos_pending', 'cos_assigned', 'completed',
-  'declined', 'withdrawn',
-]);
+import { assertLauremVisaCoSAssignment, assertLauremVisaStatusTransition, isLauremVisaStatus, type LauremVisaStatus } from '@/lib/laurem-visa-lifecycle';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ staffId: string }> }) {
   const session = readAdminSession(request);
@@ -64,15 +59,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const cosNumber = typeof body?.cosNumber === 'string' ? body.cosNumber.trim().slice(0,160) : '';
   const adminNotes = typeof body?.adminNotes === 'string' ? body.adminNotes.trim().slice(0,5000) : '';
   const markPaid = body?.markPaid === true;
-  if (status && !STATUSES.has(status)) return NextResponse.json({ error: 'Invalid visa case status.' }, { status: 400 });
+  if (status && !isLauremVisaStatus(status)) return NextResponse.json({ error: 'Invalid visa case status.' }, { status: 400 });
   if (pathway && !['visa_switch','international_sponsorship'].includes(pathway)) return NextResponse.json({ error: 'Invalid visa pathway.' }, { status: 400 });
   try {
     const client = db();
     const { data: current, error: caseError } = await client.from('staff_visa_cases').select('*').eq('staff_id', staffId).order('requested_at',{ascending:false}).limit(1).maybeSingle();
     if (caseError) throw caseError;
     if (!current) return NextResponse.json({ error: 'No visa sponsorship case exists for this staff member.' }, { status: 404 });
+    const currentStatus = String(current.status) as LauremVisaStatus;
+    if (!isLauremVisaStatus(currentStatus)) throw new Error('Invalid visa case state stored in the database.');
+    if (status) assertLauremVisaStatusTransition(currentStatus, status);
+    if (cosNumber) {
+      if (status && status !== 'cos_assigned') return NextResponse.json({ error: 'A Certificate of Sponsorship number can only accompany the cos_assigned transition.' }, { status: 409 });
+      assertLauremVisaCoSAssignment(currentStatus);
+    }
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (status) patch.status = status;
+    else if (cosNumber) patch.status = 'cos_assigned';
     if (pathway) patch.pathway = pathway;
     if (smsReference) patch.sms_reference = smsReference;
     if (cosNumber) { patch.cos_number = cosNumber; patch.cos_assigned_at = new Date().toISOString(); }
