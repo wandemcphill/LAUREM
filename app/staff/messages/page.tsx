@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 export default function StaffMessagesPage() {
   const [mailbox, setMailbox] = useState<any>(null);
+  const [adminRecipients, setAdminRecipients] = useState<any[]>([]);
   const [rows, setRows] = useState<any[]>([]);
   const [active, setActive] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export default function StaffMessagesPage() {
     const response = await fetch('/api/staff/messages', { cache: 'no-store' });
     if (response.status === 401) { window.location.href = '/staff/login'; return; }
     const data = await response.json().catch(() => ({}));
-    if (response.ok) { setMailbox(data.mailbox); setRows(data.conversations || []); }
+    if (response.ok) { setMailbox(data.mailbox); setAdminRecipients(data.adminRecipients || []); setRows(data.conversations || []); }
     else setError(data.error || 'Unable to load messages.');
   }
 
@@ -57,12 +58,13 @@ export default function StaffMessagesPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', background: '#fff', border: '1px solid #e5eaf0', borderRadius: 16, overflow: 'hidden', minHeight: 680 }}>
           <aside style={{ padding: 14, borderRight: '1px solid #edf2f7' }}>
             <form onSubmit={sendNew}>
+              {adminRecipients.map((recipient) => <button key={recipient.id} type="button" onClick={() => setTo(recipient.portalAddress)} style={{ width:'100%', textAlign:'left', padding:10, border:'1px solid #b7ead0', background:'#eefdf8', color:'#0f766e', borderRadius:10, marginBottom:8, fontWeight:900 }}>Message {recipient.name}</button>)}
               <input value={to} onChange={(event) => setTo(event.target.value)} placeholder="name@lauremcare / name@lauremnurse" style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 8 }} />
               <textarea value={active ? draft : draft} onChange={(event) => setDraft(event.target.value)} rows={3} placeholder="Message…" style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #cbd5e1', borderRadius: 10 }} />
               <button style={{ width: '100%', marginTop: 8, padding: 10, border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>Start message</button>
             </form>
             <hr style={{ border: 0, borderTop: '1px solid #edf2f7', margin: '16px 0' }} />
-            {rows.map((row) => <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}><strong>{row.other?.full_name || row.other?.display || 'LAUREM Admin'}</strong><div style={{ fontSize: 12, color: '#627d98' }}>{row.other?.address || ''}</div><div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div></button>)}
+            {rows.map((row) => <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}><strong>{row.other?.full_name || row.other?.display || 'LAUREM Admin / HR'}</strong><div style={{ fontSize: 12, color: '#627d98' }}>{row.other?.address || ''}</div><div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div></button>)}
           </aside>
           <section style={{ display: 'flex', flexDirection: 'column' }}>
             {!active ? <div style={{ margin: 'auto', color: '#627d98' }}>Select a conversation or use a known LAUREM handle.</div> : <>
