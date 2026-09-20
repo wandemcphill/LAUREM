@@ -4,6 +4,10 @@ import {
   assertLauremContractRole,
   assertLauremStaffContractBinding,
 } from '@/lib/laurem-lifecycle';
+import {
+  isLauremApplicationTransitionAllowed,
+  isLauremStaffEmploymentTransitionAllowed,
+} from '@/lib/laurem-lifecycle-policy';
 
 describe('LAUREM lifecycle policy', () => {
   it('accepts matching canonical application and contract roles', () => {
@@ -32,5 +36,13 @@ describe('LAUREM lifecycle policy', () => {
       { id: 's', contract_id: 'old-contract' },
       { id: 'new-contract', status: 'accepted', job_title: 'Support Worker' },
     )).toThrowError(LauremLifecycleError);
+  });
+
+  it('uses one shared application and staff status policy', () => {
+    expect(isLauremApplicationTransitionAllowed('Offer', 'Onboarding')).toBe(true);
+    expect(isLauremApplicationTransitionAllowed('Rejected', 'Offer')).toBe(false);
+    expect(isLauremApplicationTransitionAllowed('Rejected', 'Offer', { override: true })).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('pending', 'active')).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('leaver', 'active')).toBe(false);
   });
 });
