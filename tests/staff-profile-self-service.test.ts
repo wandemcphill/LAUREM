@@ -23,7 +23,8 @@ describe('LAUREM staff profile self service', () => {
     expect(route).toContain('MAX_PHOTO_BYTES');
     expect(route).toContain("image/jpeg");
     expect(photo).toContain("getStaffSession(req)");
-    expect(photo).toContain("from(PHOTO_BUCKET).download");
+    expect(photo).toContain(".from(PHOTO_BUCKET)");
+    expect(photo).toContain(".download(staff.profile_photo_path)");
     expect(photo).toContain("'Cache-Control'");
   });
 
