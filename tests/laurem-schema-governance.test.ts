@@ -42,7 +42,7 @@ describe('LAUREM schema governance contract', () => {
     expect(docs).toContain('20260920184540');
     expect(docs).toContain('20260920213203');
     expect(docs).toContain('20260920213318');
-    expect(readme).toContain('production migration history');
-    expect(readme).toContain('forward migrations are now source-controlled');
+    expect(readme).toContain('historical migration chain');
+    expect(readme).toContain('source-controlled forward migrations');
   });
 });
