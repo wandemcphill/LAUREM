@@ -36,7 +36,8 @@ describe('LAUREM staff attendance and profile', () => {
     expect(route).toContain("'address_line_1'");
     expect(route).toContain("staff.self_service_profile_updated");
     expect(page).toContain("fetch('/api/staff/me'");
-    expect(page).toContain('Save phone number');
+    expect(page).toContain('Save profile');
+    expect(page).toContain('Contact & address');
   });
 
   it('surfaces attendance and profile in the staff portal', () => {
