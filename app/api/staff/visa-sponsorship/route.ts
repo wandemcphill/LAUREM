@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const client = db();
     const { data: currentCase, error: caseError } = await client.from('staff_visa_cases')
-      .select('id,staff_id,additional_information,status')
+      .select('id,staff_id,application_id,pathway,additional_information,status')
       .eq('staff_id', session.staff_id)
       .not('status','in','(declined,withdrawn)')
       .order('requested_at',{ascending:false})
