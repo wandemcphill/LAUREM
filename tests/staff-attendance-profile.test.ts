@@ -8,7 +8,8 @@ describe('LAUREM staff attendance and profile', () => {
     expect(route).toContain("eq('staff_id', session.staff_id)");
     expect(route).toContain("from('staff_assignments')");
     expect(route).toContain("from('staff_timesheets')");
-    expect(route).toContain("eq('id', assignmentId).eq('staff_id', session.staff_id)");
+    expect(route).toContain(".eq('id', assignmentId)");
+    expect(route).toContain(".eq('staff_id', session.staff_id)");
   });
 
   it('enforces the active-staff rule and two-hour clock-in window', () => {
@@ -29,7 +30,7 @@ describe('LAUREM staff attendance and profile', () => {
   it('limits profile self-service to the staff phone number', () => {
     const route = readFileSync('app/api/staff/me/route.ts', 'utf8');
     const page = readFileSync('app/staff/profile/page.tsx', 'utf8');
-    expect(route).toContain('method');
+    expect(route).toContain('export async function PATCH');
     expect(route).toContain("update({ phone, updated_at");
     expect(route).toContain("details: { fields: ['phone'] }");
     expect(page).toContain("fetch('/api/staff/me'");
