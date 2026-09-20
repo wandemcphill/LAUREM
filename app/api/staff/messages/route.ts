@@ -64,6 +64,6 @@ export async function POST(req: NextRequest) {
   const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: conversation.id, sender_staff_id: session.staff_id, body: message }).select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at').single();
   if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
-  await client.from('staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipient.id } });
+  await client.from('staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
   return NextResponse.json({ conversation, message: created }, { status: 201 });
 }
