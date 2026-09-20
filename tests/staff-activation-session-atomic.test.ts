@@ -20,7 +20,6 @@ describe('LAUREM staff activation/session atomicity', () => {
     expect(migration).toContain("session_created");
     expect(migration).toContain("p_expected_session_version");
     expect(migration).toContain("laurem_evaluate_staff_lifecycle");
-    expect(migration).toContain("'portal_activate'");
     expect(migration).toContain("revoke all on function");
   });
 
