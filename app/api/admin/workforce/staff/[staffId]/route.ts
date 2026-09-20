@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
 
 const transitions: Record<string, string[]> = {
   pending: ['active'],
@@ -48,6 +49,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ? `/api/admin/workforce/staff/${encodeURIComponent(staffId)}/photo?v=${encodeURIComponent(String(staff.profile_photo_updated_at || 'current'))}`
     : null;
 
+  const operationalState = buildStaffOperationalSnapshot({
+    employmentStatus: staff.employment_status,
+    assignments: assignmentsResult.data || [],
+    timesheets: timesheetsResult.data || [],
+    leaveRequests: leaveResult.data || [],
+    payrollEntries: payrollResult.data || [],
+  });
+
   return NextResponse.json({
     staff: { ...staff, profile_photo_url: profilePhotoUrl },
     assignments: assignmentsResult.data || [],
@@ -57,6 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     onboarding,
     audit: auditResult.data || [],
     availability: availabilityResult.data || null,
+    operationalState,
     documentsSummary: {
       total: (documentsResult.data || []).length,
       signaturePending: (documentsResult.data || []).filter((item: any) => item.signature_status === 'pending').length,
