@@ -228,6 +228,8 @@ export async function PATCH(request: NextRequest) {
     .select('id,period_start,period_end,pay_date,status,notes,created_by,created_at,updated_at').single();
   if (error || !data) {
     if (error?.message?.includes('PAYROLL_PERIOD')) return NextResponse.json({ error:'Payroll period is locked and cannot be changed.' }, { status:409 });
+    if (error?.message?.includes('PAYROLL_ENTRIES_OUT_OF_DATE')) return NextResponse.json({ error:'Payroll entries are out of date. Regenerate the open payroll period before processing.' }, { status:409 });
+    if (error?.message?.includes('PAYROLL_ENTRIES_INVALID')) return NextResponse.json({ error:'Payroll entries contain an invalid rate or gross amount.' }, { status:409 });
     return NextResponse.json({ error:'Unable to update payroll period.' }, { status:500 });
   }
   await client.from('workforce_audit_events').insert({
