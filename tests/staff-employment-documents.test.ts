@@ -32,6 +32,12 @@ describe('LAUREM staff employment documents', () => {
     expect(page).toContain('Sign document electronically');
     expect(page).toContain("/api/staff/documents/\${encodeURIComponent(id)}");
     expect(page).toContain('canvas');
+    expect(page).toContain('/api/staff/documents/\\${encodeURIComponent(id)}/download');
+    const downloadRoute = readFileSync('app/api/staff/documents/[id]/download/route.ts', 'utf8');
+    expect(downloadRoute).toContain("event_type: 'downloaded'");
+    expect(downloadRoute).toContain("'laurem-private-documents'");
+    expect(downloadRoute).toContain('Content-Disposition');
+    expect(downloadRoute).toContain('downloaded_at');
     const contract = readFileSync('app/contracts/accept/[token]/page.tsx', 'utf8');
     expect(contract).toContain('Sign contract electronically');
     expect(contract).toContain('signatureData');
