@@ -10,6 +10,17 @@ describe('timesheet review notifications', () => {
     expect(source).toContain("actionUrl: '/staff/timesheets'");
   });
 
+  it('handles duplicate assignment timesheets defensively', () => {
+    const staffRoute = readFileSync('app/api/staff/timesheets/route.ts', 'utf8');
+    const attendanceRoute = readFileSync('app/api/staff/attendance/route.ts', 'utf8');
+    const migration = readFileSync('supabase/migrations/20260920_staff_timesheet_assignment_guard.sql', 'utf8');
+    expect(staffRoute).toContain("error?.code === '23505'");
+    expect(attendanceRoute).toContain("error?.code === '23505'");
+    expect(migration).toContain('unique index');
+    expect(migration).toContain('(staff_id, assignment_id)');
+    expect(migration).toContain('where assignment_id is not null');
+  });
+
   it('keeps payroll available from the main staff workspace', () => {
     const source = readFileSync('app/staff/page.tsx', 'utf8');
     expect(source).toContain("['Payroll','/staff/payroll']");
