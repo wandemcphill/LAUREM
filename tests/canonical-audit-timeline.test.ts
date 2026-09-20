@@ -4,6 +4,7 @@ describe('canonical audit timeline contract', () => {
   it('defines the canonical event store and sanitized writer', async () => {
     const fs = await import('node:fs/promises');
     const sql = await fs.readFile('supabase/migrations/20260920235500_canonical_audit_events.sql', 'utf8');
+    const triggers = await fs.readFile('supabase/migrations/20260920240500_canonical_audit_source_triggers.sql', 'utf8');
     const helper = await fs.readFile('lib/laurem-audit.ts', 'utf8');
     const adminPage = await fs.readFile('app/admin/audit/page.tsx', 'utf8');
     const adminRoute = await fs.readFile('app/api/admin/audit/route.ts', 'utf8');
@@ -14,6 +15,12 @@ describe('canonical audit timeline contract', () => {
     expect(sql).toContain('laurem_recruitment_status_history');
     expect(sql).toContain('laurem_workforce_audit_events');
     expect(sql).toContain('recruitment_audit_log');
+    expect(triggers).toContain('trg_laurem_status_to_canonical_audit');
+    expect(triggers).toContain('trg_laurem_admin_action_to_canonical_audit');
+    expect(triggers).toContain('trg_recruitment_audit_log_to_canonical_audit');
+    expect(triggers).toContain('trg_evidence_audit_to_canonical_audit');
+    expect(triggers).toContain('trg_staff_audit_to_canonical_audit');
+    expect(triggers).toContain('trg_workforce_audit_to_canonical_audit');
 
     expect(helper).toContain('SENSITIVE_KEYS');
     expect(helper).toContain('access_token');
