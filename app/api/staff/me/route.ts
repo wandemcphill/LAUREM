@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
-import { checkRateLimit } from '@/lib/rate-limit';
 
 const PHOTO_BUCKET = 'laurem-staff-photos';
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -13,7 +12,7 @@ const PROFILE_FIELDS = [
   'profile_photo_path,profile_photo_updated_at',
 ].join(',');
 
-function withPhotoUrl(staff: Record<string, unknown>) {
+function withPhotoUrl(staff: any) {
   if (!staff.profile_photo_path) return staff;
   const version = staff.profile_photo_updated_at
     ? encodeURIComponent(String(staff.profile_photo_updated_at))
