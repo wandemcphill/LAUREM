@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
-import { renderLauremJobDescription } from '@/lib/laurem-job-description';
-import { lauremCompany } from '@/lib/laurem-company-config';
-import { createHash } from 'node:crypto';
-import { sendLauremEmail } from '@/lib/laurem-email';
 import { readAdminSession } from '@/lib/admin-auth';
 import { hashToken, makeToken } from '@/lib/token';
-import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { LauremLifecycleError, validateLauremStaffTransition, type LauremLifecycleErrorCode } from '@/lib/laurem-lifecycle';
 import { db } from '@/lib/db';
 
@@ -49,14 +44,6 @@ export async function POST(request: NextRequest) {
     const atomic = Array.isArray(atomicRows) ? atomicRows[0] : atomicRows;
     if (!atomic) throw new Error('Atomic onboarding preparation returned no result.');
 
-    const { data: updatedPackage, error: packageError } = await client
-      .from('staff_onboarding_packages')
-      .select('*')
-      .eq('id', atomic.package_id)
-      .single();
-    if (packageError || !updatedPackage) throw packageError || new Error('Onboarding package not found after atomic preparation.');
-
-    let portal: Awaited<ReturnType<typeof provisionLauremStaffPortal>> | null = null;
     const { data: preparedStaff, error: staffReadError } = await client
       .from('staff_profiles')
       .select('*')
@@ -64,9 +51,23 @@ export async function POST(request: NextRequest) {
       .single();
     if (staffReadError || !preparedStaff) throw staffReadError || new Error('Staff profile not found after atomic preparation.');
 
-    if (!preparedStaff.activated_at && !preparedStaff.activation_token_hash) {
-      portal = await provisionLauremStaffPortal(applicationId);
+    // Portal activation is intentionally deferred until the recruiter changes
+    // the application status to Hired. Invalidate any legacy activation token
+    // that may have been created by an older flow.
+    if (!preparedStaff.activated_at && preparedStaff.activation_token_hash) {
+      const { error: clearActivationError } = await client
+        .from('staff_profiles')
+        .update({ activation_token_hash: null, activation_expires_at: null, updated_at: new Date().toISOString() })
+        .eq('id', preparedStaff.id);
+      if (clearActivationError) throw clearActivationError;
     }
+
+    const { data: updatedPackage, error: packageError } = await client
+      .from('staff_onboarding_packages')
+      .select('*')
+      .eq('id', atomic.package_id)
+      .single();
+    if (packageError || !updatedPackage) throw packageError || new Error('Onboarding package not found after atomic preparation.');
 
     const { data: finalTasks } = await client
       .from('staff_onboarding_tasks')
@@ -75,83 +76,18 @@ export async function POST(request: NextRequest) {
       .order('sort_order', { ascending: true });
 
     const onboardingLink = atomic.access_token_issued && rawAccessToken
-      ? `${(process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '')}/onboarding/${rawAccessToken}`
+      ? (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/onboarding/' + rawAccessToken
       : null;
 
-    const staffId = portal?.staff.id || preparedStaff.id;
-    const staffSummary = portal
-      ? { id: portal.staff.id, employee_number: portal.staff.employee_number, contract_id: portal.staff.contract_id }
-      : { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id };
-
-    const { error: contractDocumentError } = await client.rpc('laurem_attach_accepted_contract_document', { p_staff_id: staffId, p_application_id: applicationId, p_actor: session.email });
-    if (contractDocumentError) throw contractDocumentError;
-
-    const existingJobDescription = await client.from('staff_documents').select('id').eq('staff_id', staffId).eq('source_type', 'job_description').eq('source_key', String(preparedStaff.job_title || application.role_applied || '').trim().toLowerCase()).maybeSingle();
-    if (!existingJobDescription.data) {
-      const jobDescription = renderLauremJobDescription(preparedStaff.job_title || application.role_applied || 'Care Worker', preparedStaff.full_name);
-      const jobHash = createHash('sha256').update(jobDescription, 'utf8').digest('hex');
-      const { data: createdJobDocument, error: jobDocumentError } = await client.from('staff_documents').insert({
-        staff_id: staffId,
-        category: 'job_description',
-        title: `${preparedStaff.job_title || application.role_applied || 'Role'} Job Description`,
-        description: 'Role-specific employment job description issued as part of LAUREM staff onboarding.',
-        mime_type: 'text/plain',
-        content_text: jobDescription,
-        document_sha256: jobHash,
-        source_type: 'job_description',
-        source_key: String(preparedStaff.job_title || application.role_applied || '').trim().toLowerCase(),
-        status: 'issued',
-        requires_signature: true,
-        signature_status: 'pending',
-        issuer_name: lauremCompany.documentIssuer.name,
-        issuer_title: lauremCompany.documentIssuer.title,
-        employer_name: lauremCompany.documentIssuer.employer,
-        issued_by_actor: session.email,
-        issued_at: new Date().toISOString(),
-      }).select('id,title').single();
-      if (!jobDocumentError && createdJobDocument) {
-        await client.from('staff_document_events').insert({
-          document_id: createdJobDocument.id,
-          staff_id: staffId,
-          event_type: 'created',
-          actor_type: 'admin',
-          actor: session.email,
-          metadata: { source_type: 'job_description', document_sha256: jobHash },
-        });
-
-        const appBase = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
-        await sendLauremEmail(client, {
-          eventType: 'staff.document.issued',
-          entityId: createdJobDocument.id,
-          idempotencyKey: `staff.document.issued/${createdJobDocument.id}/${session.email}`,
-          payload: {
-            from: process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>',
-            to: [preparedStaff.email],
-            reply_to: lauremCompany.publicEmails.manager,
-            subject: 'Your LAUREM Job Description is ready',
-            text: `Hello ${preparedStaff.full_name},
-
-Your LAUREM job description is now available in your Staff Portal. Please review and sign it online.
-
-${appBase}/staff/documents/${createdJobDocument.id}
-
-Kind regards,
-${lauremCompany.documentIssuer.name}
-${lauremCompany.documentIssuer.title}
-${lauremCompany.documentIssuer.employer}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><p style="font-weight:800;color:#0f766e">LAUREM CARE</p><h1>Your job description is ready</h1><p>Hello ${preparedStaff.full_name},</p><p>Your role-specific job description is available in your Staff Portal and requires your electronic signature.</p><p><a href="${appBase}/staff/documents/${createdJobDocument.id}" style="background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Review and sign online</a></p><p>Kind regards,<br>${lauremCompany.documentIssuer.name}<br>${lauremCompany.documentIssuer.title}<br>${lauremCompany.documentIssuer.employer}</p></div>`,
-          },
-        });
-      }
-    }
-
     return NextResponse.json({
-      staff: staffSummary,
+      staff: { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id },
       audience,
       package: updatedPackage,
       tasks: finalTasks || [],
       onboardingLink,
-      portal: portal ? { laurem_id: portal.staff.laurem_id || portal.staff.employee_number, address: `${portal.mailbox.handle}@${portal.mailbox.namespace}`, activation: portal.activation } : null,
+      portal: null,
+      activationDeferredUntilHired: true,
+      employmentDocumentsIssuedAtHired: true,
       alreadyOnboarded: !atomic.created_staff,
     }, { status: atomic.created_staff ? 201 : 200 });
   } catch (error) {
