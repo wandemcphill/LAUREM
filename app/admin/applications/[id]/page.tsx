@@ -397,7 +397,7 @@ export default function Candidate360Page() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {badge(application.status)}
             <button disabled={busy} onClick={() => void load()} style={buttonBase}>Refresh</button>
-            {data.staff && <Link href={`/admin/workforce/${encodeURIComponent(data.staff.id)}`} style={buttonBase}>Staff 360</Link>}
+            {data.staff && <Link href={`/admin/workforce/${encodeURIComponent(data.staff.id)}`} style={buttonBase}>Staff 360</Link>}<Link href={`/admin/audit?applicationId=${encodeURIComponent(id)}`} style={buttonBase}>Audit timeline</Link>
           </div>
         </div>
 
