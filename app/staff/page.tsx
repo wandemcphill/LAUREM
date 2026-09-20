@@ -10,6 +10,7 @@ type LeaveRequest = { id:string; leave_type:string; start_date:string; end_date:
 type MessageSummary = { id:string; subject:string|null; updated_at:string|null; latest_message?:{body:string|null;created_at:string|null;sender_name:string|null} };
 type OnboardingTask = { id:string; title:string; required:boolean; status:string; acknowledgement_required:boolean; acknowledged_at:string|null };
 type Onboarding = { title:string; status:string; tasks:OnboardingTask[] };
+type NotificationSummary = { id:string; title:string; body:string; read_at:string|null; action_url:string|null; created_at:string };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
