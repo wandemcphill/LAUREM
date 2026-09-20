@@ -15,7 +15,8 @@ type Task = { id:string; category:string; title:string; description:string|null;
 type Audit = { id:string; entity_type:string|null; entity_id:string|null; event_type:string; actor:string|null; details:Record<string, unknown>|null; created_at:string };
 
 type Availability = { id:string; effective_from:string; full_time:boolean; part_time:boolean; days:boolean; nights:boolean; weekends:boolean; notes:string|null; created_at:string };
-type DocumentsSummary = { total:number; signaturePending:number; latestIssuedAt:string|null };\ntype StaffPayload = { staff:Staff; assignments:Assignment[]; timesheets:Timesheet[]; leaveRequests:LeaveRequest[]; payrollEntries:PayrollEntry[]; onboarding:{package:Record<string, unknown>;tasks:Task[]}|null; audit:Audit[]; availability:Availability|null; documentsSummary:DocumentsSummary };
+type DocumentsSummary = { total:number; signaturePending:number; latestIssuedAt:string|null };
+type StaffPayload = { staff:Staff; assignments:Assignment[]; timesheets:Timesheet[]; leaveRequests:LeaveRequest[]; payrollEntries:PayrollEntry[]; onboarding:{package:Record<string, unknown>;tasks:Task[]}|null; audit:Audit[]; availability:Availability|null; documentsSummary:DocumentsSummary };
 
 function dateTime(value:string|null) { return value ? new Date(value).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }) : 'Not set'; }
 function dateOnly(value:string|null) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString([], { dateStyle:'medium' }) : 'Not set'; }
