@@ -591,6 +591,18 @@ begin
     raise exception 'ACTIVATION_CHANGED';
   end if;
 
+  lifecycle_policy := public.laurem_evaluate_staff_lifecycle(
+    staff_row.application_id,
+    'portal_activate',
+    false
+  );
+  if coalesce((lifecycle_policy->>'ok')::boolean, false) = false then
+    raise exception using
+      errcode='P0001',
+      message='LIFECYCLE_POLICY_BLOCKED',
+      detail=coalesce(lifecycle_policy->>'reason', 'Canonical portal activation policy blocked activation.');
+  end if;
+
   update public.laurem_staff_profiles
   set password_hash = p_password_hash,
       activation_token_hash = null,
