@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorkforceReadiness } from '@/lib/laurem-workforce-readiness';
 
+// Regression coverage for all five workforce operations lanes.
 describe('LAUREM workforce operational readiness', () => {
   const clean = {
     active: true,
