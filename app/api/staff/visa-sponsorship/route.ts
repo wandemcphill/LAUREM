@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { determineLauremVisaPathway, visaPathwayLabel } from '@/lib/laurem-visa-sponsorship';
+import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 
 async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   const { data: staff, error: staffError } = await client.from('staff_profiles')
@@ -61,6 +62,14 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     .order('issued_at',{ascending:false});
   if (documentError) throw documentError;
 
+  const readiness = visaCase ? buildLauremVisaReadiness({
+    pathway: visaCase.pathway,
+    staff: staff as Record<string, unknown>,
+    application: application as Record<string, unknown>,
+    additionalInformation: (visaCase.additional_information || {}) as Record<string, unknown>,
+    invoiceStatus: invoice?.status || null,
+  }) : null;
+
   return {
     staff,
     application,
@@ -71,6 +80,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     case: visaCase,
     invoice,
     events,
+    readiness,
     visaDocuments: visaDocuments || [],
   };
 }
@@ -168,7 +178,14 @@ export async function PATCH(request: NextRequest) {
       metadata: { action: 'candidate_information_updated' },
     });
 
-    return NextResponse.json({ case: data });
+    const readiness = buildLauremVisaReadiness({
+      pathway: currentCase.pathway,
+      staff: { id: session.staff_id },
+      application: { id: currentCase.application_id },
+      additionalInformation: additional,
+      invoiceStatus: null,
+    });
+    return NextResponse.json({ case: data, readiness });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to update visa information.' }, { status: 409 });
   }
