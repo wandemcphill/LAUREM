@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -28,20 +28,6 @@ jobs:
           else
             npm install --no-audit --no-fund
           fi
-
-      - name: Persist lockfile on main
-        if: github.ref == 'refs/heads/main'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "$(git status --porcelain -- package-lock.json)" ]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore: add npm lockfile [skip ci]"
-          git push
 
       - run: npm audit --audit-level=high
       - run: npm run typecheck
