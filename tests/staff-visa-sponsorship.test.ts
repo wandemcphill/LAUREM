@@ -46,6 +46,9 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(page).toContain('Upload CoS to staff portal');
     expect(route).toContain("https://www.gov.uk/sponsor-management-system");
     expect(upload).toContain("'visa_sponsorship'");
+    expect(upload).toContain("event_type: 'document_uploaded'");
+    expect(upload).toContain("next_case_status");
+    expect(upload).toContain("status: nextStatus");
   });
 
   it('keeps the existing download route private and records downloads', () => {
