@@ -84,7 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }).select('id,staff_id,category,title,description,original_filename,mime_type,file_size_bytes,status,requires_signature,signature_status,issuer_name,issuer_title,employer_name,issued_by_actor,issued_at').single();
     if (insertError || !document) throw insertError || new Error('Unable to create staff document.');
 
-    await client.from('staff_document_events').insert({ document_id: document.id, staff_id: staffId, event_type: 'created', actor_type: 'admin', actor: session.email, metadata: { category, requires_signature, document_sha256: documentHash } });
+    await client.from('staff_document_events').insert({ document_id: document.id, staff_id: staffId, event_type: 'created', actor_type: 'admin', actor: session.email, metadata: { category, requires_signature: requiresSignature, document_sha256: documentHash } });
 
     const portalLink = `${appUrl()}/staff/documents/${document.id}`;
     const email = await sendLauremEmail(client, {
