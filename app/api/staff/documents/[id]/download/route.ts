@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const client = db();
   const { data: document, error } = await client
-    .from('staff_documents')
+    .from('laurem_staff_documents')
     .select('id,staff_id,title,original_filename,mime_type,storage_path,content_text,document_sha256,status,signature_status,issued_at')
     .eq('id', id)
     .eq('staff_id', session.staff_id)
@@ -59,12 +59,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const now = new Date().toISOString();
   await client
-    .from('staff_documents')
+    .from('laurem_staff_documents')
     .update({ downloaded_at: now, updated_at: now })
     .eq('id', id)
     .eq('staff_id', session.staff_id);
 
-  await client.from('staff_document_events').insert({
+  await client.from('laurem_staff_document_events').insert({
     document_id: id,
     staff_id: session.staff_id,
     event_type: 'downloaded',
