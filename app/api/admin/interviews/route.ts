@@ -7,6 +7,7 @@ import { selectRound1Questions } from '@/lib/laurem-interview-engine';
 import { ROUND1_PASS_PERCENT, ROUND1_QUESTIONS_PER_ATTEMPT } from '@/lib/laurem-interview-banks';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
+import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 const allowedStatus = new Set(['Scheduled', 'Completed', 'Cancelled', 'Rescheduled', 'No-show']);
 function adminOrUnauthorized(request: NextRequest) { return readAdminSession(request); }
@@ -25,7 +26,7 @@ async function sendInterviewEmail(input: { id:string; candidateName:string; cand
 }
 
 export async function POST(request: NextRequest) {
-  const session=adminOrUnauthorized(request); if(!session)return NextResponse.json({error:'Unauthorised'},{status:401});
+  const requestId=getRequestId(request); const session=adminOrUnauthorized(request); if(!session)return operationalError(requestId,'Unauthorised',401,'UNAUTHORISED');
   const raw=await request.text(); if(new TextEncoder().encode(raw).byteLength>32000)return NextResponse.json({error:'Request payload is too large.'},{status:413});
   let body:Record<string,unknown>; try{body=JSON.parse(raw) as Record<string,unknown>;}catch{return NextResponse.json({error:'Invalid JSON.'},{status:400});}
   const applicationId=typeof body.applicationId==='string'?body.applicationId.trim():''; const scheduledAt=typeof body.scheduledAt==='string'?body.scheduledAt:''; const durationMinutes=Number(body.durationMinutes||60);
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     const location=typeof body.location==='string'&&body.location.trim()?body.location.trim():'Online'; const interviewer=typeof body.interviewer==='string'&&body.interviewer.trim()?body.interviewer.trim():session.email; const candidateInstructions=typeof body.candidateInstructions==='string'?body.candidateInstructions.trim().slice(0,4000):null; const meetingLink=typeof body.meetingLink==='string'&&body.meetingLink.trim()?body.meetingLink.trim():null;
     const {data,error}=await client.from('recruitment_interviews').insert({application_id:applicationId,scheduled_at:new Date(scheduledAt).toISOString(),duration_minutes:durationMinutes,location,meeting_link:meetingLink,interviewer,candidate_instructions:candidateInstructions,status:'Scheduled'}).select('*').single(); if(error)throw error;
     const email=await sendInterviewEmail({id:data.id,candidateName:application.full_name,candidateEmail:application.email,scheduledAt:data.scheduled_at,durationMinutes:data.duration_minutes||durationMinutes,location:data.location||location,meetingLink:data.meeting_link,interviewer:data.interviewer,candidateInstructions:data.candidate_instructions,assessmentLink,event:'scheduled'});
-    return NextResponse.json({interview:data,assessment:{link:assessmentLink,expiresAt:assessmentExpiresAt,questions:ROUND1_QUESTIONS_PER_ATTEMPT},email:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}:{} )}},{status:201});
+    return withRequestId(NextResponse.json({interview:data,assessment:{link:assessmentLink,expiresAt:assessmentExpiresAt,questions:ROUND1_QUESTIONS_PER_ATTEMPT},email:{status:email.status,attempts:email.attempts,providerId:'providerId' in email?email.providerId:null,deliveryId:email.deliveryId,...(email.status==='failed'?{error:email.error}:{} )}},{status:201});
   }catch(error){console.error(JSON.stringify({level:'error',event:'admin.interview.schedule_failed',actor:session.email,reason:error instanceof Error?error.message:'unknown'}));return NextResponse.json({error:'Unable to schedule interview.'},{status:500});}
 }
 
