@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const runtimeRoots = ['app', 'components', 'lib'];
+const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.css', '.md']);
+
+async function collectRuntimeSourceFiles(root: string): Promise<string[]> {
+  const files: string[] = [];
+  const entries = await fs.readdir(root, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (entry.name === 'node_modules' || entry.name === '.next') continue;
+    const absolute = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await collectRuntimeSourceFiles(absolute));
+      continue;
+    }
+    if (sourceExtensions.has(path.extname(entry.name).toLowerCase())) files.push(absolute);
+  }
+
+  return files;
+}
+
+describe('LAUREM branding integrity', () => {
+  it('contains no BIMED branding in runtime-facing source', async () => {
+    const fileGroups = await Promise.all(
+      runtimeRoots.map((root) => collectRuntimeSourceFiles(path.resolve(process.cwd(), root))),
+    );
+    const files = fileGroups.flat();
+    const offenders: string[] = [];
+
+    for (const file of files) {
+      const content = await fs.readFile(file, 'utf8');
+      if (/\bBIMED\b/i.test(content)) offenders.push(path.relative(process.cwd(), file));
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});
