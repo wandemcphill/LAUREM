@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const client = db();
   const tokenHash = hashActivationToken(token);
-  const { data: candidate } = await client.from('staff_profiles')
+  const { data: candidate } = await client.from('laurem_staff_profiles')
     .select('id,activated_at,activation_expires_at,password_hash')
     .eq('email', email)
     .eq('activation_token_hash', tokenHash)
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   const client = db();
   const activationTokenHash = hashActivationToken(token);
-  const { data: candidate } = await client.from('staff_profiles')
+  const { data: candidate } = await client.from('laurem_staff_profiles')
     .select('id,laurem_id,employee_number,email,session_version')
     .eq('email', email)
     .eq('activation_token_hash', activationTokenHash)
