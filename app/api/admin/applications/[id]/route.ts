@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
-import { lauremRoleSlug, normalizeLauremRole } from '@/lib/laurem-role-policy';
+import { lauremRoleSlug } from '@/lib/laurem-role-policy';
 
 function describeError(error: unknown) {
   if (error instanceof Error) return error.message;
