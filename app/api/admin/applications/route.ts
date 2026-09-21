@@ -17,7 +17,7 @@ export async function GET(request:NextRequest){
   const session=adminOrUnauthorized(request);
   if(!session)return NextResponse.json({error:'Unauthorised'},{status:401});
   try{
-    const {data,error}=await db().from('laurem_recruitment_applications').select('id,full_name,preferred_name,email,phone,nationality,country_of_residence,role_applied,employment_type,start_date,living_in_uk,current_country,requires_sponsorship,status,created_at,updated_at').order('created_at',{ascending:false}).limit(250);
+    const {data,error}=await db().from('recruitment_applications').select('id,full_name,preferred_name,email,phone,nationality,country_of_residence,role_applied,employment_type,start_date,living_in_uk,current_country,requires_sponsorship,status,created_at,updated_at').order('created_at',{ascending:false}).limit(250);
     if(error)throw error;
     return NextResponse.json({applications:data||[],recruiter:session.email});
   }catch(error){console.error(JSON.stringify({level:'error',event:'admin.applications.list_failed',reason:error instanceof Error?error.message:'unknown'}));return NextResponse.json({error:'Unable to load applications.'},{status:500});}
@@ -35,13 +35,13 @@ export async function DELETE(request:NextRequest){
   if(body.confirmation!=='DELETE APPLICATION')return NextResponse.json({error:'Type DELETE APPLICATION to confirm permanent deletion.'},{status:400});
   try{
     const client=db();
-    const {data:application,error:applicationError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,status').eq('id',id).maybeSingle();
+    const {data:application,error:applicationError}=await client.from('recruitment_applications').select('id,full_name,email,status').eq('id',id).maybeSingle();
     if(applicationError)throw applicationError;
     if(!application)return NextResponse.json({error:'Application not found.'},{status:404});
-    const {data:staff,error:staffError}=await client.from('laurem_staff_profiles').select('id,employment_status').eq('application_id',id).maybeSingle();
+    const {data:staff,error:staffError}=await client.from('staff_profiles').select('id,employment_status').eq('application_id',id).maybeSingle();
     if(staffError)throw staffError;
     if(staff&&['active','on_leave','suspended'].includes(String(staff.employment_status||'').toLowerCase()))return NextResponse.json({error:'This application is linked to an active workforce record and cannot be permanently deleted.'},{status:409});
-    const {error:deleteError}=await client.from('laurem_recruitment_applications').delete().eq('id',id);
+    const {error:deleteError}=await client.from('recruitment_applications').delete().eq('id',id);
     if(deleteError)throw deleteError;
     console.info(JSON.stringify({level:'info',event:'admin.application.deleted',actor:session.email,applicationId:id,candidateName:application.full_name,statusAtDeletion:application.status}));
     return NextResponse.json({ok:true,deleted:true,applicationId:id});
@@ -65,7 +65,7 @@ export async function PATCH(request:NextRequest){
   if(override&&!overrideReason)return NextResponse.json({error:'An override reason is required.'},{status:400});
   try{
     const client=db();
-    const {data:current,error:currentError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,status,role_applied,living_in_uk').eq('id',id).maybeSingle();
+    const {data:current,error:currentError}=await client.from('recruitment_applications').select('id,full_name,email,status,role_applied,living_in_uk').eq('id',id).maybeSingle();
     if(currentError)throw currentError;
     if(!current)return NextResponse.json({error:'Application not found.'},{status:404});
     if(current.status===status&&!note&&!override)return NextResponse.json({application:current,overridden:false,statusEmail:{status:'skipped',reason:'unchanged'}});
@@ -77,22 +77,22 @@ export async function PATCH(request:NextRequest){
       const role=normalizeLauremRole(current.role_applied||'');
       if(!role)return NextResponse.json({error:'Application role is invalid.'},{status:409});
       const pathway=current.living_in_uk==='No'?'international':'uk';
-      let {data:attempt,error:attemptError}=await client.from('laurem_interview_attempts').select('id,status,invite_id,question_snapshot,question_ids,total_questions,pass_percent').eq('application_id',id).eq('round',1).maybeSingle();
+      let {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,status,invite_id,question_snapshot,question_ids,total_questions,pass_percent').eq('application_id',id).eq('round',1).maybeSingle();
       if(attemptError)throw attemptError;
       if(!attempt || attempt.status==='in_progress'){
         const token=makeToken();
         const expiresAt=new Date(Date.now()+14*24*60*60*1000).toISOString();
-        const {data:newInvite,error:newInviteError}=await client.from('laurem_recruitment_invites').insert({candidate_name:current.full_name,candidate_email:current.email,role,token_hash:hashToken(token),expires_at:expiresAt,used_at:null}).select('id,candidate_name,candidate_email,role,expires_at').single();
+        const {data:newInvite,error:newInviteError}=await client.from('recruitment_invites').insert({candidate_name:current.full_name,candidate_email:current.email,role,token_hash:hashToken(token),expires_at:expiresAt,used_at:null}).select('id,candidate_name,candidate_email,role,expires_at').single();
         if(newInviteError||!newInvite)throw newInviteError||new Error('Unable to create interview invitation.');
         if(!attempt){
           const selected=selectRound1Questions(role);
           if(selected.length!==ROUND1_QUESTIONS_PER_ATTEMPT)throw new Error('ROUND1_SELECTION_FAILED');
           const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,options:q.options,correctIndex:q.correctIndex}));
-          const {data:created,error:createError}=await client.from('laurem_interview_attempts').insert({application_id:id,invite_id:newInvite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:ROUND1_QUESTIONS_PER_ATTEMPT,pass_percent:ROUND1_PASS_PERCENT}).select('id,status,invite_id,question_snapshot,question_ids,total_questions,pass_percent').single();
+          const {data:created,error:createError}=await client.from('interview_attempts').insert({application_id:id,invite_id:newInvite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:ROUND1_QUESTIONS_PER_ATTEMPT,pass_percent:ROUND1_PASS_PERCENT}).select('id,status,invite_id,question_snapshot,question_ids,total_questions,pass_percent').single();
           if(createError||!created)throw createError||new Error('Unable to create first assessment.');
           attempt=created;
         }else{
-          const {error:updateAttemptError}=await client.from('laurem_interview_attempts').update({invite_id:newInvite.id,updated_at:new Date().toISOString()}).eq('id',attempt.id).eq('status','in_progress');
+          const {error:updateAttemptError}=await client.from('interview_attempts').update({invite_id:newInvite.id,updated_at:new Date().toISOString()}).eq('id',attempt.id).eq('status','in_progress');
           if(updateAttemptError)throw updateAttemptError;
         }
         const link=`${appUrl()}/interview/${token}`;
