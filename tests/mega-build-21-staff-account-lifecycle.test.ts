@@ -55,6 +55,14 @@ describe('Mega-Build 21 staff account lifecycle', () => {
     expect(migration).toContain("set consumed_at = now_value");
   });
 
+  it('extends release readiness to the new staff account-control RPCs', () => {
+    const migration = readFileSync('supabase/migrations/20260921133000_staff_release_readiness_contract.sql', 'utf8');
+    expect(migration).toContain('laurem_issue_staff_activation_token');
+    expect(migration).toContain('laurem_change_staff_password');
+    expect(migration).toContain('required_function_count');
+    expect(migration).toContain("set search_path = ''");
+  });
+
   it('exposes an authenticated password-change surface', () => {
     const route = readFileSync('app/api/staff/auth/change-password/route.ts', 'utf8');
     const page = readFileSync('app/staff/change-password/page.tsx', 'utf8');
