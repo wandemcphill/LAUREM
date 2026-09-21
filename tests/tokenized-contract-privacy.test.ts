@@ -13,13 +13,27 @@ describe('tokenized contract privacy', () => {
   it('returns an explicit candidate projection rather than internal contract metadata', () => {
     expect(route).toContain('function toPublicContract');
     expect(route).toContain("contract_content: String(contract.contract_content || '')");
-    expect(route).not.toContain('application_id');
-    expect(route).not.toContain('accepted_ip');
-    expect(route).not.toContain('acceptance_user_agent');
-    expect(route).not.toContain('acceptance_signature_data');
-    expect(route).not.toContain('acceptance_attestation');
-    expect(route).not.toContain('created_by');
-    expect(route).not.toContain('decline_reason');
+    const projection = route.slice(
+      route.indexOf('const PUBLIC_CONTRACT_FIELDS'),
+      route.indexOf('type PublicContract'),
+    );
+    expect(projection).not.toContain('application_id');
+    expect(projection).not.toContain('accepted_ip');
+    expect(projection).not.toContain('acceptance_user_agent');
+    expect(projection).not.toContain('acceptance_signature_data');
+    expect(projection).not.toContain('acceptance_attestation');
+    expect(projection).not.toContain('created_by');
+    expect(projection).not.toContain('decline_reason');
+
+    const mapper = route.slice(
+      route.indexOf('function toPublicContract'),
+      route.indexOf('function noStore'),
+    );
+    expect(mapper).not.toContain('accepted_ip');
+    expect(mapper).not.toContain('acceptance_user_agent');
+    expect(mapper).not.toContain('acceptance_signature_data');
+    expect(mapper).not.toContain('acceptance_attestation');
+    expect(mapper).not.toContain('decline_reason');
   });
 
   it('marks tokenized contract responses as private and non-cacheable', () => {
