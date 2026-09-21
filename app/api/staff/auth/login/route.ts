@@ -22,15 +22,13 @@ export async function POST(req: NextRequest) {
     .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,activated_at,session_version')
     .or(`laurem_id.eq.${id},employee_number.eq.${id}`).maybeSingle();
 
-  const eligible = Boolean(
-    staff
-    && staff.password_hash
-    && staff.activated_at
-    && staff.employment_status === 'active'
-    && verifyPassword(password, staff.password_hash),
-  );
-
-  if (!eligible) {
+  if (
+    !staff
+    || !staff.password_hash
+    || !staff.activated_at
+    || staff.employment_status !== 'active'
+    || !verifyPassword(password, staff.password_hash)
+  ) {
     await client.from('staff_security_events').insert({
       staff_id: staff?.id || null,
       event_type: 'staff.login.failed',
