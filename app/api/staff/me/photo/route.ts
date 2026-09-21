@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const { data: staff, error } = await db().from('staff_profiles')
+  const { data: staff, error } = await db().from('laurem_staff_profiles')
     .select('profile_photo_path')
     .eq('id', session.staff_id)
     .maybeSingle();
