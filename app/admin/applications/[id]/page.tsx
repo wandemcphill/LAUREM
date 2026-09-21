@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { recruitmentConfig } from '@/lib/recruitment-config';
+import { LAUREM_APPLICATION_TRANSITIONS } from '@/lib/laurem-lifecycle-policy';
+import { buildRecruiterLifecycleWorkspace, type RecruiterLifecyclePolicy } from '@/lib/laurem-recruiter-workspace';
 
 type Candidate = Record<string, any> & {
   id: string;
@@ -44,6 +46,22 @@ type Detail = {
   adminActions: any[];
   staff: any;
   audit: any[];
+  lifecyclePolicy: {
+    prepareOnboarding: RecruiterLifecyclePolicy | null;
+    markHired: RecruiterLifecyclePolicy | null;
+    portalProvision: RecruiterLifecyclePolicy | null;
+    portalActivate: RecruiterLifecyclePolicy | null;
+  };
+  workspaceContext: {
+    acceptedContractId: string | null;
+    contractAccepted: boolean;
+    contractRoleMatches: boolean;
+    requiredReadinessOpen: number;
+    staffExists: boolean;
+    staffContractBound: boolean;
+    staffStatus: string | null;
+    staffActivatedAt: string | null;
+  };
 };
 
 const card: React.CSSProperties = {
@@ -93,22 +111,6 @@ const grid: React.CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
   gap: 14,
 };
-const statusTransitions: Record<string, string[]> = {
-  Enquiry: ['Invited', 'Rejected', 'Withdrawn'],
-  Invited: ['Application', 'Rejected', 'Withdrawn'],
-  Application: ['Screening', 'Rejected', 'Withdrawn'],
-  Screening: ['Interview', 'Documents', 'Rejected', 'Withdrawn'],
-  Interview: ['Second Interview', 'Documents', 'Offer', 'Rejected', 'Withdrawn'],
-  'Second Interview': ['Documents', 'Offer', 'Rejected', 'Withdrawn'],
-  Documents: ['Sponsorship', 'Offer', 'Rejected', 'Withdrawn'],
-  Sponsorship: ['Offer', 'Rejected', 'Withdrawn'],
-  Offer: ['Onboarding', 'Rejected', 'Withdrawn'],
-  Onboarding: ['Hired', 'Rejected', 'Withdrawn'],
-  Hired: [],
-  Rejected: [],
-  Withdrawn: [],
-};
-
 const pre: React.CSSProperties = {
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
@@ -191,6 +193,9 @@ export default function Candidate360Page() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [assessmentLink, setAssessmentLink] = useState('');
+  const [onboardingLink, setOnboardingLink] = useState('');
+  const [showInterviewForm, setShowInterviewForm] = useState(false);
+  const [interviewForm, setInterviewForm] = useState({ scheduledAt: '', durationMinutes: '60', location: 'Online', meetingLink: '', interviewer: '', candidateInstructions: '' });
 
   async function load() {
     setLoading(true);
@@ -262,6 +267,41 @@ export default function Candidate360Page() {
     }
   }
 
+  async function prepareOnboarding() {
+    if (!data) return;
+    setBusy(true); setError(''); setNotice(''); setOnboardingLink('');
+    try {
+      const response = await fetch('/api/admin/onboarding', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ applicationId: id }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to prepare onboarding.');
+      if (body.onboardingLink) setOnboardingLink(body.onboardingLink);
+      setNotice(body.onboardingLink ? 'Onboarding package prepared. The secure candidate onboarding link is ready below.' : 'Onboarding package prepared. Portal activation remains deferred until Hired.');
+      await load();
+    } catch (onboardingError) { setError(onboardingError instanceof Error ? onboardingError.message : 'Unable to prepare onboarding.'); }
+    finally { setBusy(false); }
+  }
+
+  async function scheduleInterview() {
+    if (!data || !interviewForm.scheduledAt) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch('/api/admin/interviews', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: id, scheduledAt: new Date(interviewForm.scheduledAt).toISOString(),
+          durationMinutes: Number(interviewForm.durationMinutes || 60), location: interviewForm.location.trim() || 'Online',
+          meetingLink: interviewForm.meetingLink.trim() || null, interviewer: interviewForm.interviewer.trim() || null,
+          candidateInstructions: interviewForm.candidateInstructions.trim() || null,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to schedule interview.');
+      setNotice(body.email?.status === 'sent' ? 'First interview scheduled and candidate email sent.' : 'First interview scheduled, but email delivery needs attention.');
+      setShowInterviewForm(false);
+      await load();
+    } catch (interviewError) { setError(interviewError instanceof Error ? interviewError.message : 'Unable to schedule interview.'); }
+    finally { setBusy(false); }
+  }
   async function deleteApplication() {
     if (!data) return;
     const candidateName = data.application.full_name;
@@ -380,9 +420,23 @@ export default function Candidate360Page() {
   const round1Assessment = data.assessments.find((assessment) => assessment.round === 1);
   const round2Assessment = data.assessments.find((assessment) => assessment.round === 2);
   const activeSecondInvitation = data.secondInterviews.find((item: any) => item.status === 'sent' && item.expires_at && new Date(item.expires_at).getTime() > Date.now());
-  const availableStatuses = [application.status, ...(statusTransitions[application.status] || [])].filter((status, index, values) => values.indexOf(status) === index);
+  const availableStatuses = [application.status, ...(LAUREM_APPLICATION_TRANSITIONS[application.status as keyof typeof LAUREM_APPLICATION_TRANSITIONS] || [])].filter((status, index, values) => values.indexOf(status) === index);
   const applicationData = application.application_data && typeof application.application_data === 'object' ? application.application_data : {};
   const pathway = String((applicationData as any).pathway || (application.living_in_uk === 'Yes' ? 'uk' : application.living_in_uk === 'No' ? 'international' : ''));
+  const workspace = buildRecruiterLifecycleWorkspace({
+    status: application.status,
+    contractAccepted: data.workspaceContext.contractAccepted,
+    contractRoleMatches: data.workspaceContext.contractRoleMatches,
+    requiredReadinessOpen: data.workspaceContext.requiredReadinessOpen,
+    staffExists: data.workspaceContext.staffExists,
+    staffContractBound: data.workspaceContext.staffContractBound,
+    staffStatus: data.workspaceContext.staffStatus,
+    staffActivatedAt: data.workspaceContext.staffActivatedAt,
+    round1Status: round1Assessment?.status || null,
+    activeSecondInvitation: Boolean(activeSecondInvitation),
+    scheduledInterviewCount: data.interviews.filter((item: any) => item.status === 'Scheduled').length,
+    lifecycle: data.lifecyclePolicy,
+  });
 
   return (
     <main style={{ minHeight: '100vh', background: '#f4f7fb', color: '#102a43', fontFamily: 'system-ui', padding: '26px 18px 70px' }}>
@@ -416,6 +470,57 @@ export default function Candidate360Page() {
           </section>
         )}
 
+        {onboardingLink && (
+          <section style={{ ...card, marginTop: 16, borderColor: '#b7ded2', background: '#f3faf7' }}>
+            <div style={row}>
+              <div><h2 style={{ margin: 0 }}>Secure onboarding link</h2><div style={{ ...muted, marginTop: 5 }}>The candidate can complete onboarding through this expiring private link. Staff portal activation remains deferred until Hired.</div></div>
+              <button type="button" onClick={() => void navigator.clipboard.writeText(onboardingLink)} style={primary}>Copy onboarding link</button>
+            </div>
+            <div style={{ marginTop: 12, wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 }}>{onboardingLink}</div>
+          </section>
+        )}
+        <section style={{ ...card, marginTop: 16 }}>
+          <div style={row}>
+            <div><div style={{ color: '#0f766e', fontSize: 12, fontWeight: 900, letterSpacing: 1.2 }}>LIFECYCLE COCKPIT</div><h2 style={{ margin: '4px 0 4px' }}>{workspace.phase}</h2><div style={muted}>{workspace.phaseDescription}</div></div>
+            <div style={{ ...subcard, minWidth: 260 }}>
+              <div style={{ ...muted, fontSize: 11, fontWeight: 900, letterSpacing: .7 }}>CANONICAL GATES</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 8 }}>
+                {Object.entries(workspace.gates).map(([gate, status]) => <div key={gate} style={{ padding: '8px 6px', borderRadius: 9, textAlign: 'center', background: status === 'ready' ? '#e8f7ee' : status === 'not_started' ? '#edf2f7' : '#fff4e5' }}><div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}>{gate}</div><div style={{ fontSize: 10, marginTop: 3 }}>{status === 'not_started' ? 'Not started' : status}</div></div>)}
+              </div>
+            </div>
+          </div>
+          {workspace.blockers.length > 0 && <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>{workspace.blockers.map((blocker) => <div key={blocker.code} style={{ ...subcard, borderColor: '#f2d4a7', background: '#fffaf2' }}><strong>{blocker.title}</strong><div style={{ ...muted, fontSize: 13, marginTop: 4 }}>{blocker.detail}</div></div>)}</div>}
+          {workspace.actions.length > 0 && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+            {workspace.actions.map((action) => {
+              if (action.key === 'advance_screening') return <button key={action.key} disabled={busy} onClick={() => void changeStatus('Screening')} style={primary}>{action.label}</button>;
+              if (action.key === 'schedule_interview') return <button key={action.key} disabled={busy} onClick={() => setShowInterviewForm((value) => !value)} style={primary}>{showInterviewForm ? 'Close interview form' : action.label}</button>;
+              if (action.key === 'issue_second_stage') return <button key={action.key} disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>{action.label}</button>;
+              if (action.key === 'prepare_contract') return <Link key={action.key} href={`/admin/applications/${encodeURIComponent(id)}/contract`} style={buttonBase}>{action.label}</Link>;
+              if (action.key === 'open_readiness') return <Link key={action.key} href={`/admin/applications/${encodeURIComponent(id)}/readiness`} style={buttonBase}>{action.label}</Link>;
+              if (action.key === 'prepare_onboarding') return <button key={action.key} disabled={busy} onClick={() => void prepareOnboarding()} style={primary}>{action.label}</button>;
+              if (action.key === 'mark_hired') return <button key={action.key} disabled={busy} onClick={() => void changeStatus('Hired')} style={primary}>{action.label}</button>;
+              if (action.key === 'open_staff' && data.staff) return <Link key={action.key} href={`/admin/workforce/${encodeURIComponent(data.staff.id)}`} style={buttonBase}>{action.label}</Link>;
+              if (action.key === 'terminal_review') return <span key={action.key} style={{ ...subcard, fontSize: 13 }}>{action.description}</span>;
+              if (action.key === 'portal_provision') return <span key={action.key} style={{ ...subcard, fontSize: 13 }}>{action.description} Portal provisioning is completed through the Hired employment package transition.</span>;
+              return null;
+            })}
+          </div>}
+          {workspace.blockers.length === 0 && workspace.actions.length === 0 && <div style={{ ...muted, marginTop: 12 }}>No outstanding recruiter action is required from this workspace.</div>}
+        </section>
+        {showInterviewForm && (
+          <section style={{ ...card, marginTop: 16 }}>
+            <div style={row}><div><h2 style={{ margin: 0 }}>Schedule first interview</h2><div style={{ ...muted, marginTop: 4 }}>Creates the interview record and sends the candidate the configured interview email.</div></div></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 12, marginTop: 14 }}>
+              <label>Interview date and time<input type="datetime-local" value={interviewForm.scheduledAt} onChange={(event) => setInterviewForm({ ...interviewForm, scheduledAt: event.target.value })} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9 }} /></label>
+              <label>Duration (minutes)<input type="number" min={15} max={240} step={15} value={interviewForm.durationMinutes} onChange={(event) => setInterviewForm({ ...interviewForm, durationMinutes: event.target.value })} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9 }} /></label>
+              <label>Location<input value={interviewForm.location} onChange={(event) => setInterviewForm({ ...interviewForm, location: event.target.value })} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9 }} /></label>
+              <label>Meeting link<input value={interviewForm.meetingLink} onChange={(event) => setInterviewForm({ ...interviewForm, meetingLink: event.target.value })} placeholder="https://..." style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9 }} /></label>
+              <label>Interviewer<input value={interviewForm.interviewer} onChange={(event) => setInterviewForm({ ...interviewForm, interviewer: event.target.value })} placeholder="Leave blank for your admin session" style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9 }} /></label>
+              <label style={{ gridColumn: '1 / -1' }}>Candidate instructions<textarea value={interviewForm.candidateInstructions} onChange={(event) => setInterviewForm({ ...interviewForm, candidateInstructions: event.target.value })} rows={4} maxLength={4000} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, border: '1px solid #d9e2ec', borderRadius: 9, resize: 'vertical' }} /></label>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}><button disabled={busy || !interviewForm.scheduledAt} onClick={() => void scheduleInterview()} style={primary}>Schedule interview</button><button disabled={busy} onClick={() => setShowInterviewForm(false)} style={buttonBase}>Cancel</button></div>
+          </section>
+        )}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginTop: 18 }}>
           <Metric label="Readiness blockers" value={requiredOpen} />
           <Metric label="Approved documents" value={approvedDocs} />
