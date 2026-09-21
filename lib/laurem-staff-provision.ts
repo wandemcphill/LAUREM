@@ -12,12 +12,12 @@ import { lauremRoleSlug } from './laurem-role-policy';
  */
 export async function provisionLauremStaffPortal(applicationId: string, actor = 'staff_portal_provisioning') {
   const client = db();
-  const { data: app, error: appError } = await client.from('laurem_recruitment_applications')
+  const { data: app, error: appError } = await client.from('recruitment_applications')
     .select('id,full_name,email,phone,role_applied,start_date,living_in_uk,nmc_number,application_data')
     .eq('id', applicationId).single();
   if (appError || !app) throw appError || new Error('Application not found.');
 
-  const { data: contract, error: contractError } = await client.from('laurem_recruitment_contracts')
+  const { data: contract, error: contractError } = await client.from('recruitment_contracts')
     .select('id,status,accepted_at,job_title,start_date').eq('application_id', applicationId).maybeSingle();
   if (contractError) throw contractError;
   if (!contract || contract.status !== 'accepted' || !contract.accepted_at) throw new Error('Accepted employment contract required.');
@@ -29,7 +29,7 @@ export async function provisionLauremStaffPortal(applicationId: string, actor = 
   const readiness = await getLauremOnboardingReadiness(client, app);
   if (!readiness.ready) throw new Error(`Onboarding readiness incomplete: ${readiness.missing.map((item) => item.item_key).join(', ')}`);
 
-  const { data: staff, error: staffError } = await client.from('laurem_staff_profiles').select('*').eq('application_id', applicationId).maybeSingle();
+  const { data: staff, error: staffError } = await client.from('staff_profiles').select('*').eq('application_id', applicationId).maybeSingle();
   if (staffError) throw staffError;
   if (!staff) throw new Error('Staff profile must be created by the gated onboarding flow before portal provisioning.');
 
