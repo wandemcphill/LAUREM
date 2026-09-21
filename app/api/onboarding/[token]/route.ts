@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (error) throw error;
     if (!packageRow) return NextResponse.json({ error: 'Onboarding link not found.' }, { status: 404 });
     if (packageRow.access_token_expires_at && new Date(packageRow.access_token_expires_at).getTime() <= Date.now()) return NextResponse.json({ error: 'This onboarding link has expired.' }, { status: 410 });
-    const { data: staff } = await client.from('laurem_staff_profiles').select('full_name,job_title,employee_number,start_date,location,employment_status').eq('id', packageRow.staff_id).maybeSingle();
+    const { data: staff } = await client.from('staff_profiles').select('full_name,job_title,employee_number,start_date,location,employment_status').eq('id', packageRow.staff_id).maybeSingle();
     const { data: tasks, error: taskError } = await client.from('laurem_staff_onboarding_tasks').select('id,category,title,description,required,status,acknowledgement_required,acknowledged_at,document_path,sort_order').eq('package_id', packageRow.id).order('sort_order', { ascending: true });
     if (taskError) throw taskError;
     return NextResponse.json({ package: packageRow, staff, tasks: tasks || [] });
