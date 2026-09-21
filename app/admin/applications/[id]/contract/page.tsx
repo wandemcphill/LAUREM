@@ -7,7 +7,7 @@ import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
 type ContractResult = { id?:string; status?:string; acceptanceLink?:string; email?:{status?:string;error?:string} };
 
-function eligible(app: Application | null) { return Boolean(app && app.role_applied === 'Registered Nurse' && app.living_in_uk === 'No'); }
+function eligible(app: Application | null) { return Boolean(app); }
 
 export default function InternationalNurseContractPage({ params }: { params: Promise<{ id: string }> }) {
   const [id, setId] = useState('');
@@ -16,7 +16,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ContractResult|null>(null);
   const [form, setForm] = useState({
-    weeklyHours: String(contractConfig.defaultWeeklyHours), annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark), postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark), preRegistrationSalary: '',
+    weeklyHours: String(contractConfig.defaultWeeklyHours), annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark), hourlyRate: '', postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark), preRegistrationSalary: '',
     visaRoute: contractConfig.defaultVisaRoute, sponsorshipOccupationCode: contractConfig.defaultOccupationCode, nmcStatus: 'Working towards full NMC registration',
     registrationDeadline: 'Within the period permitted by the applicable immigration rules and NMC process', probation: '6 months',
     noticePeriodEmployee: '1 week during probation and 4 weeks thereafter', noticePeriodEmployer: '1 week during probation and 4 weeks thereafter, or the statutory minimum where greater',
@@ -42,7 +42,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     setBusy(true);setMessage(null);setResult(null);
     try{
       const response=await fetch('/api/admin/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-        applicationId:application.id,weeklyHours:Number(form.weeklyHours),annualSalary:Number(form.annualSalary),postRegistrationSalary:Number(form.postRegistrationSalary),preRegistrationSalary:form.preRegistrationSalary?Number(form.preRegistrationSalary):undefined,
+        applicationId:application.id,weeklyHours:Number(form.weeklyHours),annualSalary:Number(form.annualSalary),hourlyRate:form.hourlyRate?Number(form.hourlyRate):undefined,postRegistrationSalary:Number(form.postRegistrationSalary),preRegistrationSalary:form.preRegistrationSalary?Number(form.preRegistrationSalary):undefined,
         visaRoute:form.visaRoute,sponsorshipOccupationCode:form.sponsorshipOccupationCode,nmcStatus:form.nmcStatus,registrationDeadline:form.registrationDeadline,probation:form.probation,
         noticePeriodEmployee:form.noticePeriodEmployee,noticePeriodEmployer:form.noticePeriodEmployer,holidayEntitlement:form.holidayEntitlement,pensionScheme:form.pensionScheme,
         workLocations:form.workLocations.split(',').map(v=>v.trim()).filter(Boolean),relocationSupport:form.relocationSupport,repayableCosts:form.repayableCosts,repaymentSchedule:form.repaymentSchedule,
@@ -63,15 +63,14 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   }
 
   if(!application)return <main className="wrap" style={{padding:40}}><p>{message||'Loading candidate...'}</p>{id&&<Link href={`/admin/applications/${encodeURIComponent(id)}`}>Back to candidate</Link>}</main>;
-  if(!isEligible)return <main className="wrap" style={{padding:'70px 0',maxWidth:800}}><section className="card" style={{padding:32,textAlign:'center'}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>CONTRACT WORKFLOW RESTRICTION</p><h1>International Registered Nurse contract only</h1><p style={{color:'var(--muted)',lineHeight:1.7}}>This contract workflow is reserved for international Registered Nurse applications. No standard employment contract is generated from this platform workflow.</p><Link href={`/admin/applications/${encodeURIComponent(id)}`} style={{display:'inline-block',marginTop:12,padding:'12px 16px',border:'1px solid var(--line)',borderRadius:9,textDecoration:'none',fontWeight:800}}>Back to candidate</Link></section></main>;
-
   return <main className="wrap" style={{padding:'34px 0 80px',maxWidth:1000}}>
     <Link href={`/admin/applications/${id}`} style={{color:'var(--muted)',textDecoration:'none'}}>← Candidate file</Link>
-    <header style={{margin:'18px 0 24px'}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>INTERNATIONAL NURSE CONTRACT</p><h1>{application.full_name}</h1><p style={{color:'var(--muted)'}}>Registered Nurse · {application.email}</p></header>
+    <header style={{margin:'18px 0 24px'}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>LAUREM EMPLOYMENT CONTRACT</p><h1>{application.full_name}</h1><p style={{color:'var(--muted)'}}>{application.role_applied} · {application.email}</p></header>
     {message&&<div role="alert" className="card" style={{padding:14,marginBottom:16}}>{message}</div>}
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Employment terms</h2><div style={grid}>
       <Field label="Weekly contracted hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
-      <Field label="Annual salary (£)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
+      <Field label="Annual salary (£, where applicable)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
+      <Field label="Hourly rate (£, where applicable)" value={form.hourlyRate} onChange={(v)=>setField('hourlyRate',v)} type="number" />
       <Field label="Post-registration salary (£)" value={form.postRegistrationSalary} onChange={(v)=>setField('postRegistrationSalary',v)} type="number" />
       <Field label="Pre-registration salary (£, if applicable)" value={form.preRegistrationSalary} onChange={(v)=>setField('preRegistrationSalary',v)} type="number" />
       <Field label="Probation" value={form.probation} onChange={(v)=>setField('probation',v)} />
@@ -87,7 +86,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Holiday entitlement" value={form.holidayEntitlement} onChange={(v)=>setField('holidayEntitlement',v)} />
       <Field label="Pension" value={form.pensionScheme} onChange={(v)=>setField('pensionScheme',v)} />
     </div></section>
-    <section className="card" style={{padding:22,marginBottom:16}}><h2>Relocation and repayment</h2><Field label="Relocation support" value={form.relocationSupport} onChange={(v)=>setField('relocationSupport',v)} multiline /><Field label="Potentially repayable employer-funded expenses" value={form.repayableCosts} onChange={(v)=>setField('repayableCosts',v)} multiline /><Field label="Repayment schedule" value={form.repaymentSchedule} onChange={(v)=>setField('repaymentSchedule',v)} multiline /><p style={{color:'var(--muted)',fontSize:13,lineHeight:1.6,marginTop:14}}>Do not include recruitment fees, sponsor licence fees, Immigration Skills Charge, Certificate of Sponsorship costs or interview costs as employee-repayable expenses. Any repayment term must be supported by genuine, evidenced and auditable employer-funded expenses and must be reviewed for proportionality and individual circumstances.</p></section>
+    <section className="card" style={{padding:22,marginBottom:16}}><h2>Additional role terms</h2><Field label="Relocation support" value={form.relocationSupport} onChange={(v)=>setField('relocationSupport',v)} multiline /><Field label="Potentially repayable employer-funded expenses" value={form.repayableCosts} onChange={(v)=>setField('repayableCosts',v)} multiline /><Field label="Repayment schedule" value={form.repaymentSchedule} onChange={(v)=>setField('repaymentSchedule',v)} multiline /><p style={{color:'var(--muted)',fontSize:13,lineHeight:1.6,marginTop:14}}>Do not include recruitment fees, sponsor licence fees, Immigration Skills Charge, Certificate of Sponsorship costs or interview costs as employee-repayable expenses. Any repayment term must be supported by genuine, evidenced and auditable employer-funded expenses and must be reviewed for proportionality and individual circumstances.</p></section>
     <section className="card" style={{padding:22}}><h2>Issue contract</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, explicitly issue it to create a fresh private acceptance link and email it to the candidate.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue contract and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div></>}</div>}</section>
   </main>;
 }
