@@ -173,7 +173,7 @@ begin
     pack_row.id,
     p_application_id,
     'job_description',
-    p_handbook_title is null and 'Job Description' or btrim(coalesce(nullif(p_job_description,''), 'Job Description')),
+    'Job Description',
     p_job_description,
     p_job_description_sha256
   )
