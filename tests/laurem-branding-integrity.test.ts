@@ -33,7 +33,7 @@ describe('LAUREM branding integrity', () => {
     for (const file of files) {
       const content = await fs.readFile(file, 'utf8');
       const legacyBrand = 'BIM' + 'ED';
-      if (new RegExp('\\\\b' + legacyBrand + '\\\\b', 'i').test(content)) offenders.push(path.relative(process.cwd(), file));
+      if (new RegExp('\\b' + legacyBrand + '\\b', 'i').test(content)) offenders.push(path.relative(process.cwd(), file));
     }
 
     expect(offenders).toEqual([]);
