@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 
 type Task = { id: string; category: string; title: string; description: string | null; required: boolean; status: string; acknowledgement_required: boolean; acknowledged_at?: string | null; document_path?: string | null };
 type PackageResponse = { package: { title: string; audience: string; status: string }; staff: { full_name: string; job_title: string; employee_number: string; start_date?: string | null; location?: string | null } | null; tasks: Task[] };
@@ -55,11 +56,11 @@ export default function EmployeeOnboardingPage({ params }: { params: Promise<{ t
   const required = data?.tasks.filter((task) => task.required) || [];
   const complete = required.filter((task) => task.status === 'completed' || task.status === 'waived').length;
 
-  return <main className="wrap" style={{ padding: '38px 0 80px', maxWidth: 980 }}>
+  return <main className="wrap" style={{ padding: '38px 0 80px', maxWidth: 980 }}><LauremCandidateJourney current="onboarding" />
     <section className="card" style={{ padding: 28 }}>
       <p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '.08em' }}>LAUREM CAREGROUP</p>
       <h1>{data?.package.title || 'Your Laurem onboarding'}</h1>
-      {data?.staff && <p style={{ color: 'var(--muted)' }}>{data.staff.full_name} · {data.staff.job_title} · {data.staff.employee_number}</p>}
+      {data?.staff && <p style={{ color: 'var(--muted)' }}>Your Employment Contract, Job Description and Handbook have already been signed and remain in your employment record. You will not be asked to sign those three documents again.<br /><br />{data.staff.full_name} · {data.staff.job_title} · {data.staff.employee_number}</p>}
       {message && <div role="alert" style={{ padding: 13, margin: '16px 0', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--soft)' }}>{message}</div>}
       {!data && !message && <p>Loading your onboarding package...</p>}
       {data && <>
