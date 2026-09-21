@@ -22,6 +22,7 @@ as $function$
 declare
   staff_row public.laurem_staff_profiles;
   lifecycle_policy jsonb;
+  was_previous_activation_used boolean := false;
   now_value timestamptz := clock_timestamp();
 begin
   if nullif(trim(coalesce(p_token_hash,'')),'') is null then
@@ -35,8 +36,7 @@ begin
   select *
     into staff_row
     from public.laurem_staff_profiles
-   where id = p_staff_id
-   for update;
+   where id = p_staff_id;
 
   if not found then
     raise exception 'STAFF_NOT_FOUND';
@@ -53,6 +53,16 @@ begin
       errcode = 'P0001',
       message = 'LIFECYCLE_POLICY_BLOCKED',
       detail = coalesce(lifecycle_policy->>'reason', 'Canonical portal provisioning policy blocked activation issuance.');
+  end if;
+
+  select activation_used_at is not null
+    into was_previous_activation_used
+    from public.laurem_staff_profiles
+   where id = p_staff_id
+   for update;
+
+  if not found then
+    raise exception 'STAFF_NOT_FOUND';
   end if;
 
   if staff_row.employment_status <> 'pending'
@@ -79,7 +89,7 @@ begin
     coalesce(nullif(trim(p_actor),''),'staff_portal_provisioning'),
     jsonb_build_object(
       'expires_at', p_expires_at,
-      'reissued', staff_row.activation_used_at is not null
+      'reissued', was_previous_activation_used
     )
   );
 
@@ -121,8 +131,7 @@ begin
     into staff_row
     from public.laurem_staff_profiles
    where activation_token_hash = p_token_hash
-     and lower(email) = lower(trim(p_email))
-   for update;
+     and lower(email) = lower(trim(p_email));
 
   if not found then
     raise exception 'ACTIVATION_INVALID';
@@ -139,11 +148,6 @@ begin
     raise exception 'ACTIVATION_EXPIRED';
   end if;
 
-  current_session_version := greatest(coalesce(staff_row.session_version, 1), 1);
-  if current_session_version <> greatest(coalesce(p_expected_session_version, 1), 1) then
-    raise exception 'ACTIVATION_CHANGED';
-  end if;
-
   lifecycle_policy := public.laurem_evaluate_staff_lifecycle(
     staff_row.application_id,
     'portal_activate',
@@ -155,6 +159,34 @@ begin
       errcode='P0001',
       message='LIFECYCLE_POLICY_BLOCKED',
       detail=coalesce(lifecycle_policy->>'reason', 'Canonical portal activation policy blocked activation.');
+  end if;
+
+  select *
+    into staff_row
+    from public.laurem_staff_profiles
+   where id = (lifecycle_policy->>'staff_id')::uuid
+     and activation_token_hash = p_token_hash
+     and lower(email) = lower(trim(p_email))
+   for update;
+
+  if not found then
+    raise exception 'ACTIVATION_CHANGED';
+  end if;
+
+  if staff_row.activation_used_at is not null
+     or staff_row.activated_at is not null
+     or staff_row.password_hash is not null then
+    raise exception 'ACTIVATION_USED';
+  end if;
+
+  if staff_row.activation_expires_at is null
+     or staff_row.activation_expires_at <= now_value then
+    raise exception 'ACTIVATION_EXPIRED';
+  end if;
+
+  current_session_version := greatest(coalesce(staff_row.session_version, 1), 1);
+  if current_session_version <> greatest(coalesce(p_expected_session_version, 1), 1) then
+    raise exception 'ACTIVATION_CHANGED';
   end if;
 
   update public.laurem_staff_profiles
@@ -353,15 +385,6 @@ begin
      set consumed_at = now_value
    where staff_id = staff_row.id
      and consumed_at is null;
-
-  update public.laurem_staff_password_reset_tokens
-     set consumed_at = now_value
-   where id = token_row.id
-     and consumed_at is null;
-
-  if not found then
-    raise exception 'STAFF_PASSWORD_RESET_ALREADY_USED';
-  end if;
 
   insert into public.laurem_staff_security_events(
     staff_id,
