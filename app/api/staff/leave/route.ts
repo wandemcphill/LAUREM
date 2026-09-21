@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 import { LEAVE_TYPES, inclusiveCalendarDays } from '@/lib/laurem-workforce-policy';
 
 function dbConflictMessage(error: { code?: string; message?: string } | null) {
@@ -78,7 +79,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ request: data }, { status: 201 });
+
+
+  await recordLauremAuditEvent({
+    lifecycleArea: 'workforce', entityType: 'leave_request', entityId: data.id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'leave_submitted', newState: 'pending',
+    metadata: { leaveType, startDate, endDate, totalDays },
+  });  return NextResponse.json({ request: data }, { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {
