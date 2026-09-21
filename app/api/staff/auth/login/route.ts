@@ -19,10 +19,24 @@ export async function POST(req: NextRequest) {
   if (!limiter?.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 900) } });
 
   const { data: staff } = await client.from('staff_profiles')
-    .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,session_version')
+    .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,activated_at,session_version')
     .or(`laurem_id.eq.${id},employee_number.eq.${id}`).maybeSingle();
-  if (!staff || !staff.password_hash || !['pending', 'active'].includes(staff.employment_status) || !verifyPassword(password, staff.password_hash)) {
-    await client.from('staff_security_events').insert({ staff_id: staff?.id || null, event_type: 'staff.login.failed', actor: staff?.email || id, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { reason: 'invalid_credentials' } });
+
+  if (
+    !staff
+    || !staff.password_hash
+    || !staff.activated_at
+    || staff.employment_status !== 'active'
+    || !verifyPassword(password, staff.password_hash)
+  ) {
+    await client.from('staff_security_events').insert({
+      staff_id: staff?.id || null,
+      event_type: 'staff.login.failed',
+      actor: staff?.email || id,
+      ip_address: ip,
+      user_agent: req.headers.get('user-agent'),
+      details: { reason: 'invalid_credentials_or_inactive_account' },
+    });
     return NextResponse.json({ error: 'Invalid LAUREM ID or password.' }, { status: 401 });
   }
 

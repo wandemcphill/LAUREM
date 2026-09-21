@@ -42,7 +42,7 @@ async function recoverContract(client: SupabaseClient, delivery: any, actor: str
   const email = await sendLauremEmail(client, {
     eventType: 'contract_issued',
     entityId: current.id,
-    idempotencyKey: `contract:issued:${current.id}:${issued.data.contract.issued_at}` ,
+    idempotencyKey: `contract:issued:${current.id}:${issued.data.contract.issued_at}`,
     payload: {
       from: lauremCompany.candidateCommunications.senderAddress,
       to: [app.email],
@@ -59,8 +59,8 @@ async function recoverStaffActivation(client: SupabaseClient, delivery: any, act
   const { data: staff, error } = await client.from('staff_profiles').select('id,application_id,employment_status,activated_at').eq('id', delivery.entity_id).maybeSingle();
   if (error || !staff) throw error || new Error('Staff record not found.');
   if (staff.activated_at) throw new Error('This staff portal is already activated.');
-  if (!['pending'].includes(staff.employment_status)) throw new Error('Staff portal recovery requires a pending staff record.');
-  const portal = await provisionLauremStaffPortal(staff.application_id);
+  if (staff.employment_status !== 'pending') throw new Error('Staff portal recovery requires a pending staff record.');
+  const portal = await provisionLauremStaffPortal(staff.application_id, actor);
   if (portal.activation.status !== 'sent' && portal.activation.status !== 'not_configured') throw new Error(portal.activation.error || 'Staff activation email could not be recovered.');
   return { email: portal.activation, entityId: staff.id, applicationId: staff.application_id };
 }
@@ -89,7 +89,7 @@ async function recoverSecondInterview(client: SupabaseClient, delivery: any, act
     const { error: updateError } = await client.from('interview_attempts').update({ second_interview_id: invitation.id, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, answers: {}, status: 'in_progress', started_at: new Date().toISOString(), submitted_at: null, score: null, total_questions: 20, updated_at: new Date().toISOString() }).eq('id', attempt.id);
     if (updateError) throw updateError;
   } else {
-    const { error: insertError } = await client.from('interview_attempts').insert({ application_id: app.id, second_interview_id: invitation.id, round: 2, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, status: 'in_progress', total_questions: 20 });
+    const { error: insertError } = await client.from('interview_attempts').insert({ application_id: app.id, second_interview_id: invitation.id, round: 2, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, answers: {}, status: 'in_progress', total_questions: 20 });
     if (insertError) throw insertError;
   }
   const link = `${appUrl()}/second-interview/${token}`;

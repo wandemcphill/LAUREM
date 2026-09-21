@@ -10,7 +10,7 @@ import { lauremRoleSlug } from './laurem-role-policy';
  * enforced contract + role + readiness gates. This helper repeats the critical
  * gates as defence in depth and never activates a staff account by itself.
  */
-export async function provisionLauremStaffPortal(applicationId: string) {
+export async function provisionLauremStaffPortal(applicationId: string, actor = 'staff_portal_provisioning') {
   const client = db();
   const { data: app, error: appError } = await client.from('recruitment_applications')
     .select('id,full_name,email,phone,role_applied,start_date,living_in_uk,nmc_number,application_data')
@@ -44,13 +44,15 @@ export async function provisionLauremStaffPortal(applicationId: string) {
   const mailbox = await ensureLauremMailbox(client, staff);
   const rawToken = makeActivationToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: updated, error: updateError } = await client.from('staff_profiles').update({
-    activation_token_hash: hashActivationToken(rawToken),
-    activation_expires_at: expiresAt,
-    updated_at: new Date().toISOString(),
-  }).eq('id', staff.id).select('*').single();
-  if (updateError || !updated) throw updateError || new Error('Unable to create staff activation token.');
 
-  const activation = await sendLauremStaffActivation(client, updated, rawToken);
-  return { staff: updated, mailbox, activation };
+  const { data: issued, error: issueError } = await client.rpc('laurem_issue_staff_activation_token', {
+    p_staff_id: staff.id,
+    p_token_hash: hashActivationToken(rawToken),
+    p_expires_at: expiresAt,
+    p_actor: actor,
+  });
+  if (issueError || !issued) throw issueError || new Error('Unable to create staff activation token.');
+
+  const activation = await sendLauremStaffActivation(client, issued, rawToken);
+  return { staff: issued, mailbox, activation, expiresAt };
 }
