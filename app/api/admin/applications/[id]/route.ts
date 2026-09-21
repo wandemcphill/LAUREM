@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
+import { lauremRoleSlug, normalizeLauremRole } from '@/lib/laurem-role-policy';
 
 function describeError(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -78,6 +79,43 @@ export async function GET(
       created_at: event.occurred_at,
     }));
 
+    const acceptedContract = (contractResult.data || []).find((contract: any) =>
+      contract.status === 'accepted' && contract.accepted_at
+    ) || null;
+    const contractRoleMatches = Boolean(
+      acceptedContract &&
+      lauremRoleSlug(application.role_applied) &&
+      lauremRoleSlug(acceptedContract.job_title) &&
+      lauremRoleSlug(application.role_applied) === lauremRoleSlug(acceptedContract.job_title)
+    );
+
+    const lifecyclePolicy: Record<string, any> = {
+      prepareOnboarding: null,
+      markHired: null,
+      portalProvision: null,
+      portalActivate: null,
+    };
+    const transitionsToCheck: Array<[keyof typeof lifecyclePolicy, string]> = [];
+    if (['Offer', 'Onboarding', 'Hired'].includes(application.status)) {
+      transitionsToCheck.push(['prepareOnboarding', 'prepare_onboarding']);
+    }
+    if (['Onboarding', 'Hired'].includes(application.status)) {
+      transitionsToCheck.push(['markHired', 'mark_hired']);
+    }
+    if (application.status === 'Hired') {
+      transitionsToCheck.push(['portalProvision', 'portal_provision']);
+      transitionsToCheck.push(['portalActivate', 'portal_activate']);
+    }
+    for (const [key, transition] of transitionsToCheck) {
+      const result = await client.rpc('laurem_evaluate_staff_lifecycle', {
+        p_application_id: id,
+        p_transition: transition,
+        p_reentry_override: false,
+      });
+      if (result.error) throw new Error('lifecycle policy: ' + describeError(result.error));
+      lifecyclePolicy[key] = result.data;
+    }
+
     return NextResponse.json({
       application,
       invite: inviteResult.data,
@@ -95,6 +133,17 @@ export async function GET(
       staff: staffResult.data,
       audit,
       recruiter: session.email,
+      lifecyclePolicy,
+      workspaceContext: {
+        acceptedContractId: acceptedContract?.id || null,
+        contractAccepted: Boolean(acceptedContract),
+        contractRoleMatches,
+        requiredReadinessOpen: (readinessResult.data || []).filter((item: any) => item.required && !['completed', 'waived'].includes(item.status)).length,
+        staffExists: Boolean(staffResult.data),
+        staffContractBound: Boolean(staffResult.data && acceptedContract && (!staffResult.data.contract_id || staffResult.data.contract_id === acceptedContract.id)),
+        staffStatus: staffResult.data?.employment_status || null,
+        staffActivatedAt: staffResult.data?.activated_at || null,
+      },
     });
   } catch (error) {
     const reason = describeError(error);
