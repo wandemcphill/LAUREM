@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest) {
 
   if (error || !saved) return NextResponse.json({ error: 'Unable to save your availability.' }, { status: 500 });
 
-  await client.from('laurem_workforce_audit_events').insert({
+  await client.from('workforce_audit_events').insert({
     staff_id: session.staff_id,
     event_type: 'staff.availability_updated',
     actor: session.email,
