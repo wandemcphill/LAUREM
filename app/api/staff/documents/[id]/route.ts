@@ -10,15 +10,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const { id } = await params;
   const client = db();
-  const { data: document, error } = await client.from('staff_documents')
+  const { data: document, error } = await client.from('laurem_staff_documents')
     .select('id,staff_id,category,title,description,original_filename,mime_type,file_size_bytes,storage_path,content_text,document_sha256,status,requires_signature,signature_status,signature_name,signature_method,signed_at,signature_attestation,issuer_name,issuer_title,employer_name,issued_at,first_viewed_at,last_viewed_at,viewed_count')
     .eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to load document.' }, { status: 500 });
   if (!document || document.status !== 'issued') return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
 
   const now = new Date().toISOString();
-  await client.from('staff_documents').update({ first_viewed_at: document.first_viewed_at || now, last_viewed_at: now, viewed_count: Number(document.viewed_count || 0) + 1, updated_at: now }).eq('id', id).eq('staff_id', session.staff_id);
-  await client.from('staff_document_events').insert({ document_id: id, staff_id: session.staff_id, event_type: 'viewed', actor_type: 'staff', actor: session.email, metadata: { document_sha256: document.document_sha256 } });
+  await client.from('laurem_staff_documents').update({ first_viewed_at: document.first_viewed_at || now, last_viewed_at: now, viewed_count: Number(document.viewed_count || 0) + 1, updated_at: now }).eq('id', id).eq('staff_id', session.staff_id);
+  await client.from('laurem_staff_document_events').insert({ document_id: id, staff_id: session.staff_id, event_type: 'viewed', actor_type: 'staff', actor: session.email, metadata: { document_sha256: document.document_sha256 } });
 
   let previewUrl: string | null = null;
   if (document.storage_path) {
