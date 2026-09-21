@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { makeToken, hashToken } from '@/lib/token';
-import { makeActivationToken } from '@/lib/laurem-staff-auth';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { selectRound2Questions } from '@/lib/laurem-interview-engine';
@@ -118,6 +117,6 @@ export async function recoverLauremNotification(client: SupabaseClient, delivery
     : delivery.event_type === 'staff.activation'
       ? await recoverStaffActivation(client, delivery, actor)
       : await recoverSecondInterview(client, delivery, actor);
-  await recordLauremAuditEvent({ lifecycleArea: 'notifications', entityType: 'notification_delivery', entityId: delivery.id, applicationId: result.applicationId, staffId: delivery.event_type === 'staff.activation' ? result.entityId : null, actorType: 'admin', actor, action: 'notification_recovered', reason: 'Failed critical notification replayed through the event-aware recovery path.', metadata: { eventType: delivery.event_type, replacementEntityId: result.entityId, replacementDeliveryId: result.email.deliveryId, previousDeliveryId: delivery.id } });
+  await recordLauremAuditEvent({ lifecycleArea: 'notifications', entityType: 'notification_delivery', entityId: delivery.id, applicationId: result.applicationId, staffId: delivery.event_type === 'staff.activation' ? result.entityId : null, actorType: 'admin', actor, action: result.email.status === 'sent' || result.email.status === 'not_configured' ? 'notification_recovered' : 'notification_recovery_failed', reason: result.email.status === 'sent' ? 'Failed critical notification replayed through the event-aware recovery path.' : 'Notification recovery attempt completed without confirmed delivery.', metadata: { eventType: delivery.event_type, replacementEntityId: result.entityId, replacementDeliveryId: result.email.deliveryId, previousDeliveryId: delivery.id, outcome: result.email.status } });
   return result;
 }
