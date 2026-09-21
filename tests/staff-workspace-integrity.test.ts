@@ -9,11 +9,11 @@ describe('staff self-service workspace', () => {
   it('binds onboarding reads and writes to the authenticated staff identity', async () => {
     const source = await read('app/api/staff/onboarding/route.ts');
     expect(source).toContain("getStaffSession(req)");
-    expect(source).toContain(".eq('staff_id', session.staff_id)");
-    expect(source).toContain(".eq('package_id', packageRow.id)");
+    expect(source).toContain("getStaffSession(req)");
+    expect(source).toContain("laurem_acknowledge_staff_onboarding_task");
+    expect(source).toContain("p_staff_id: session.staff_id");
+    expect(source).toContain("p_task_id: taskId");
     expect(source).toContain("action !== 'acknowledge'");
-    expect(source).toContain("acknowledged_at: now");
-    expect(source).toContain("acknowledged_by: session.staff_id");
   });
 
   it('keeps payroll self-service scoped to the authenticated staff member', async () => {
