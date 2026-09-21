@@ -13,8 +13,8 @@ export type RecruiterLifecycleWorkspace = {
   blockers: Array<{ code: string; title: string; detail: string }>;
   actions: Array<{ key: string; label: string; description: string }>;
   gates: {
-    contract: 'ready' | 'blocked';
-    readiness: 'ready' | 'blocked';
+    contract: 'ready' | 'blocked' | 'not_started';
+    readiness: 'ready' | 'blocked' | 'not_started';
     staff: 'ready' | 'blocked' | 'not_started';
     portal: 'ready' | 'blocked' | 'not_started';
   };
@@ -87,7 +87,7 @@ export function buildRecruiterLifecycleWorkspace(input: Input): RecruiterLifecyc
   if (input.status === 'Interview' && input.round1Status === 'passed' && !input.activeSecondInvitation) actions.push({ key: 'issue_second_stage', label: 'Issue second stage', description: 'Send the second-stage assessment after the passed first assessment.' });
   if (criticalEmploymentStage && !input.contractAccepted) actions.push({ key: 'prepare_contract', label: 'Prepare contract', description: 'Open the contract composer for this candidate.' });
   if (criticalEmploymentStage && input.requiredReadinessOpen > 0) actions.push({ key: 'open_readiness', label: 'Open readiness gate', description: 'Review and complete or appropriately waive the outstanding readiness items.' });
-  if (['Offer', 'Onboarding', 'Hired'].includes(input.status) && !input.staffExists) actions.push({ key: 'prepare_onboarding', label: 'Prepare onboarding', description: 'Create or repair the workforce identity and onboarding package.' });
+  if (['Offer', 'Onboarding', 'Hired'].includes(input.status) && input.contractAccepted && input.contractRoleMatches && input.requiredReadinessOpen === 0 && !input.staffExists) actions.push({ key: 'prepare_onboarding', label: 'Prepare onboarding', description: 'Create or repair the workforce identity and onboarding package.' });
   if (input.status === 'Onboarding' && input.lifecycle?.markHired?.ok) actions.push({ key: 'mark_hired', label: 'Mark Hired', description: 'Move the candidate to Hired now that the canonical employment gates are satisfied.' });
   if (input.status === 'Hired' && input.lifecycle?.portalProvision?.ok) actions.push({ key: 'portal_provision', label: 'Provision staff portal', description: 'Issue the one-time staff portal activation credential.' });
   if (input.status === 'Hired' && input.staffExists && input.staffStatus === 'active') actions.push({ key: 'open_staff', label: 'Open Staff 360', description: 'Continue into workforce operations for this employee.' });
@@ -99,10 +99,10 @@ export function buildRecruiterLifecycleWorkspace(input: Input): RecruiterLifecyc
     blockers,
     actions,
     gates: {
-      contract: input.contractAccepted && input.contractRoleMatches ? 'ready' : 'blocked',
-      readiness: input.requiredReadinessOpen === 0 ? 'ready' : 'blocked',
+      contract: !criticalEmploymentStage ? 'not_started' : input.contractAccepted && input.contractRoleMatches ? 'ready' : 'blocked',
+      readiness: !criticalEmploymentStage ? 'not_started' : input.requiredReadinessOpen === 0 ? 'ready' : 'blocked',
       staff: input.staffExists ? (input.staffContractBound ? 'ready' : 'blocked') : 'not_started',
-      portal: input.staffActivatedAt ? 'ready' : (input.status === 'Hired' ? 'blocked' : 'not_started'),
+      portal: input.staffActivatedAt ? 'ready' : (input.status === 'Hired' ? (input.lifecycle?.portalProvision?.ok ? 'not_started' : 'blocked') : 'not_started'),
     },
   };
 }
