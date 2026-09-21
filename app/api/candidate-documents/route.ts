@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { lauremCompany } from '@/lib/laurem-company-config';
 import { createHash } from 'node:crypto';
 import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
@@ -43,7 +44,7 @@ async function loadPack(token: string) {
 
   const [{ data: application, error: applicationError }, { data: documents, error: documentsError }] = await Promise.all([
     client.from('laurem_recruitment_applications').select('id,full_name,role_applied').eq('id', pack.application_id).maybeSingle(),
-    client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at').eq('pack_id', pack.id).order('document_type', { ascending: true }),
+    client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at,first_viewed_at,viewed_count').eq('pack_id', pack.id).order('document_type', { ascending: true }),
   ]);
   if (applicationError) throw applicationError;
   if (documentsError) throw documentsError;
@@ -121,9 +122,9 @@ async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicati
     entityId: applicationId,
     idempotencyKey: 'onboarding-access:' + applicationId,
     payload: {
-      from: 'recruitment@lauremcare.com',
+      from: lauremCompany.candidateCommunications.senderAddress,
       to: [application.email],
-      reply_to: 'recruitment@lauremcare.com',
+      reply_to: lauremCompany.candidateCommunications.replyToAddress,
       subject: 'Your LAUREM onboarding is ready',
       text: 'Dear ' + application.full_name + ',\n\nYour signed employment documents are complete and your LAUREM onboarding package is now ready.\n\nContinue here:\n' + onboardingLink + '\n\nKind regards,\nLAUREM Recruitment',
       html: '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">LAUREM CAREGROUP</p><h1 style="font-size:28px">Your onboarding is ready</h1><p>Dear ' + application.full_name + ',</p><p>Your contract, Job Description and Handbook are now recorded as signed.</p><p><a href="' + onboardingLink + '" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Continue to onboarding</a></p><p>Kind regards,<br>LAUREM Recruitment</p></div>',
@@ -139,12 +140,21 @@ export async function GET(request: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Document token is required.' }, { status: 400 });
 
     const loaded = await loadPack(token);
+    let onboardingLink: string | null = null;
+    let waitingForReadiness = false;
+    if (loaded.pack.status === 'completed') {
+      const onboarding = await prepareOnboardingIfReady(loaded.client, loaded.application.id);
+      onboardingLink = onboarding?.onboardingLink || null;
+      waitingForReadiness = Boolean(onboarding?.waitingForReadiness);
+    }
     return NextResponse.json({
       application: {
         full_name: loaded.application.full_name,
         role_applied: loaded.application.role_applied,
       },
       pack: loaded.pack,
+      onboardingLink,
+      waitingForReadiness,
       documents: loaded.documents.map((document) => ({
         id: document.id,
         document_type: document.document_type,
