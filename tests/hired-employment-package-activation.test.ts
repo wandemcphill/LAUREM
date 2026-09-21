@@ -16,7 +16,7 @@ describe('LAUREM hired employment package and activation', () => {
     expect(route).toContain('ACTIVATION_USED');
     expect(route).toContain('/staff/login?activation=used');
     expect(form).toContain("router.replace('/staff/login?activation=used')");
-    expect(form).toContain('/staff/documents?activated=1');
+    expect(form).toContain("router.replace('/staff?activated=1')");
     expect(login).toContain('That activation link has already been used.');
   });
 
