@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (!atomic) throw new Error('Atomic onboarding preparation returned no result.');
 
     const { data: preparedStaff, error: staffReadError } = await client
-      .from('staff_profiles')
+      .from('laurem_staff_profiles')
       .select('*')
       .eq('id', atomic.staff_id)
       .single();
@@ -58,21 +58,21 @@ export async function POST(request: NextRequest) {
     // that may have been created by an older flow.
     if (!preparedStaff.activated_at && preparedStaff.activation_token_hash) {
       const { error: clearActivationError } = await client
-        .from('staff_profiles')
+        .from('laurem_staff_profiles')
         .update({ activation_token_hash: null, activation_expires_at: null, updated_at: new Date().toISOString() })
         .eq('id', preparedStaff.id);
       if (clearActivationError) throw clearActivationError;
     }
 
     const { data: updatedPackage, error: packageError } = await client
-      .from('staff_onboarding_packages')
+      .from('laurem_staff_onboarding_packages')
       .select('*')
       .eq('id', atomic.package_id)
       .single();
     if (packageError || !updatedPackage) throw packageError || new Error('Onboarding package not found after atomic preparation.');
 
     const { data: finalTasks } = await client
-      .from('staff_onboarding_tasks')
+      .from('laurem_staff_onboarding_tasks')
       .select('*')
       .eq('package_id', atomic.package_id)
       .order('sort_order', { ascending: true });
