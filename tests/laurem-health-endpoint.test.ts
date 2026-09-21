@@ -5,8 +5,8 @@ describe('LAUREM production health contracts', () => {
   it('keeps the public health endpoint lightweight and dependency-free', () => {
     const route = readFileSync('app/api/health/route.ts', 'utf8');
     expect(route).toContain("service: 'laurem-recruitment-platform'");
-    expect(route).toContain("response.headers.set('cache-control', 'no-store, max-age=0')");
-    expect(route).toContain("response.headers.set('x-laurem-health', 'ok')");
+    expect(route).toContain("withRequestId");
+    expect(route).toContain("service: 'laurem-recruitment-platform'");
     expect(route).not.toContain("from '@/lib/db'");
     expect(route).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(route).not.toContain('ADMIN_PASSWORD');
@@ -17,8 +17,8 @@ describe('LAUREM production health contracts', () => {
     expect(route).toContain("const client = db();");
     expect(route).toContain("client.from('recruitment_applications')");
     expect(route).toContain("select('id', { head: true, count: 'exact' })");
-    expect(route).toContain("status: 503");
-    expect(route).toContain("response.headers.set('cache-control', 'no-store, max-age=0')");
+    expect(route).toContain("operationalError(requestId, 'Service is not ready.', 503, 'RELEASE_NOT_READY')");
+    expect(route).toContain("operationalError");
     expect(route).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(route).not.toContain('ADMIN_PASSWORD');
   });
