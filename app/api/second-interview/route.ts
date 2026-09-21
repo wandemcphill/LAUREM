@@ -11,13 +11,13 @@ async function resolveContext(request:NextRequest){
   const token=request.headers.get('x-second-interview-token')||'';
   if(!token) throw new Error('TOKEN_REQUIRED');
   const client=db();
-  const {data:invite,error}=await client.from('recruitment_second_interviews').select('id,status,expires_at,application_id').eq('token_hash',hashToken(token)).maybeSingle();
+  const {data:invite,error}=await client.from('laurem_recruitment_second_interviews').select('id,status,expires_at,application_id').eq('token_hash',hashToken(token)).maybeSingle();
   if(error)throw error;
   if(!invite)throw new Error('NOT_FOUND');
   if(invite.status==='completed')throw new Error('COMPLETED');
   if(invite.expires_at&&new Date(invite.expires_at).getTime()<=Date.now())throw new Error('EXPIRED');
   if(!invite.application_id)throw new Error('APPLICATION_REQUIRED');
-  const {data:application,error:applicationError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,status').eq('id',invite.application_id).maybeSingle();
+  const {data:application,error:applicationError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,status').eq('id',invite.application_id).maybeSingle();
   if(applicationError)throw applicationError;
   if(!application)throw new Error('APPLICATION_REQUIRED');
   const role=normalizeLauremRole(application.role_applied||'');
@@ -28,12 +28,12 @@ async function resolveContext(request:NextRequest){
 export async function GET(request:NextRequest){
   try{
     const {client,invite,application,role}=await resolveContext(request);
-    let {data:attempt,error}=await client.from('interview_attempts').select('id,question_snapshot,status,answers').eq('application_id',application.id).eq('round',2).eq('second_interview_id',invite.id).maybeSingle();
+    let {data:attempt,error}=await client.from('laurem_interview_attempts').select('id,question_snapshot,status,answers').eq('application_id',application.id).eq('round',2).eq('second_interview_id',invite.id).maybeSingle();
     if(error)throw error;
     if(!attempt){
       const selected=selectRound2Questions(role);
       const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,guidance:q.guidance}));
-      const {data:created,error:createError}=await client.from('interview_attempts').insert({application_id:application.id,invite_id:null,second_interview_id:invite.id,round:2,role,pathway:application.living_in_uk==='No'?'international':'uk',question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress'}).select('id,question_snapshot,status,answers').single();
+      const {data:created,error:createError}=await client.from('laurem_interview_attempts').insert({application_id:application.id,invite_id:null,second_interview_id:invite.id,round:2,role,pathway:application.living_in_uk==='No'?'international':'uk',question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress'}).select('id,question_snapshot,status,answers').single();
       if(createError)throw createError;
       attempt=created;
     }
@@ -54,7 +54,7 @@ export async function POST(request:NextRequest){
   if(!body.attemptId)return NextResponse.json({error:'Assessment id is required.'},{status:400});
   try{
     const {client,invite,application}=await resolveContext(request);
-    const {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,application_id,round,second_interview_id,question_snapshot,status').eq('id',body.attemptId).eq('application_id',application.id).eq('round',2).eq('second_interview_id',invite.id).maybeSingle();
+    const {data:attempt,error:attemptError}=await client.from('laurem_interview_attempts').select('id,application_id,round,second_interview_id,question_snapshot,status').eq('id',body.attemptId).eq('application_id',application.id).eq('round',2).eq('second_interview_id',invite.id).maybeSingle();
     if(attemptError)throw attemptError;
     if(!attempt)return NextResponse.json({error:'Second-stage assessment not found.'},{status:404});
     if(attempt.status==='submitted')return NextResponse.json({error:'This second-stage assessment has already been submitted.'},{status:409});
