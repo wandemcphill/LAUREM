@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const client = db();
     const { data: staff, error: staffError } = await client
-      .from('staff_profiles')
+      .from('laurem_staff_profiles')
       .select('application_id')
       .eq('id', session.staff_id)
       .maybeSingle();
