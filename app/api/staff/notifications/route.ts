@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
   const { data, error } = await db()
-    .from('laurem_staff_notifications')
+    .from('staff_notifications')
     .select('id,category,title,body,action_url,read_at,created_at')
     .eq('staff_id', session.staff_id)
     .order('created_at', { ascending: false })
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest) {
 
   if (body?.all) {
     const { error } = await client
-      .from('laurem_staff_notifications')
+      .from('staff_notifications')
       .update({ read_at: now })
       .eq('staff_id', session.staff_id)
       .is('read_at', null);
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id is required.' }, { status: 400 });
 
   const { error } = await client
-    .from('laurem_staff_notifications')
+    .from('staff_notifications')
     .update({ read_at: now })
     .eq('id', id)
     .eq('staff_id', session.staff_id);
