@@ -42,7 +42,7 @@ export function lauremOnboardingChecklistForApplication(application: Application
 export async function ensureLauremOnboardingReadiness(client: SupabaseClient, application: ApplicationForReadiness) {
   const rows = lauremOnboardingChecklistForApplication(application).map((item) => ({ application_id: application.id, ...item }));
   const { error } = await client
-    .from('laurem_recruitment_onboarding_checklist')
+    .from('recruitment_onboarding_checklist')
     .upsert(rows, { onConflict: 'application_id,item_key', ignoreDuplicates: true });
   if (error) throw error;
 }
@@ -51,12 +51,12 @@ export async function getLauremOnboardingReadiness(client: SupabaseClient, appli
   await ensureLauremOnboardingReadiness(client, application);
   const [{ data: checklist, error: checklistError }, { data: reviews, error: reviewError }] = await Promise.all([
     client
-      .from('laurem_recruitment_onboarding_checklist')
+      .from('recruitment_onboarding_checklist')
       .select('id,application_id,item_key,title,description,required,status,completed_at,completed_by,notes,created_at,updated_at')
       .eq('application_id', application.id)
       .order('created_at', { ascending: true }),
     client
-      .from('laurem_recruitment_evidence_reviews')
+      .from('recruitment_evidence_reviews')
       .select('id,evidence_type,status,document_id,reviewed_by,reviewed_at,review_note,metadata,created_at,updated_at')
       .eq('application_id', application.id)
       .in('status', ['pending', 'approved', 'waived'])
