@@ -173,7 +173,7 @@ begin
     pack_row.id,
     p_application_id,
     'job_description',
-    'Job Description',
+    btrim(coalesce(nullif(app_row.role_applied, ''), 'Job')) || ' Job Description',
     p_job_description,
     p_job_description_sha256
   )
