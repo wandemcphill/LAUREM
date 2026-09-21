@@ -4,13 +4,15 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { hashToken, makeToken } from '@/lib/token';
 import { LauremLifecycleError, validateLauremStaffTransition, type LauremLifecycleErrorCode } from '@/lib/laurem-lifecycle';
 import { db } from '@/lib/db';
+import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const applicationId = typeof body?.applicationId === 'string' ? body.applicationId : '';
-  if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
+  if (!applicationId) return operationalError(requestId, 'Application id is required.', 400, 'APPLICATION_ID_REQUIRED');
   try {
     const client = db();
     const { application } = await validateLauremStaffTransition(client, applicationId);
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
       ? (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/onboarding/' + rawAccessToken
       : null;
 
-    return NextResponse.json({
+    return withRequestId(NextResponse.json({
       staff: { id: preparedStaff.id, employee_number: preparedStaff.employee_number, contract_id: preparedStaff.contract_id },
       audience,
       package: updatedPackage,
@@ -89,14 +91,14 @@ export async function POST(request: NextRequest) {
       activationDeferredUntilHired: true,
       employmentDocumentsIssuedAtHired: true,
       alreadyOnboarded: !atomic.created_staff,
-    }, { status: atomic.created_staff ? 201 : 200 });
+    }, { status: atomic.created_staff ? 201 : 200 }), requestId);
   } catch (error) {
     if (error instanceof LauremLifecycleError) {
       const statusByCode: Record<LauremLifecycleErrorCode, number> = { APPLICATION_NOT_FOUND: 404, CONTRACT_REQUIRED: 409, CONTRACT_ROLE_MISMATCH: 409, READINESS_INCOMPLETE: 409, STAFF_CONTRACT_MISMATCH: 409 };
       const details = error.details?.readiness ? { readiness: error.details.readiness } : undefined;
-      return NextResponse.json({ error: error.message, ...details }, { status: statusByCode[error.code] });
+      return operationalError(requestId, error.message, statusByCode[error.code], error.code);
     }
-    console.error(JSON.stringify({ level: 'error', event: 'admin.onboarding.create_failed', actor: session.email, reason: error instanceof Error ? error.message : String(error) }));
-    return NextResponse.json({ error: 'Unable to complete onboarding.' }, { status: 500 });
+    logOperationalError({ requestId, event: 'admin.onboarding.create_failed', actor: session.email, reason: error, metadata: { applicationId } });
+    return operationalError(requestId, 'Unable to complete onboarding.', 500, 'ONBOARDING_FAILED');
   }
 }
