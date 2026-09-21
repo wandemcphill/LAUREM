@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const session = await getStaffSession(request);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const { data, error } = await db().from('staff_availability')
+  const { data, error } = await db().from('laurem_staff_availability')
     .select('id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at')
     .eq('staff_id', session.staff_id)
     .order('effective_from', { ascending: false })
@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest) {
   if (!payload.days && !payload.nights && !payload.weekends) return NextResponse.json({ error: 'Select at least one preferred working pattern.' }, { status: 400 });
 
   const client = db();
-  const { data: existing } = await client.from('staff_availability')
+  const { data: existing } = await client.from('laurem_staff_availability')
     .select('id')
     .eq('staff_id', session.staff_id)
     .eq('effective_from', effectiveFrom)
@@ -61,18 +61,18 @@ export async function PATCH(request: NextRequest) {
   let saved;
   let error;
   if (existing?.id) {
-    const result = await client.from('staff_availability').update(payload).eq('id', existing.id)
+    const result = await client.from('laurem_staff_availability').update(payload).eq('id', existing.id)
       .select('id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').single();
     saved = result.data; error = result.error;
   } else {
-    const result = await client.from('staff_availability').insert({ staff_id: session.staff_id, ...payload })
+    const result = await client.from('laurem_staff_availability').insert({ staff_id: session.staff_id, ...payload })
       .select('id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').single();
     saved = result.data; error = result.error;
   }
 
   if (error || !saved) return NextResponse.json({ error: 'Unable to save your availability.' }, { status: 500 });
 
-  await client.from('workforce_audit_events').insert({
+  await client.from('laurem_workforce_audit_events').insert({
     staff_id: session.staff_id,
     event_type: 'staff.availability_updated',
     actor: session.email,
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest) {
 
   await recordLauremAuditEvent({
     lifecycleArea: 'workforce',
-    entityType: 'staff_availability',
+    entityType: 'laurem_staff_availability',
     entityId: saved.id,
     staffId: session.staff_id,
     actorType: 'staff',
