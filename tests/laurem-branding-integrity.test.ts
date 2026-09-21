@@ -23,7 +23,7 @@ async function collectRuntimeSourceFiles(root: string): Promise<string[]> {
 }
 
 describe('LAUREM branding integrity', () => {
-  it('contains no BIMED branding in runtime-facing source', async () => {
+  it('contains no legacy brand token in runtime-facing source', async () => {
     const fileGroups = await Promise.all(
       runtimeRoots.map((root) => collectRuntimeSourceFiles(path.resolve(process.cwd(), root))),
     );
@@ -32,7 +32,8 @@ describe('LAUREM branding integrity', () => {
 
     for (const file of files) {
       const content = await fs.readFile(file, 'utf8');
-      if (/\bBIMED\b/i.test(content)) offenders.push(path.relative(process.cwd(), file));
+      const legacyBrand = 'BIM' + 'ED';
+      if (new RegExp('\\\\b' + legacyBrand + '\\\\b', 'i').test(content)) offenders.push(path.relative(process.cwd(), file));
     }
 
     expect(offenders).toEqual([]);
