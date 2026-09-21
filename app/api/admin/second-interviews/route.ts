@@ -21,19 +21,19 @@ export async function POST(request:NextRequest){
   if(!applicationId)return NextResponse.json({error:'Application id is required.'},{status:400});
   try{
     const client=db();
-    const {data:app,error:appError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,role_applied,status,living_in_uk').eq('id',applicationId).maybeSingle();
+    const {data:app,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,status,living_in_uk').eq('id',applicationId).maybeSingle();
     if(appError)throw appError;
     if(!app)return NextResponse.json({error:'Application not found.'},{status:404});
     const role=normalizeLauremRole(app.role_applied||'');
     if(!role)return NextResponse.json({error:'Application role is invalid.'},{status:409});
-    const {data:attempt,error:attemptError}=await client.from('laurem_interview_attempts').select('id,score,total_questions,percent,status').eq('application_id',applicationId).eq('round',1).maybeSingle();
+    const {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,score,total_questions,percent,status').eq('application_id',applicationId).eq('round',1).maybeSingle();
     if(attemptError)throw attemptError;
     if(!attempt||attempt.status!=='passed')return NextResponse.json({error:'The candidate must pass the first assessment before a second-stage invitation can be issued.'},{status:409});
-    const {data:active,error:activeError}=await client.from('laurem_recruitment_second_interviews').select('id,status,expires_at').eq('application_id',applicationId).eq('status','sent').gt('expires_at',new Date().toISOString()).order('sent_at',{ascending:false}).limit(1).maybeSingle();
+    const {data:active,error:activeError}=await client.from('recruitment_second_interviews').select('id,status,expires_at').eq('application_id',applicationId).eq('status','sent').gt('expires_at',new Date().toISOString()).order('sent_at',{ascending:false}).limit(1).maybeSingle();
     if(activeError)throw activeError;
     if(active)return NextResponse.json({error:'An active second-stage invitation already exists for this candidate.',secondInterview:active},{status:409});
 
-    const {data:existingRound2,error:existingRound2Error}=await client.from('laurem_interview_attempts').select('id,status').eq('application_id',applicationId).eq('round',2).maybeSingle();
+    const {data:existingRound2,error:existingRound2Error}=await client.from('interview_attempts').select('id,status').eq('application_id',applicationId).eq('round',2).maybeSingle();
     if(existingRound2Error)throw existingRound2Error;
     if(existingRound2?.status==='submitted')return NextResponse.json({error:'A completed second-stage assessment already exists for this candidate.'},{status:409});
 
@@ -51,10 +51,10 @@ export async function POST(request:NextRequest){
     const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,guidance:q.guidance}));
     const pathway=app.living_in_uk==='No'?'international':'uk';
     if(existingRound2){
-      const {error:updateError}=await client.from('laurem_interview_attempts').update({second_interview_id:invitation.id,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,answers:{},status:'in_progress',started_at:new Date().toISOString(),submitted_at:null,score:null,total_questions:20,updated_at:new Date().toISOString()}).eq('id',existingRound2.id).eq('status','in_progress');
+      const {error:updateError}=await client.from('interview_attempts').update({second_interview_id:invitation.id,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,answers:{},status:'in_progress',started_at:new Date().toISOString(),submitted_at:null,score:null,total_questions:20,updated_at:new Date().toISOString()}).eq('id',existingRound2.id).eq('status','in_progress');
       if(updateError)throw updateError;
     } else {
-      const {error:insertError}=await client.from('laurem_interview_attempts').insert({application_id:applicationId,second_interview_id:invitation.id,round:2,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:20});
+      const {error:insertError}=await client.from('interview_attempts').insert({application_id:applicationId,second_interview_id:invitation.id,round:2,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress',total_questions:20});
       if(insertError)throw insertError;
     }
 
