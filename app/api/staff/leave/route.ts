@@ -28,7 +28,7 @@ function normaliseLeaveType(value: unknown) {
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  const { data, error } = await db().from('laurem_staff_leave_requests')
+  const { data, error } = await db().from('staff_leave_requests')
     .select('id,leave_type,start_date,end_date,total_days,reason,status,reviewed_by,reviewed_at,review_note,created_at,updated_at')
     .eq('staff_id', session.staff_id)
     .order('start_date', { ascending: false }).limit(100);
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (totalDays === null) return NextResponse.json({ error: 'Valid start and end dates are required, and end date must be on or after start date.' }, { status: 400 });
 
   const client = db();
-  const { data, error } = await client.from('laurem_staff_leave_requests').insert({
+  const { data, error } = await client.from('staff_leave_requests').insert({
     staff_id: session.staff_id,
     leave_type: leaveType,
     start_date: startDate,
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unable to submit leave request.' }, { status: 500 });
   }
 
-  await client.from('laurem_workforce_audit_events').insert({
+  await client.from('workforce_audit_events').insert({
     staff_id: session.staff_id,
     entity_type: 'leave_request',
     entity_id: data.id,
@@ -94,14 +94,14 @@ export async function PATCH(req: NextRequest) {
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Leave request id is required.' }, { status: 400 });
 
-  const { data: current, error: readError } = await db().from('laurem_staff_leave_requests')
+  const { data: current, error: readError } = await db().from('staff_leave_requests')
     .select('id,status,staff_id').eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load leave request.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Leave request not found.' }, { status: 404 });
   if (!['pending', 'approved'].includes(current.status)) return NextResponse.json({ error: 'This leave request can no longer be cancelled.' }, { status: 409 });
 
   const now = new Date().toISOString();
-  const { data, error } = await db().from('laurem_staff_leave_requests').update({
+  const { data, error } = await db().from('staff_leave_requests').update({
     status: 'cancelled',
     reviewed_by: session.staff_id,
     reviewed_at: now,
@@ -114,7 +114,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Unable to cancel leave request.' }, { status: 500 });
   }
 
-  await db().from('laurem_workforce_audit_events').insert({
+  await db().from('workforce_audit_events').insert({
     staff_id: session.staff_id,
     entity_type: 'leave_request',
     entity_id: id,
