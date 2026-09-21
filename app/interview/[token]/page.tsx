@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 
 export default function InterviewPage({ params }: { params: Promise<{ token: string }> }) {
   const [token, setToken] = useState('');
@@ -79,11 +80,11 @@ export default function InterviewPage({ params }: { params: Promise<{ token: str
   if (loading) return <main className="wrap" style={{ padding:'80px 0', maxWidth:900 }}><section className="card" style={{ padding:32, textAlign:'center' }}><p style={{color:'var(--muted)'}}>Preparing your questions…</p></section></main>;
   if (error && !questions.length) return <main className="wrap" style={{ padding:'80px 0', maxWidth:900 }}><section className="card" style={{ padding:32, textAlign:'center' }}><h1>We couldn't open your assessment</h1><p style={{color:'var(--muted)',lineHeight:1.6}}>{error}</p></section></main>;
 
-  if (submitted || result) return <main className="wrap" style={{ padding:'70px 0 90px', maxWidth:900 }}><section className="card" style={{ padding:34, textAlign:'center' }}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>ROUND 1 COMPLETE</p><h1>{result?.passed ? 'Well done. You have reached the next stage.' : result?.passed === false ? 'Thank you for completing the assessment.' : 'Your assessment has already been submitted.'}</h1>{result ? <><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,margin:'26px 0'}}><Metric label="Score" value={`${result.score}/${result.totalQuestions}`} /><Metric label="Result" value={`${result.percent}%`} /><Metric label="Pass mark" value="80%" /></div><p style={{color:'var(--muted)',lineHeight:1.7}}>{result.passed ? 'Your second-stage practical and theory interview has been created automatically. Check your email for the private link.' : 'The recruitment team will retain your result as part of the recruitment process.'}</p></> : <p style={{color:'var(--muted)',lineHeight:1.7}}>Your assessment status is already recorded. Please use the latest recruitment link you received.</p>}</section></main>;
+  if (submitted || result) return <main className="wrap" style={{ padding:'70px 0 90px', maxWidth:900 }}><LauremCandidateJourney current="interview1" /><section className="card" style={{ padding:34, textAlign:'center' }}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>INTERVIEW 1 COMPLETE</p><h1>{result?.passed ? 'Well done. You have reached the next stage.' : result?.passed === false ? 'Thank you for completing the assessment.' : 'Your assessment has already been submitted.'}</h1>{result ? <><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,margin:'26px 0'}}><Metric label="Score" value={`${result.score}/${result.totalQuestions}`} /><Metric label="Result" value={`${result.percent}%`} /><Metric label="Pass mark" value="80%" /></div><p style={{color:'var(--muted)',lineHeight:1.7}}>{result.passed ? 'Your Interview 2 has been created automatically. Check your email for the private link.' : 'The recruitment team will retain your result as part of the recruitment process.'}</p></> : <p style={{color:'var(--muted)',lineHeight:1.7}}>Your assessment status is already recorded. Please use the latest recruitment link you received.</p>}</section></main>;
 
-  return <main className="wrap" style={{ padding:'38px 0 80px', maxWidth:900 }}>
+  return <main className="wrap" style={{ padding:'38px 0 80px', maxWidth:900 }}><LauremCandidateJourney current="interview1" compact />
     <section className="card" style={{padding:30,marginBottom:16}}>
-      <p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em',fontSize:12}}>LAUREM CAREGROUP · FIRST ASSESSMENT</p>
+      <p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em',fontSize:12}}>LAUREM CAREGROUP · INTERVIEW 1</p>
       <h1 style={{margin:'8px 0'}}>A few quick questions about how you work.</h1>
       <p style={{color:'var(--muted)',lineHeight:1.65,maxWidth:740}}>This is the first stage for your <strong>{role}</strong> application. You will answer {questions.length} short questions selected for you from our question bank. There is no timer. Take your time and choose the answer that best matches safe, respectful practice.</p>
       <div style={{height:8,background:'var(--line)',borderRadius:99,overflow:'hidden',marginTop:18}}><div style={{width:`${Math.round(answered/questions.length*100)}%`,height:'100%',background:'var(--accent)',transition:'width .2s ease'}} /></div>
