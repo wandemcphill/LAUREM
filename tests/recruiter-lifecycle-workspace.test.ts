@@ -12,7 +12,7 @@ describe('LAUREM recruiter lifecycle workspace', () => {
     expect(workspace.gates.readiness).toBe('blocked');
     expect(workspace.gates.staff).toBe('not_started');
     expect(workspace.blockers.map((item) => item.code)).toEqual(['CONTRACT_REQUIRED', 'READINESS_INCOMPLETE']);
-    expect(workspace.actions.map((item) => item.key)).toEqual(['prepare_contract', 'open_readiness', 'prepare_onboarding']);
+    expect(workspace.actions.map((item) => item.key)).toEqual(['prepare_contract', 'open_readiness']);
   });
 
   it('exposes Hired portal progression only when the canonical policy permits it', () => {
@@ -20,7 +20,7 @@ describe('LAUREM recruiter lifecycle workspace', () => {
       status: 'Hired', contractAccepted: true, contractRoleMatches: true, requiredReadinessOpen: 0,
       staffExists: true, staffContractBound: true, staffStatus: 'pending', lifecycle: { portalProvision: { ok: true } },
     });
-    expect(workspace.gates.portal).toBe('blocked');
+    expect(workspace.gates.portal).toBe('not_started');
     expect(workspace.actions.map((item) => item.key)).toContain('portal_provision');
   });
 
@@ -31,5 +31,16 @@ describe('LAUREM recruiter lifecycle workspace', () => {
     });
     expect(workspace.actions.map((item) => item.key)).toContain('terminal_review');
     expect(workspace.actions.map((item) => item.key)).not.toContain('prepare_onboarding');
+  });
+  it('does not offer onboarding preparation before contract and readiness gates are cleared', () => {
+    const workspace = buildRecruiterLifecycleWorkspace({
+      status: 'Offer',
+      contractAccepted: true,
+      contractRoleMatches: true,
+      requiredReadinessOpen: 1,
+      staffExists: false,
+      staffContractBound: false,
+    });
+    expect(workspace.actions.map((item) => item.key)).toEqual(['open_readiness']);
   });
 });
