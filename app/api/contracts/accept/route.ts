@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     });
     if (packResult.error) throw packResult.error;
 
-    const documentPackUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\\/$/, '') + '/candidate-documents/' + rawDocumentToken;
+    const documentPackUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/candidate-documents/' + rawDocumentToken;
     await sendLauremEmail(loaded.client, {
       eventType: 'candidate_document_pack_issued',
       entityId: application.id,
