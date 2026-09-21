@@ -55,6 +55,8 @@ export default function CandidateDocumentsPage({
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Unable to load your documents.');
       setData(body);
+      if (body.onboardingLink) setOnboardingLink(body.onboardingLink);
+      setWaitingForReadiness(Boolean(body.waitingForReadiness));
       if (!name && body.application?.full_name) setName(body.application.full_name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your documents.');
