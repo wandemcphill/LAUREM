@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 const PHOTO_BUCKET = 'laurem-staff-photos';
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -81,6 +82,12 @@ export async function PATCH(req: NextRequest) {
     details: { fields: Object.keys(update).filter((key) => key !== 'updated_at') },
   });
 
+  await recordLauremAuditEvent({
+    lifecycleArea: 'staff_account', entityType: 'staff_profile', entityId: session.staff_id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'self_service_profile_updated',
+    metadata: { fields: Object.keys(update).filter((key) => key !== 'updated_at') },
+  });
+
   return NextResponse.json({ staff: withPhotoUrl(data) });
 }
 
@@ -153,6 +160,12 @@ export async function POST(req: NextRequest) {
     event_type: 'staff_photo_updated',
     actor: session.email,
     details: { content_type: file.type, bytes: file.size },
+  });
+
+  await recordLauremAuditEvent({
+    lifecycleArea: 'staff_account', entityType: 'staff_profile', entityId: session.staff_id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'staff_photo_updated',
+    metadata: { contentType: file.type, bytes: file.size },
   });
 
   return NextResponse.json({ staff: withPhotoUrl(data) });

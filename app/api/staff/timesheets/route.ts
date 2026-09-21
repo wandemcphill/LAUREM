@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { isMutableTimesheetStatus, isDateOnly } from '@/lib/laurem-workforce-policy';
 import { validateAssignedTimesheet } from '@/lib/laurem-workforce-integrity';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 function hoursBetween(clockIn: string, clockOut: string, breakMinutes: number) {
   const start = new Date(clockIn).getTime();
@@ -81,6 +82,12 @@ export async function POST(req: NextRequest) {
     if (lockedError(error)) return NextResponse.json({ error: 'This date is inside a locked payroll period and cannot be changed.' }, { status: 409 });
     return NextResponse.json({ error: 'Unable to submit timesheet.' }, { status: 500 });
   }
+  await recordLauremAuditEvent({
+    lifecycleArea: 'workforce', entityType: 'timesheet', entityId: created.id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'timesheet_submitted', newState: 'submitted',
+    metadata: { assignmentId: created.assignment_id, workDate: created.work_date, totalHours: created.total_hours },
+  });
+
   return NextResponse.json({ timesheet: created }, { status: 201 });
 }
 
@@ -153,5 +160,12 @@ export async function PATCH(req: NextRequest) {
     }
     return NextResponse.json({ error: 'Unable to update timesheet.' }, { status: 500 });
   }
+  await recordLauremAuditEvent({
+    lifecycleArea: 'workforce', entityType: 'timesheet', entityId: updated.id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: resubmit ? 'timesheet_resubmitted' : 'timesheet_updated',
+    previousState: current.status, newState: updated.status,
+    metadata: { assignmentId: updated.assignment_id, workDate: updated.work_date, totalHours: updated.total_hours },
+  });
+
   return NextResponse.json({ timesheet: updated });
 }

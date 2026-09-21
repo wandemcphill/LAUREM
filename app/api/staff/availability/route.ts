@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 function cleanNotes(value: unknown) {
   return typeof value === 'string' ? value.trim().slice(0, 2000) : '';
@@ -78,5 +79,17 @@ export async function PATCH(request: NextRequest) {
     details: payload,
   });
 
-  return NextResponse.json({ availability: saved });
+
+
+  await recordLauremAuditEvent({
+    lifecycleArea: 'workforce',
+    entityType: 'staff_availability',
+    entityId: saved.id,
+    staffId: session.staff_id,
+    actorType: 'staff',
+    actor: session.email,
+    action: 'availability_updated',
+    newState: effectiveFrom,
+    metadata: { effectiveFrom, fullTime: payload.full_time, partTime: payload.part_time, days: payload.days, nights: payload.nights, weekends: payload.weekends },
+  });  return NextResponse.json({ availability: saved });
 }

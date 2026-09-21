@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession, requestIp } from '@/lib/laurem-staff-auth';
 import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, getOrCreateAdminConversation, participantConversationIds } from '@/lib/laurem-messaging';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
@@ -65,5 +66,11 @@ export async function POST(req: NextRequest) {
   if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
   await client.from('staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
+  await recordLauremAuditEvent({
+    lifecycleArea: 'messaging', entityType: 'staff_message', entityId: created.id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'message_sent',
+    metadata: { conversationId: conversation.id, recipientStaffId },
+  });
+
   return NextResponse.json({ conversation, message: created }, { status: 201 });
 }
