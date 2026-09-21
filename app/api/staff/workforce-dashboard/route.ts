@@ -29,18 +29,18 @@ export async function GET(request: NextRequest) {
       availabilityResult,
       payrollResult,
     ] = await Promise.all([
-      client.from('laurem_staff_profiles')
+      client.from('staff_profiles')
         .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at')
         .eq('id', session.staff_id)
         .maybeSingle(),
-      client.from('laurem_staff_assignments')
+      client.from('staff_assignments')
         .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes')
         .eq('staff_id', session.staff_id)
         .in('status', ['scheduled', 'confirmed'])
         .gte('scheduled_end', now.toISOString())
         .order('scheduled_start', { ascending: true })
         .limit(20),
-      client.from('laurem_staff_timesheets')
+      client.from('staff_timesheets')
         .select('id,assignment_id,work_date,clock_in,clock_out,total_hours,status,notes')
         .eq('staff_id', session.staff_id)
         .order('work_date', { ascending: false })
@@ -54,12 +54,12 @@ export async function GET(request: NextRequest) {
         .select('id,title,status,updated_at')
         .eq('staff_id', session.staff_id)
         .maybeSingle(),
-      client.from('laurem_staff_notifications')
+      client.from('staff_notifications')
         .select('id,title,body,read_at,action_url,created_at')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(8),
-      client.from('laurem_staff_documents')
+      client.from('staff_documents')
         .select('id,title,signature_status,category,issued_at')
         .eq('staff_id', session.staff_id)
         .eq('status', 'issued')
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
       const openAssignmentIds = [...new Set(openAttendance.map((row: any) => row.assignment_id).filter(Boolean))];
       if (openAssignmentIds.length) {
         const { data: openAssignments, error: openAssignmentError } = await client
-          .from('laurem_staff_assignments')
+          .from('staff_assignments')
           .select('id,scheduled_end')
           .eq('staff_id', session.staff_id)
           .in('id', openAssignmentIds);
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     let messages: any[] = [];
     if (conversationIds.length) {
       const { data: conversations, error: conversationError } = await client
-        .from('laurem_staff_message_conversations')
+        .from('staff_message_conversations')
         .select('id,updated_at,last_message_at')
         .in('id', conversationIds)
         .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
         ]);
         const otherId = (participants || []).map((row: any) => row.staff_id).find((id: string) => id !== session.staff_id) || null;
         const { data: other } = otherId
-          ? await client.from('laurem_staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
+          ? await client.from('staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
           : { data: null };
         const ownParticipant = (participants || []).find((row: any) => row.staff_id === session.staff_id);
         messages.push({
