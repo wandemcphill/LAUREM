@@ -84,6 +84,16 @@ export async function POST(request: NextRequest) {
     if (packageResult.error) throw packageResult.error;
     if (!packageResult.data) throw new Error('Employment document package issuance returned no result.');
 
+    if (application.status !== 'Hired') {
+      const signedDocumentResult = await client.rpc('laurem_attach_signed_candidate_documents_to_staff', {
+        p_staff_id: staff.id,
+        p_application_id: id,
+        p_actor: session.email,
+      });
+      if (signedDocumentResult.error) throw signedDocumentResult.error;
+      if (!signedDocumentResult.data) throw new Error('Signed candidate employment documents could not be attached to the staff record.');
+    }
+
     let transitioned = application;
     if (application.status !== 'Hired') {
       const transitionResult = await client.rpc('laurem_transition_application_status', {
