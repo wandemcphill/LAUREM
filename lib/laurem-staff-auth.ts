@@ -78,10 +78,16 @@ export async function getStaffSession(req: NextRequest) {
   const client = db();
   const { data: staff } = await client
     .from('staff_profiles')
-    .select('id,laurem_id,email,employment_status,session_version')
+    .select('id,laurem_id,email,employment_status,activated_at,password_hash,session_version')
     .eq('id', token.staff_id)
     .maybeSingle();
-  if (!staff || !['pending', 'active'].includes(staff.employment_status) || staff.session_version !== token.session_version) return null;
+  if (
+    !staff
+    || staff.employment_status !== 'active'
+    || !staff.activated_at
+    || !staff.password_hash
+    || staff.session_version !== token.session_version
+  ) return null;
   if ((staff.laurem_id || '') !== token.laurem_id || staff.email.trim().toLowerCase() !== token.email) return null;
   const { data: session } = await client.from('staff_portal_sessions')
     .select('id,expires_at,revoked_at')
