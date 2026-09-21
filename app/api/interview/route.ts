@@ -15,20 +15,20 @@ async function resolveContext(request:NextRequest){
   const token=request.headers.get('x-invitation-token')||'';
   if(!token) throw new Error('INVITATION_TOKEN_REQUIRED');
   const client=db();
-  const {data:invite,error:inviteError}=await client.from('recruitment_invites').select('id,candidate_name,candidate_email,role,expires_at').eq('token_hash',hashToken(token)).maybeSingle();
+  const {data:invite,error:inviteError}=await client.from('laurem_recruitment_invites').select('id,candidate_name,candidate_email,role,expires_at').eq('token_hash',hashToken(token)).maybeSingle();
   if(inviteError) throw inviteError;
   if(!invite) throw new Error('INVITATION_NOT_FOUND');
   if(invite.expires_at&&new Date(invite.expires_at).getTime()<=Date.now()) throw new Error('INVITATION_EXPIRED');
 
-  let {data:application,error:appError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('invite_id',invite.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
+  let {data:application,error:appError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('invite_id',invite.id).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(appError) throw appError;
 
   // Admin reissued assessment links use a fresh invitation bound to the existing Round 1 attempt.
   if(!application){
-    const {data:boundAttempt,error:boundAttemptError}=await client.from('interview_attempts').select('application_id').eq('invite_id',invite.id).eq('round',1).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    const {data:boundAttempt,error:boundAttemptError}=await client.from('laurem_interview_attempts').select('application_id').eq('invite_id',invite.id).eq('round',1).order('created_at',{ascending:false}).limit(1).maybeSingle();
     if(boundAttemptError) throw boundAttemptError;
     if(boundAttemptAttemptId(boundAttempt)){
-      const {data:reissuedApplication,error:reissuedApplicationError}=await client.from('recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('id',boundAttempt.application_id).maybeSingle();
+      const {data:reissuedApplication,error:reissuedApplicationError}=await client.from('laurem_recruitment_applications').select('id,full_name,email,role_applied,living_in_uk,invite_id,status').eq('id',boundAttempt.application_id).maybeSingle();
       if(reissuedApplicationError) throw reissuedApplicationError;
       application=reissuedApplication;
     }
@@ -49,16 +49,16 @@ export async function GET(request:NextRequest){
     const {client,invite,application,role}=await resolveContext(request);
     const pathway=application.living_in_uk==='No'?'international':'uk';
     const bank=getLauremRound1Bank(role);
-    let {data:attempt,error}=await client.from('interview_attempts').select('id,question_ids,question_snapshot,status,score,total_questions,percent,pass_percent').eq('application_id',application.id).eq('round',1).maybeSingle();
+    let {data:attempt,error}=await client.from('laurem_interview_attempts').select('id,question_ids,question_snapshot,status,score,total_questions,percent,pass_percent').eq('application_id',application.id).eq('round',1).maybeSingle();
     if(error) throw error;
     if(!attempt){
       const selected=selectRound1Questions(role);
       if(selected.length!==ROUND1_QUESTIONS_PER_ATTEMPT) throw new Error('ROUND1_SELECTION_FAILED');
       const snapshot=selected.map(q=>({id:q.id,category:q.category,text:q.text,options:q.options,correctIndex:q.correctIndex}));
-      const {data:created,error:createError}=await client.from('interview_attempts').insert({application_id:application.id,invite_id:invite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress'}).select('id,question_ids,question_snapshot,status,score,total_questions,percent,pass_percent').single();
+      const {data:created,error:createError}=await client.from('laurem_interview_attempts').insert({application_id:application.id,invite_id:invite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress'}).select('id,question_ids,question_snapshot,status,score,total_questions,percent,pass_percent').single();
       if(createError) throw createError;
       attempt=created;
-      await client.from('recruitment_applications').update({status:'Interview',updated_at:new Date().toISOString()}).eq('id',application.id).eq('status','Application');
+      await client.from('laurem_recruitment_applications').update({status:'Interview',updated_at:new Date().toISOString()}).eq('id',application.id).eq('status','Application');
       void bank;
     }
     const snapshot=Array.isArray(attempt.question_snapshot)?attempt.question_snapshot:[];
@@ -79,7 +79,7 @@ export async function POST(request:NextRequest){
   if(!body.attemptId)return NextResponse.json({error:'Assessment id is required.'},{status:400});
   try{
     const {client,application,role}=await resolveContext(request);
-    const {data:attempt,error:attemptError}=await client.from('interview_attempts').select('id,application_id,round,role,pathway,question_snapshot,status').eq('id',body.attemptId).eq('application_id',application.id).eq('round',1).maybeSingle();
+    const {data:attempt,error:attemptError}=await client.from('laurem_interview_attempts').select('id,application_id,round,role,pathway,question_snapshot,status').eq('id',body.attemptId).eq('application_id',application.id).eq('round',1).maybeSingle();
     if(attemptError)throw attemptError;
     if(!attempt)return NextResponse.json({error:'Assessment not found.'},{status:404});
     if(attempt.status!=='in_progress')return NextResponse.json({error:'This assessment has already been submitted.'},{status:409});
