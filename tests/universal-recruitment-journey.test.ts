@@ -31,7 +31,7 @@ describe('universal recruitment journey', () => {
   });
 
   it('prevents candidate access to an unissued contract', () => {
-    expect(contractAccept).toContain("!['issued', 'viewed'].includes(String(contract.status))");
+    expect(contractAccept).toContain("!['issued', 'viewed'].includes(String(contractState.status || ''))");
     expect(contractAccept).toContain('not yet available for candidate review');
   });
 });
