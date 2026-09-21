@@ -6,13 +6,15 @@ import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laure
 import { renderLauremJobDescription } from '@/lib/laurem-job-description';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { LauremLifecycleError, validateLauremStaffTransition, type LauremLifecycleErrorCode } from '@/lib/laurem-lifecycle';
+import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
 
   const id = new URL(request.url).searchParams.get('id')?.trim() || '';
-  if (!id) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
+  if (!id) return operationalError(requestId, 'Application id is required.', 400, 'APPLICATION_ID_REQUIRED');
 
   try {
     const client = db();
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
       .eq('id', id)
       .maybeSingle();
     if (applicationError) throw applicationError;
-    if (!application) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+    if (!application) return operationalError(requestId, 'Application not found.', 404, 'APPLICATION_NOT_FOUND');
 
     await validateLauremStaffTransition(client, id);
 
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
       .order('issued_at', { ascending: true });
     if (docsError) throw docsError;
 
-    return NextResponse.json({
+    return withRequestId(NextResponse.json({
       application: transitioned,
       staff: {
         id: staff.id,
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
       },
       documents: currentDocs || [],
       activation,
-    }, { status: application.status === 'Hired' ? 200 : 201 });
+    }, { status: application.status === 'Hired' ? 200 : 201 }), requestId);
   } catch (error) {
     if (error instanceof LauremLifecycleError) {
       const statusByCode: Record<LauremLifecycleErrorCode, number> = {
@@ -138,15 +140,9 @@ export async function POST(request: NextRequest) {
         STAFF_CONTRACT_MISMATCH: 409,
       };
       const details = error.details?.readiness ? { readiness: error.details.readiness } : undefined;
-      return NextResponse.json({ error: error.message, ...details }, { status: statusByCode[error.code] });
+      return operationalError(requestId, error.message, statusByCode[error.code], error.code);
     }
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'admin.application.hire_failed',
-      actor: session.email,
-      applicationId: id,
-      reason: error instanceof Error ? error.message : String(error),
-    }));
-    return NextResponse.json({ error: 'Unable to complete the hire workflow.' }, { status: 500 });
+    logOperationalError({ requestId, event: 'admin.application.hire_failed', actor: session.email, reason: error, metadata: { applicationId: id } });
+    return operationalError(requestId, 'Unable to complete the hire workflow.', 500, 'HIRE_WORKFLOW_FAILED');
   }
 }
