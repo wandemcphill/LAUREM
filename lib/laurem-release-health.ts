@@ -49,7 +49,8 @@ export const EXPECTED_PORTAL_TABLES = [
   'staff_visa_case_events',
 ] as const;
 
-export const REQUIRED_PRIVATE_BUCKET = 'laurem-private-documents';
+export const REQUIRED_PRIVATE_BUCKETS = ['laurem-private-documents', 'laurem-staff-photos', 'interview-recordings', 'bimed-staff-photos'] as const;
+export const REQUIRED_PRIVATE_BUCKET = REQUIRED_PRIVATE_BUCKETS[0];
 
 export type ReleaseHealth = {
   ok: boolean;
@@ -74,7 +75,8 @@ export type ReleaseHealth = {
         error: string | null;
       };
     };
-    storage: { ok: boolean; bucketPresent: boolean; error: string | null };
+    storage: { ok: boolean; bucketsPresent: string[]; missingBuckets: string[]; error: string | null };
+    readiness: { ok: boolean; requiredFunctionCount: number; missingFunctions: string[]; error: string | null };
   };
 };
 
@@ -123,15 +125,27 @@ export async function checkReleaseHealth(client: SupabaseClient): Promise<Releas
     : contract.ok === true;
 
   const { data: buckets, error: bucketError } = await client.storage.listBuckets();
-  const bucketPresent = Array.isArray(buckets) && buckets.some((bucket) => bucket.name === REQUIRED_PRIVATE_BUCKET);
+  const presentBucketNames = Array.isArray(buckets) ? buckets.map((bucket) => bucket.name) : [];
+  const bucketsPresent = REQUIRED_PRIVATE_BUCKETS.filter((bucket) => presentBucketNames.includes(bucket));
+  const missingBuckets = REQUIRED_PRIVATE_BUCKETS.filter((bucket) => !presentBucketNames.includes(bucket));
+
+  const { data: readinessContract, error: readinessError } = await client.rpc('laurem_verify_release_readiness');
+  const readiness = readinessContract && typeof readinessContract === 'object'
+    ? readinessContract as Record<string, unknown>
+    : {};
+  const missingFunctions = Array.isArray(readiness.missing_functions)
+    ? readiness.missing_functions.filter((value): value is string => typeof value === 'string')
+    : [];
+  const requiredFunctionCount = typeof readiness.required_function_count === 'number' ? readiness.required_function_count : 0;
+  const readinessOk = !readinessError && readiness.ok === true;
 
   const databaseOk = !databaseError;
   const schemaOk = schemaContractOk && missingTables.length === 0 && rlsDisabledTables.length === 0 && missingColumns.length === 0 && missingIndexes.length === 0;
-  const storageOk = !bucketError && bucketPresent;
+  const storageOk = !bucketError && missingBuckets.length === 0;
   const environmentOk = missingEnvironment.length === 0;
 
   return {
-    ok: environmentOk && databaseOk && schemaOk && storageOk,
+    ok: environmentOk && databaseOk && schemaOk && storageOk && readinessOk,
     timestamp,
     release: { commit: releaseCommit(), environment: process.env.NODE_ENV || 'unknown' },
     dependencies: {
@@ -155,7 +169,8 @@ export async function checkReleaseHealth(client: SupabaseClient): Promise<Releas
           error: schemaContractError ? errorMessage(schemaContractError) : null,
         },
       },
-      storage: { ok: storageOk, bucketPresent, error: bucketError ? errorMessage(bucketError) : null },
+      storage: { ok: storageOk, bucketsPresent, missingBuckets, error: bucketError ? errorMessage(bucketError) : null },
+      readiness: { ok: readinessOk, requiredFunctionCount, missingFunctions, error: readinessError ? errorMessage(readinessError) : null },
     },
   };
 }
