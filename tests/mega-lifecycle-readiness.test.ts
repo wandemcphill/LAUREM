@@ -71,6 +71,10 @@ describe('LAUREM mega lifecycle readiness contract', () => {
     }
     expect(source).toContain(".select('id', { head: true, count: 'exact' })");
     expect(source).toContain("REQUIRED_PRIVATE_BUCKET = 'laurem-private-documents'");
+    expect(source).toContain("REQUIRED_PRIVATE_BUCKETS");
+    expect(source).toContain("laurem-staff-photos");
+    expect(source).toContain("interview-recordings");
+
   });
 
   it('keeps the admin health endpoint authenticated and non-cacheable', () => {

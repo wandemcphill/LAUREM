@@ -6,6 +6,7 @@ import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
+import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
@@ -21,11 +22,12 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const applicationId = typeof body?.applicationId === 'string' ? body.applicationId.trim() : '';
-  if (!applicationId) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
+  if (!applicationId) return operationalError(requestId, 'Application id is required.', 400, 'APPLICATION_ID_REQUIRED');
   try {
     const client = db();
     const { data: app, error: appError } = await client.from('recruitment_applications').select('*').eq('id', applicationId).maybeSingle();
@@ -113,18 +115,19 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: tokenError } = await client.from('recruitment_contract_tokens').insert({ contract_id: contract.id, token_hash: hashToken(token), expires_at: expiresAt, used_at: null });
     if (tokenError) throw tokenError;
-    return NextResponse.json({ contract, contractType: contract.contract_type, acceptanceLink: `${appUrl()}/contracts/accept/${token}` }, { status: 201 });
+    return withRequestId(NextResponse.json({ contract, contractType: contract.contract_type, acceptanceLink: `${appUrl()}/contracts/accept/${token}` }, { status: 201 }), requestId);
   } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'admin.contract.generate_failed', actor: session.email, reason: error instanceof Error ? error.message : 'unknown' }));
-    return NextResponse.json({ error: 'Unable to generate employment contract.' }, { status: 500 });
+    logOperationalError({ requestId, event: 'admin.contract.generate_failed', actor: session.email, reason: error, metadata: { applicationId } });
+    return operationalError(requestId, 'Unable to generate employment contract.', 500, 'CONTRACT_GENERATION_FAILED');
   }
 }
 
 export async function PATCH(request: NextRequest) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
   const id = new URL(request.url).searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'Contract id is required.' }, { status: 400 });
+  if (!id) return operationalError(requestId, 'Contract id is required.', 400, 'CONTRACT_ID_REQUIRED');
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (body?.status !== 'issued') return NextResponse.json({ error: 'Only issuing a draft contract is permitted here.' }, { status: 400 });
   const client = db();
@@ -173,9 +176,9 @@ export async function PATCH(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({
+  return withRequestId(NextResponse.json({
     contract: updated,
     acceptanceLink: link,
     email: { status: email.status, attempts: email.attempts, providerId: 'providerId' in email ? email.providerId : null, deliveryId: email.deliveryId, ...(email.status === 'failed' ? { error: email.error } : {}) },
-  });
+  }), requestId);
 }

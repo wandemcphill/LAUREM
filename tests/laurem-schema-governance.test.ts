@@ -26,8 +26,8 @@ describe('LAUREM schema governance contract', () => {
   it('keeps public readiness fail-closed without exposing schema internals', () => {
     const route = readFileSync('app/api/health/ready/route.ts', 'utf8');
 
-    expect(route).toContain("client.rpc('laurem_verify_release_schema')");
-    expect(route).toContain("status: 503");
+    expect(route).toContain("client.rpc('laurem_verify_release_readiness')");
+    expect(route).toContain("operationalError(requestId, 'Service is not ready.', 503, 'RELEASE_NOT_READY')");
     expect(route).not.toContain('missing_tables');
     expect(route).not.toContain('missing_indexes');
     expect(route).not.toContain('ADMIN_PASSWORD');

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
 import { lauremRoleSlug } from '@/lib/laurem-role-policy';
+import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 function describeError(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -21,11 +22,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
 
   const { id } = await params;
-  if (!id) return NextResponse.json({ error: 'Application id is required.' }, { status: 400 });
+  if (!id) return operationalError(requestId, 'Application id is required.', 400, 'APPLICATION_ID_REQUIRED');
 
   try {
     const client = db();
@@ -34,7 +36,7 @@ export async function GET(
       client.from('recruitment_applications').select('*').eq('id', id).maybeSingle(),
     );
     const application = applicationResult.data;
-    if (!application) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+    if (!application) return operationalError(requestId, 'Application not found.', 404, 'APPLICATION_NOT_FOUND');
 
     const inviteResult = application.invite_id
       ? await checked(
@@ -116,7 +118,7 @@ export async function GET(
       lifecyclePolicy[key] = result.data;
     }
 
-    return NextResponse.json({
+    return withRequestId(NextResponse.json({
       application,
       invite: inviteResult.data,
       interviews: interviewResult.data || [],
@@ -144,10 +146,10 @@ export async function GET(
         staffStatus: staffResult.data?.employment_status || null,
         staffActivatedAt: staffResult.data?.activated_at || null,
       },
-    });
+    }), requestId);
   } catch (error) {
     const reason = describeError(error);
-    console.error(JSON.stringify({ level: 'error', event: 'admin.application.detail_failed', actor: session.email, applicationId: id, reason }));
-    return NextResponse.json({ error: 'Unable to load candidate record.' }, { status: 500 });
+    logOperationalError({ requestId, event: 'admin.application.detail_failed', actor: session.email, reason, metadata: { applicationId: id } });
+    return operationalError(requestId, 'Unable to load candidate record.', 500, 'APPLICATION_DETAIL_FAILED');
   }
 }

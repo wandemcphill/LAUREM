@@ -11,7 +11,8 @@ type Health = {
     environment: { ok: boolean; missing: string[] };
     database: { ok: boolean; latencyMs: number; error: string | null };
     schema: { ok: boolean; missing: string[] };
-    storage: { ok: boolean; bucketPresent: boolean; error: string | null };
+    storage: { ok: boolean; bucketsPresent: string[]; missingBuckets: string[]; error: string | null };
+    readiness: { ok: boolean; requiredFunctionCount: number; missingFunctions: string[]; error: string | null };
   };
 };
 
@@ -53,8 +54,9 @@ export default function SystemHealthPage() {
         <Check title="Environment" ok={health.dependencies.environment.ok} detail={health.dependencies.environment.ok ? 'Required server configuration is present.' : `Missing: ${health.dependencies.environment.missing.join(', ')}`} />
         <Check title="Database" ok={health.dependencies.database.ok} detail={health.dependencies.database.ok ? `Responsive in ${health.dependencies.database.latencyMs} ms.` : health.dependencies.database.error || 'Database unavailable.'} />
         <Check title="LAUREM schema" ok={health.dependencies.schema.ok} detail={health.dependencies.schema.ok ? 'Expected isolated portal tables are present.' : `Missing: ${health.dependencies.schema.missing.join(', ')}`} />
-        <Check title="Private storage" ok={health.dependencies.storage.ok} detail={health.dependencies.storage.ok ? 'Required private document bucket is present.' : health.dependencies.storage.error || (health.dependencies.storage.bucketPresent ? 'Bucket check failed.' : 'Required bucket is missing.')} />
+        <Check title="Private storage" ok={health.dependencies.storage.ok} detail={health.dependencies.storage.ok ? `Required private buckets are present (${health.dependencies.storage.bucketsPresent.length}).` : health.dependencies.storage.error || `Missing: ${health.dependencies.storage.missingBuckets.join(', ') || 'required private bucket'}`} />
       </section>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(235px,1fr))', gap: 14, marginTop: 14 }}><Check title="Critical functions" ok={health.dependencies.readiness.ok} detail={health.dependencies.readiness.ok ? `${health.dependencies.readiness.requiredFunctionCount} required database functions are available.` : health.dependencies.readiness.error || `Missing: ${health.dependencies.readiness.missingFunctions.join(', ') || 'required function'}`} /></section>
       <section className="card" style={{ padding: 22, marginTop: 14 }}><h2>Release</h2><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(235px,1fr))', gap: 16 }}><div><div style={label}>Environment</div><div>{health.release?.environment || 'Unknown'}</div></div><div><div style={label}>Commit</div><div style={{ wordBreak: 'break-all' }}>{health.release?.commit || 'Not exposed by host'}</div></div></div></section>
     </>}
   </main>;

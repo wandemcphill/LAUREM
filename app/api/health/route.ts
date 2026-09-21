@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestId, withRequestId } from '@/lib/laurem-operational';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -11,14 +12,12 @@ function releaseCommit() {
     || null;
 }
 
-export async function GET() {
-  const response = NextResponse.json({
+export async function GET(request: NextRequest) {
+  const requestId = getRequestId(request);
+  return withRequestId(NextResponse.json({
     ok: true,
     service: 'laurem-recruitment-platform',
     timestamp: new Date().toISOString(),
     commit: releaseCommit(),
-  }, { status: 200 });
-  response.headers.set('cache-control', 'no-store, max-age=0');
-  response.headers.set('x-laurem-health', 'ok');
-  return response;
+  }, { status: 200 }), requestId);
 }
