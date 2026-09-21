@@ -25,7 +25,7 @@ function lockedError(error: { message?: string } | null) {
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  const { data, error } = await db().from('laurem_staff_timesheets')
+  const { data, error } = await db().from('staff_timesheets')
     .select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,approved_by,approved_at,created_at,updated_at')
     .eq('staff_id', session.staff_id)
     .order('work_date', { ascending: false }).limit(100);
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const assignmentId = typeof input.assignmentId === 'string' ? input.assignmentId : null;
   const client = db();
   if (assignmentId) {
-    const { data: assignment } = await client.from('laurem_staff_assignments')
+    const { data: assignment } = await client.from('staff_assignments')
       .select('id,staff_id,scheduled_start,scheduled_end,status')
       .eq('id', assignmentId)
       .eq('staff_id', session.staff_id)
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     });
     if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
   }
-  const { data: created, error } = await client.from('laurem_staff_timesheets').insert({
+  const { data: created, error } = await client.from('staff_timesheets').insert({
     staff_id: session.staff_id,
     assignment_id: assignmentId,
     work_date: workDate,
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Timesheet id is required.' }, { status: 400 });
 
-  const { data: current, error: readError } = await db().from('laurem_staff_timesheets')
+  const { data: current, error: readError } = await db().from('staff_timesheets')
     .select('id,staff_id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes')
     .eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load timesheet.' }, { status: 500 });
@@ -124,7 +124,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (nextAssignment) {
-    const { data: assignment } = await db().from('laurem_staff_assignments')
+    const { data: assignment } = await db().from('staff_assignments')
       .select('id,staff_id,scheduled_start,scheduled_end,status')
       .eq('id', nextAssignment)
       .eq('staff_id', session.staff_id)
@@ -140,7 +140,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const nextStatus = resubmit ? 'submitted' : current.status;
-  const { data: updated, error } = await db().from('laurem_staff_timesheets').update({
+  const { data: updated, error } = await db().from('staff_timesheets').update({
     assignment_id: nextAssignment,
     work_date: nextWorkDate,
     clock_in: new Date(nextClockIn).toISOString(),
