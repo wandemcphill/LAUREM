@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = db();
     const { data: application, error: applicationError } = await client
-      .from('recruitment_applications')
+      .from('laurem_recruitment_applications')
       .select('*')
       .eq('id', id)
       .maybeSingle();
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const prepared = Array.isArray(preparedResult.data) ? preparedResult.data[0] : preparedResult.data;
     if (!prepared?.staff_id) throw new Error('Unable to prepare the workforce identity for hire.');
 
-    const { data: staff, error: staffError } = await client.from('staff_profiles')
+    const { data: staff, error: staffError } = await client.from('laurem_staff_profiles')
       .select('*')
       .eq('id', prepared.staff_id)
       .single();
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       activation = { status: 'activation_already_issued', deliveryId: null };
     }
 
-    const { data: currentDocs, error: docsError } = await client.from('staff_documents')
+    const { data: currentDocs, error: docsError } = await client.from('laurem_staff_documents')
       .select('id,title,category,requires_signature,signature_status,issuer_name,issuer_title,employer_name,issued_at')
       .eq('staff_id', staff.id)
       .eq('status', 'issued')
