@@ -50,7 +50,7 @@ export const EXPECTED_PORTAL_TABLES = [
 ] as const;
 
 export const REQUIRED_PRIVATE_BUCKET = 'laurem-private-documents';
-export const REQUIRED_PRIVATE_BUCKETS = [REQUIRED_PRIVATE_BUCKET, 'laurem-staff-photos', 'interview-recordings', 'bimed-staff-photos'] as const;
+export const REQUIRED_PRIVATE_BUCKETS = [REQUIRED_PRIVATE_BUCKET, 'laurem-staff-photos', 'interview-recordings'] as const;
 
 export type ReleaseHealth = {
   ok: boolean;
