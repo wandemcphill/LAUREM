@@ -34,7 +34,7 @@ export async function ensureLauremMailbox(client: SupabaseClient, staff: { id: s
       .insert({ staff_id: staff.id, handle, namespace })
       .select('id,staff_id,handle,namespace,enabled').single();
     if (!error && data) {
-      await client.from('laurem_staff_profiles').update({
+      await client.from('staff_profiles').update({
         portal_handle: handle,
         department_namespace: namespace,
         portal_address: `${handle}@${namespace}`,
@@ -57,7 +57,7 @@ export async function findLauremStaffByAddress(client: SupabaseClient, address: 
     .select('staff_id,handle,namespace,enabled')
     .eq('handle', handle).eq('namespace', namespace).eq('enabled', true).maybeSingle();
   if (error || !mailbox) return null;
-  const { data: staff } = await client.from('laurem_staff_profiles')
+  const { data: staff } = await client.from('staff_profiles')
     .select('id,laurem_id,employee_number,full_name,email,job_title,employment_status')
     .eq('id', mailbox.staff_id).maybeSingle();
   if (!staff || !['pending', 'active'].includes(staff.employment_status)) return null;
@@ -70,15 +70,15 @@ export function directKey(a: string, b: string) {
 
 export async function getOrCreateConversation(client: SupabaseClient, a: string, b: string) {
   const key = directKey(a, b);
-  const existing = await client.from('laurem_staff_message_conversations')
+  const existing = await client.from('staff_message_conversations')
     .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
   if (existing.data) return existing.data;
 
-  const { data: conversation, error } = await client.from('laurem_staff_message_conversations')
+  const { data: conversation, error } = await client.from('staff_message_conversations')
     .insert({ direct_key: key, created_by_staff_id: a })
     .select('id,direct_key,created_at,updated_at,last_message_at').single();
   if (error || !conversation) {
-    const retry = await client.from('laurem_staff_message_conversations')
+    const retry = await client.from('staff_message_conversations')
       .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
     if (retry.data) return retry.data;
     throw error || new Error('Unable to create conversation.');
@@ -93,15 +93,15 @@ export async function getOrCreateConversation(client: SupabaseClient, a: string,
 
 export async function getOrCreateAdminConversation(client: SupabaseClient, staffId: string) {
   const key = `admin:${staffId}`;
-  const existing = await client.from('laurem_staff_message_conversations')
+  const existing = await client.from('staff_message_conversations')
     .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
   if (existing.data) return existing.data;
 
-  const { data: conversation, error } = await client.from('laurem_staff_message_conversations')
+  const { data: conversation, error } = await client.from('staff_message_conversations')
     .insert({ direct_key: key, created_by_staff_id: null })
     .select('id,direct_key,created_at,updated_at,last_message_at').single();
   if (error || !conversation) {
-    const retry = await client.from('laurem_staff_message_conversations')
+    const retry = await client.from('staff_message_conversations')
       .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
     if (retry.data) return retry.data;
     throw error || new Error('Unable to create LAUREM admin conversation.');
