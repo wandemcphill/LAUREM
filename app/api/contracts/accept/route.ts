@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       contract = viewed || contract;
     }
 
-    return noStore(NextResponse.json({ contract: toPublicContract(contract as Record<string, unknown>) }));
+    return noStore(NextResponse.json({ contract: toPublicContract(contract as unknown as Record<string, unknown>) }));
   } catch (error) {
     console.error(JSON.stringify({
       level: 'error',
