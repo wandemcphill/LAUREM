@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { data: invite, error: inviteError } = await client
-      .from('laurem_recruitment_invites')
+      .from('recruitment_invites')
       .select('id,role,expires_at')
       .eq('token_hash', hashToken(token))
       .maybeSingle();
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: application, error: applicationError } = await client
-      .from('laurem_recruitment_applications')
+      .from('recruitment_applications')
       .select('id,role_applied,invite_id,living_in_uk')
       .eq('invite_id', invite.id)
       .order('created_at', { ascending: false })
@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: existing } = await client
-      .from('laurem_recruitment_nurse_interview_responses')
+      .from('recruitment_nurse_interview_responses')
       .select('id')
       .eq('application_id', application.id)
       .maybeSingle();
     if (existing) return NextResponse.json({ error: 'Your nursing interview has already been submitted.' }, { status: 409 });
 
-    const { error } = await client.from('laurem_recruitment_nurse_interview_responses').insert({
+    const { error } = await client.from('recruitment_nurse_interview_responses').insert({
       invite_id: invite.id,
       application_id: application.id,
       pathway,
