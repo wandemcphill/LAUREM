@@ -77,7 +77,8 @@ async function loadContract(request: NextRequest) {
   if (contractError) throw contractError;
   if (!contract) return { error: noStore(NextResponse.json({ error: 'Contract not found.' }, { status: 404 })) } as const;
 
-  if (!['issued', 'viewed'].includes(String(contract.status))) {
+  const contractState = contract as unknown as { status?: unknown };
+  if (!['issued', 'viewed'].includes(String(contractState.status || ''))) {
     return {
       error: noStore(NextResponse.json(
         { error: 'This contract is not yet available for candidate review.' },
