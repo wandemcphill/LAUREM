@@ -66,8 +66,15 @@ begin
              content_text = candidate_doc.content_text,
              storage_path = null,
              document_sha256 = candidate_doc.document_sha256,
-             source_type = 'onboarding',
-             source_key = 'candidate-document:' || candidate_doc.id::text,
+             source_type = case
+               when candidate_doc.document_type = 'job_description' then 'job_description'
+               else 'onboarding'
+             end,
+             source_key = case
+               when candidate_doc.document_type = 'job_description'
+                 then coalesce(nullif(existing_doc.source_key, ''), lower(btrim(coalesce(staff_row.job_title, 'Job'))))
+               else 'candidate-document:' || candidate_doc.id::text
+             end,
              status = 'issued',
              requires_signature = false,
              signature_status = 'signed',
@@ -157,7 +164,7 @@ begin
     values(
       existing_doc.id,
       p_staff_id,
-      'created',
+      'signed',
       'system',
       coalesce(nullif(btrim(p_actor), ''), 'LAUREM platform'),
       jsonb_build_object(
