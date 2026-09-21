@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           viewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', contract.id)
+        .eq('id', tokenRow.contract_id)
         .eq('status', 'issued')
         .select(PUBLIC_CONTRACT_FIELDS)
         .maybeSingle();
