@@ -123,8 +123,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const requestId = getRequestId(request);
   const session = readAdminSession(request);
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  if (!session) return operationalError(requestId, 'Unauthorised', 401, 'UNAUTHORISED');
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return operationalError(requestId, 'Contract id is required.', 400, 'CONTRACT_ID_REQUIRED');
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
