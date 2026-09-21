@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { clearStaffSession, getStaffSession, hashPassword, verifyPassword } from '@/lib/laurem-staff-auth';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 export async function POST(request: NextRequest) {
   const session = await getStaffSession(request);
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   const client = db();
   const { data: staff, error: staffError } = await client
     .from('staff_profiles')
-    .select('id,laurem_id,email,password_hash,employment_status,activated_at,session_version')
+    .select('id,application_id,laurem_id,email,password_hash,employment_status,activated_at,session_version')
     .eq('id', session.staff_id)
     .maybeSingle();
 
@@ -45,6 +46,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: 'Unable to change your password right now.' }, { status: 500 });
   }
+
+  await recordLauremAuditEvent({ lifecycleArea: 'staff_account', entityType: 'staff_profile', entityId: staff.id, staffId: staff.id, applicationId: staff.application_id, actorType: 'staff', actor: staff.email, action: 'password_changed', reason: 'Staff member changed the Staff Portal password through an authenticated session.' });
 
   const response = NextResponse.json({
     ok: true,
