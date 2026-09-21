@@ -23,7 +23,7 @@ describe('Mega-Build 21 staff account lifecycle', () => {
     expect(auth).toContain("staff.employment_status !== 'active'");
     expect(auth).toContain('staff.activated_at');
     expect(auth).toContain('staff.password_hash');
-    expect(login).toContain("staff.employment_status === 'active'");
+    expect(login).toContain("staff.employment_status !== 'active'");
     expect(login).toContain('staff.activated_at');
   });
 
