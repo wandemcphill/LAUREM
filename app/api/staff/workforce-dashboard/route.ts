@@ -29,23 +29,23 @@ export async function GET(request: NextRequest) {
       availabilityResult,
       payrollResult,
     ] = await Promise.all([
-      client.from('staff_profiles')
+      client.from('laurem_staff_profiles')
         .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at')
         .eq('id', session.staff_id)
         .maybeSingle(),
-      client.from('staff_assignments')
+      client.from('laurem_staff_assignments')
         .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes')
         .eq('staff_id', session.staff_id)
         .in('status', ['scheduled', 'confirmed'])
         .gte('scheduled_end', now.toISOString())
         .order('scheduled_start', { ascending: true })
         .limit(20),
-      client.from('staff_timesheets')
+      client.from('laurem_staff_timesheets')
         .select('id,assignment_id,work_date,clock_in,clock_out,total_hours,status,notes')
         .eq('staff_id', session.staff_id)
         .order('work_date', { ascending: false })
         .limit(100),
-      client.from('staff_leave_requests')
+      client.from('laurem_staff_leave_requests')
         .select('id,leave_type,start_date,end_date,total_days,reason,status,review_note,created_at')
         .eq('staff_id', session.staff_id)
         .order('start_date', { ascending: false })
@@ -54,18 +54,18 @@ export async function GET(request: NextRequest) {
         .select('id,title,status,updated_at')
         .eq('staff_id', session.staff_id)
         .maybeSingle(),
-      client.from('staff_notifications')
+      client.from('laurem_staff_notifications')
         .select('id,title,body,read_at,action_url,created_at')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(8),
-      client.from('staff_documents')
+      client.from('laurem_staff_documents')
         .select('id,title,signature_status,category,issued_at')
         .eq('staff_id', session.staff_id)
         .eq('status', 'issued')
         .order('issued_at', { ascending: false })
         .limit(20),
-      client.from('staff_availability')
+      client.from('laurem_staff_availability')
         .select('id,effective_from,full_time,part_time,days,nights,weekends,notes')
         .eq('staff_id', session.staff_id)
         .lte('effective_from', londonToday)
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
       const openAssignmentIds = [...new Set(openAttendance.map((row: any) => row.assignment_id).filter(Boolean))];
       if (openAssignmentIds.length) {
         const { data: openAssignments, error: openAssignmentError } = await client
-          .from('staff_assignments')
+          .from('laurem_staff_assignments')
           .select('id,scheduled_end')
           .eq('staff_id', session.staff_id)
           .in('id', openAssignmentIds);
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     let messages: any[] = [];
     if (conversationIds.length) {
       const { data: conversations, error: conversationError } = await client
-        .from('staff_message_conversations')
+        .from('laurem_staff_message_conversations')
         .select('id,updated_at,last_message_at')
         .in('id', conversationIds)
         .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -169,20 +169,20 @@ export async function GET(request: NextRequest) {
 
       for (const conversation of conversations || []) {
         const [{ data: latest }, { data: participants }] = await Promise.all([
-          client.from('staff_messages')
+          client.from('laurem_staff_messages')
             .select('body,sender_staff_id,sender_admin_email,created_at')
             .eq('conversation_id', conversation.id)
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-          client.from('staff_message_participants')
+          client.from('laurem_staff_message_participants')
             .select('staff_id,last_read_at')
             .eq('conversation_id', conversation.id),
         ]);
         const otherId = (participants || []).map((row: any) => row.staff_id).find((id: string) => id !== session.staff_id) || null;
         const { data: other } = otherId
-          ? await client.from('staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
+          ? await client.from('laurem_staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
           : { data: null };
         const ownParticipant = (participants || []).find((row: any) => row.staff_id === session.staff_id);
         messages.push({
