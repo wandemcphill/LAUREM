@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { LAUREM_CANONICAL_ROLES, type LauremCanonicalRole } from '@/lib/laurem-role-policy';
 import { getLauremNurseFirstInterviewQuestions } from '@/lib/laurem-nurse-interviews';
+import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 
 const trainingOptions = ['Moving and Handling', 'Hand Hygiene for Care', 'GDPR', 'Fire Safety', 'PPE', 'Infection Control', 'Manual Handling', 'Lone Working & Personal Safety', 'Sharps Awareness'];
 
@@ -264,7 +265,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ token: s
     }
   }
 
-  if (done) return <main className="wrap" style={{ padding: '80px 0' }}><section className="card" style={{ padding: 36, textAlign: 'center' }}><p style={{ color: 'var(--accent)', fontWeight: 800 }}>APPLICATION RECEIVED</p><h1>Thank you for applying to {lauremCompany.tradingName}.</h1><p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your application has been securely submitted. The recruitment team will review your information and contact you about the next stage.</p></section></main>;
+  if (done) return <main className="wrap" style={{ padding: '70px 0 90px', maxWidth: 920 }}><LauremCandidateJourney current="application" /><section className="card" style={{ padding: 36, textAlign: 'center' }}><p style={{ color: 'var(--accent)', fontWeight: 800 }}>APPLICATION RECEIVED</p><h1>Thank you for applying to {lauremCompany.tradingName}.</h1><p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>Your application has been securely submitted. The next stage is Interview 1. LAUREM will email your private assessment link when your application is ready to proceed.</p></section></main>;
 
   return <main className="wrap" style={{ padding: '40px 0 80px', maxWidth: 900 }}>
     <header style={{ marginBottom: 20 }}>
