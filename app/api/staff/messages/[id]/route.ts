@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { participantConversationIds } from '@/lib/laurem-messaging';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -37,5 +38,11 @@ export async function POST(req: NextRequest, context: Context) {
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at').single();
   if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
+  await recordLauremAuditEvent({
+    lifecycleArea: 'messaging', entityType: 'staff_message', entityId: created.id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'message_sent',
+    metadata: { conversationId: id },
+  });
+
   return NextResponse.json({ message: created }, { status: 201 });
 }
