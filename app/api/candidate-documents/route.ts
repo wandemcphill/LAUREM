@@ -42,7 +42,7 @@ async function loadPack(token: string) {
   }
 
   const [{ data: application, error: applicationError }, { data: documents, error: documentsError }] = await Promise.all([
-    client.from('laurem_recruitment_applications').select('id,full_name,role_applied').eq('id', pack.application_id).maybeSingle(),
+    client.from('recruitment_applications').select('id,full_name,role_applied').eq('id', pack.application_id).maybeSingle(),
     client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at,first_viewed_at,viewed_count').eq('pack_id', pack.id).order('document_type', { ascending: true }),
   ]);
   if (applicationError) throw applicationError;
@@ -67,7 +67,7 @@ async function loadPack(token: string) {
 
 async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicationId: string) {
   const { data: application, error } = await client
-    .from('laurem_recruitment_applications')
+    .from('recruitment_applications')
     .select('id,full_name,email,role_applied,living_in_uk,start_date,nmc_number,application_data,status')
     .eq('id', applicationId)
     .maybeSingle();
