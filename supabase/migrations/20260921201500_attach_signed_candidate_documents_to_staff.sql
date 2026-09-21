@@ -132,8 +132,15 @@ begin
         candidate_doc.content_text,
         null,
         candidate_doc.document_sha256,
-        'onboarding',
-        'candidate-document:' || candidate_doc.id::text,
+        case
+          when candidate_doc.document_type = 'job_description' then 'job_description'
+          else 'onboarding'
+        end,
+        case
+          when candidate_doc.document_type = 'job_description'
+            then lower(btrim(coalesce(staff_row.job_title, 'Job')))
+          else 'candidate-document:' || candidate_doc.id::text
+        end,
         'issued',
         false,
         'signed',
