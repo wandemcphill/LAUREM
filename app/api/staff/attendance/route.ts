@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
   const client = db();
   const now = new Date().toISOString();
   const [{ data: shifts, error: shiftError }, { data: attendance, error: attendanceError }] = await Promise.all([
-    client.from('staff_assignments')
+    client.from('laurem_staff_assignments')
       .select('id,client_name,location,scheduled_start,scheduled_end,status,notes')
       .eq('staff_id', session.staff_id)
       .gte('scheduled_end', now)
       .not('status', 'in', '(cancelled,no_show)')
       .order('scheduled_start', { ascending: true })
       .limit(30),
-    client.from('staff_timesheets')
+    client.from('laurem_staff_timesheets')
       .select('id,assignment_id,work_date,clock_in,clock_out,break_minutes,total_hours,status,notes,created_at,updated_at')
       .eq('staff_id', session.staff_id)
       .order('created_at', { ascending: false })
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   if (!assignmentId) return NextResponse.json({ error: 'assignmentId is required.' }, { status: 400 });
 
   const client = db();
-  const { data: staff } = await client.from('staff_profiles')
+  const { data: staff } = await client.from('laurem_staff_profiles')
     .select('id,employment_status')
     .eq('id', session.staff_id)
     .maybeSingle();
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Only active LAUREM staff can record attendance.' }, { status: 403 });
   }
 
-  const { data: assignment } = await client.from('staff_assignments')
+  const { data: assignment } = await client.from('laurem_staff_assignments')
     .select('id,staff_id,scheduled_start,scheduled_end,status,location,client_name')
     .eq('id', assignmentId)
     .eq('staff_id', session.staff_id)
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This assignment is not eligible for attendance.' }, { status: 409 });
   }
 
-  const { data: existing } = await client.from('staff_timesheets')
+  const { data: existing } = await client.from('laurem_staff_timesheets')
     .select('*')
     .eq('staff_id', session.staff_id)
     .eq('assignment_id', assignment.id)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const { data: created, error } = await client.from('staff_timesheets').insert({
+    const { data: created, error } = await client.from('laurem_staff_timesheets').insert({
       staff_id: session.staff_id,
       assignment_id: assignment.id,
       work_date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date(now)),
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unable to clock in.' }, { status: 500 });
     }
 
-    await client.from('workforce_audit_events').insert({
+    await client.from('laurem_workforce_audit_events').insert({
       staff_id: session.staff_id,
       assignment_id: assignment.id,
       entity_type: 'timesheet',
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     const hours = totalHours(existing.clock_in, now, breakMinutes);
     if (hours === null) return NextResponse.json({ error: 'Clock-out time must be after clock-in.' }, { status: 409 });
 
-    const { data: updated, error } = await client.from('staff_timesheets').update({
+    const { data: updated, error } = await client.from('laurem_staff_timesheets').update({
       clock_out: now,
       break_minutes: breakMinutes,
       total_hours: hours,
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 
     if (error || !updated) return NextResponse.json({ error: 'Unable to clock out. The attendance record may already have been updated.' }, { status: 409 });
 
-    await client.from('workforce_audit_events').insert({
+    await client.from('laurem_workforce_audit_events').insert({
       staff_id: session.staff_id,
       assignment_id: assignment.id,
       entity_type: 'timesheet',
