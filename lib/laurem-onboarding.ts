@@ -33,7 +33,7 @@ export function buildOnboardingTasks(audience: LauremHandbookAudience | 'standar
  
   if (audience === 'sponsored_hca') {
     tasks.push(
-      { task_key: 'pvG_or_disclosure', category: 'Compliance', title: 'PVG or applicable disclosure status recorded', description: 'Confirm the applicable Scottish disclosure/PVG requirement and record the status before regulated work.', required: true, document_path: lauremHandbookConfig.sponsoredHca.documentPath, acknowledgement_required: false, sort_order: 70 },
+      { task_key: 'pvG_or_disclosure', category: 'Compliance', title: 'PVG or applicable disclosure status recorded', description: 'Confirm the applicable Scottish disclosure/PVG requirement and record the status before regulated work.', required: true, acknowledgement_required: false, sort_order: 70 },
       { task_key: 'role_competency', category: 'Clinical', title: 'Healthcare Assistant competency sign-off', description: 'Complete role-specific competency and supervised practice sign-off before unsupervised duties where required.', required: true, acknowledgement_required: true, sort_order: 80 },
     );
   }
