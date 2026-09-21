@@ -15,7 +15,7 @@ async function loadContract(request: NextRequest) {
   if (!tokenRow) return { error: NextResponse.json({ error: 'Contract link not found.' }, { status: 404 }) } as const;
   if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) return { error: NextResponse.json({ error: 'This contract link has expired.' }, { status: 410 }) } as const;
   if (tokenRow.used_at) return { error: NextResponse.json({ error: 'This contract link has already been used.' }, { status: 409 }) } as const;
-  const { data: contract, error: contractError } = await client.from('laurem_recruitment_contracts').select('*').eq('id', tokenRow.contract_id).maybeSingle();
+  const { data: contract, error: contractError } = await client.from('recruitment_contracts').select('*').eq('id', tokenRow.contract_id).maybeSingle();
   if (contractError) throw contractError;
   if (!contract) return { error: NextResponse.json({ error: 'Contract not found.' }, { status: 404 }) } as const;
   if (!['issued', 'viewed'].includes(String(contract.status))) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     if ('error' in loaded) return loaded.error;
     let contract = loaded.contract;
     if (contract.status === 'issued') {
-      const { data: viewed, error } = await loaded.client.from('laurem_recruitment_contracts').update({
+      const { data: viewed, error } = await loaded.client.from('recruitment_contracts').update({
         status: 'viewed',
         viewed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (!result?.ok) return rpcErrorResponse(result?.code || 'UNKNOWN');
 
     const { data: application, error: applicationError } = await loaded.client
-      .from('laurem_recruitment_applications')
+      .from('recruitment_applications')
       .select('id,full_name,email,role_applied,living_in_uk,status')
       .eq('id', loaded.contract.application_id)
       .maybeSingle();
