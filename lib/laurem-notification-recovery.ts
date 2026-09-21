@@ -86,8 +86,11 @@ async function recoverSecondInterview(client: SupabaseClient, delivery: any, act
   const snapshot = selected.map(q => ({ id:q.id, category:q.category, text:q.text, guidance:q.guidance }));
   const pathway = app.living_in_uk === 'No' ? 'international' : 'uk';
   if (attempt) {
-    const { error: updateError } = await client.from('interview_attempts').update({ second_interview_id: invitation.id, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, answers: {}, status: 'in_progress', started_at: new Date().toISOString(), submitted_at: null, score: null, total_questions: 20, updated_at: new Date().toISOString() }).eq('id', attempt.id).eq('status','in_progress');
+    const { error: updateError } = await client.from('interview_attempts').update({ second_interview_id: invitation.id, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, answers: {}, status: 'in_progress', started_at: new Date().toISOString(), submitted_at: null, score: null, total_questions: 20, updated_at: new Date().toISOString() }).eq('id', attempt.id);
     if (updateError) throw updateError;
+  } else {
+    const { error: insertError } = await client.from('interview_attempts').insert({ application_id: app.id, second_interview_id: invitation.id, round: 2, role, pathway, question_ids: selected.map(q=>q.id), question_snapshot: snapshot, status: 'in_progress', total_questions: 20 });
+    if (insertError) throw insertError;
   }
   const link = `${appUrl()}/second-interview/${token}`;
   const safeName = escapeHtml(app.full_name);
