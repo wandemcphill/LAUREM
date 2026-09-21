@@ -115,8 +115,8 @@ export async function GET(request: NextRequest) {
     const loaded = await loadContract(request);
     if ('error' in loaded) return loaded.error;
 
-    let contract = loaded.contract;
-    if (contract.status === 'issued') {
+    let contract = loaded.contract as unknown as Record<string, unknown>;
+    if (String(contract.status || '') === 'issued') {
       const { data: viewed, error } = await loaded.client
         .from('recruitment_contracts')
         .update({
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (error) throw error;
-      contract = viewed || contract;
+      contract = (viewed as unknown as Record<string, unknown>) || contract;
     }
 
     return noStore(NextResponse.json({ contract: toPublicContract(contract as unknown as Record<string, unknown>) }));
