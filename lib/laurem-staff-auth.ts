@@ -77,7 +77,7 @@ export async function getStaffSession(req: NextRequest) {
   if (!token) return null;
   const client = db();
   const { data: staff } = await client
-    .from('laurem_staff_profiles')
+    .from('staff_profiles')
     .select('id,laurem_id,email,employment_status,activated_at,password_hash,session_version')
     .eq('id', token.staff_id)
     .maybeSingle();
@@ -89,13 +89,13 @@ export async function getStaffSession(req: NextRequest) {
     || staff.session_version !== token.session_version
   ) return null;
   if ((staff.laurem_id || '') !== token.laurem_id || staff.email.trim().toLowerCase() !== token.email) return null;
-  const { data: session } = await client.from('laurem_staff_portal_sessions')
+  const { data: session } = await client.from('staff_portal_sessions')
     .select('id,expires_at,revoked_at')
     .eq('token_hash', token.token_hash)
     .eq('staff_id', staff.id)
     .maybeSingle();
   if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) return null;
-  await client.from('laurem_staff_portal_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', session.id).is('revoked_at', null);
+  await client.from('staff_portal_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', session.id).is('revoked_at', null);
   return token;
 }
 
