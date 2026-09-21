@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = db();
     const { data: app, error: appError } = await client
-      .from('laurem_recruitment_applications')
+      .from('recruitment_applications')
       .select('*')
       .eq('id', applicationId)
       .maybeSingle();
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!role) return NextResponse.json({ error: 'The application role is not recognised.' }, { status: 409 });
 
     const { data: existingContract, error: contractLookupError } = await client
-      .from('laurem_recruitment_contracts')
+      .from('recruitment_contracts')
       .select('id,status,version,accepted_at,accepted_by_name,contract_type')
       .eq('application_id', applicationId)
       .maybeSingle();
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     };
 
     const { data: contract, error } = await client
-      .from('laurem_recruitment_contracts')
+      .from('recruitment_contracts')
       .upsert(payload, { onConflict: 'application_id' })
       .select('*')
       .single();
@@ -174,7 +174,7 @@ export async function PATCH(request: NextRequest) {
 
   const client = db();
   const { data: current, error: readError } = await client
-    .from('laurem_recruitment_contracts')
+    .from('recruitment_contracts')
     .select('id,application_id,status,accepted_at,job_title,contract_type')
     .eq('id', id)
     .maybeSingle();
@@ -184,7 +184,7 @@ export async function PATCH(request: NextRequest) {
   if (current.accepted_at) return NextResponse.json({ error: 'An accepted contract is immutable.' }, { status: 409 });
 
   const { data: app, error: appError } = await client
-    .from('laurem_recruitment_applications')
+    .from('recruitment_applications')
     .select('id,full_name,email,role_applied,living_in_uk')
     .eq('id', current.application_id)
     .maybeSingle();
