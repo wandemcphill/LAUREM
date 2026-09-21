@@ -23,6 +23,15 @@ describe('LAUREM production health contracts', () => {
     expect(route).not.toContain('ADMIN_PASSWORD');
   });
 
+  it('correlates public and readiness responses without exposing runtime secrets', () => {
+    const route = readFileSync('app/api/health/route.ts', 'utf8');
+    const ready = readFileSync('app/api/health/ready/route.ts', 'utf8');
+    expect(route).toContain("getRequestId(request)");
+    expect(route).toContain("withRequestId");
+    expect(ready).toContain("laurem_verify_release_readiness");
+    expect(ready).toContain("operationalError");
+  });
+
   it('reports release identity without exposing runtime secrets', () => {
     const route = readFileSync('app/api/health/route.ts', 'utf8');
     const ready = readFileSync('app/api/health/ready/route.ts', 'utf8');
