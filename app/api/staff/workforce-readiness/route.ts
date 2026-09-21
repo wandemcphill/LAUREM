@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
     const client = db();
     const now = new Date().toISOString();
     const [{ data: staff, error: staffError }, { data: assignments, error: assignmentError }, { data: attendance, error: attendanceError }, { data: timesheets, error: timesheetError }, { data: leave, error: leaveError }, { data: latestPeriod, error: periodError }] = await Promise.all([
-      client.from('staff_profiles').select('id,employment_status').eq('id', session.staff_id).maybeSingle(),
-      client.from('staff_assignments').select('id,scheduled_end,status').eq('staff_id', session.staff_id).in('status', ['scheduled', 'confirmed']).gte('scheduled_end', now).order('scheduled_start', { ascending: true }).limit(50),
-      client.from('staff_timesheets').select('id,assignment_id').eq('staff_id', session.staff_id).is('clock_out', null).limit(50),
-      client.from('staff_timesheets').select('id,status').eq('staff_id', session.staff_id).in('status', ['submitted', 'rejected']).limit(100),
-      client.from('staff_leave_requests').select('id,status').eq('staff_id', session.staff_id).eq('status', 'pending').limit(50),
+      client.from('laurem_staff_profiles').select('id,employment_status').eq('id', session.staff_id).maybeSingle(),
+      client.from('laurem_staff_assignments').select('id,scheduled_end,status').eq('staff_id', session.staff_id).in('status', ['scheduled', 'confirmed']).gte('scheduled_end', now).order('scheduled_start', { ascending: true }).limit(50),
+      client.from('laurem_staff_timesheets').select('id,assignment_id').eq('staff_id', session.staff_id).is('clock_out', null).limit(50),
+      client.from('laurem_staff_timesheets').select('id,status').eq('staff_id', session.staff_id).in('status', ['submitted', 'rejected']).limit(100),
+      client.from('laurem_staff_leave_requests').select('id,status').eq('staff_id', session.staff_id).eq('status', 'pending').limit(50),
       client.from('payroll_periods').select('id,period_start,period_end,status,pay_date').order('period_end', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const openAttendanceIds = [...new Set((attendance || []).map((row: any) => row.assignment_id).filter(Boolean))];
     let overdueAttendance = 0;
     if (openAttendanceIds.length) {
-      const { data: openAttendanceAssignments, error: openAttendanceAssignmentError } = await client.from('staff_assignments')
+      const { data: openAttendanceAssignments, error: openAttendanceAssignmentError } = await client.from('laurem_staff_assignments')
         .select('id,scheduled_end')
         .eq('staff_id', session.staff_id)
         .in('id', openAttendanceIds);
