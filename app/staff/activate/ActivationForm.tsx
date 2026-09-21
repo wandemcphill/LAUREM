@@ -52,7 +52,7 @@ export default function ActivationForm() {
         }
         throw new Error(data.error || 'Unable to activate portal.');
       }
-      router.replace('/staff/documents?activated=1');
+      router.replace('/staff?activated=1');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to activate portal.');
       setBusy(false);
