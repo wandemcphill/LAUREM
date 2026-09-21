@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { lauremCompany } from '@/lib/laurem-company-config';
-import { createHash } from 'node:crypto';
 import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
 import { getLauremRecruitmentDocumentPack, LAUREM_RECRUITMENT_DOCUMENT_ATTESTATION } from '@/lib/laurem-recruitment-documents';
