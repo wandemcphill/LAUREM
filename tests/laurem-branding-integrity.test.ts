@@ -36,6 +36,6 @@ describe('LAUREM branding integrity', () => {
       if (new RegExp('\\b' + legacyBrand + '\\b', 'i').test(content)) offenders.push(path.relative(process.cwd(), file));
     }
 
-    expect(offenders).toEqual([]);
+    if (offenders.length > 0) throw new Error('Legacy brand token found in: ' + offenders.join(', '));
   });
 });
