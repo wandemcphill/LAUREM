@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 function validBreakMinutes(value: number) {
   return Number.isInteger(value) && value >= 0 && value <= 480;
@@ -118,6 +119,12 @@ export async function POST(request: NextRequest) {
       details: { assignmentId: assignment.id, clockIn: created.clock_in },
     });
 
+    await recordLauremAuditEvent({
+      lifecycleArea: 'workforce', entityType: 'timesheet', entityId: created.id, staffId: session.staff_id,
+      actorType: 'staff', actor: session.email, action: 'attendance_clocked_in',
+      newState: 'draft', metadata: { assignmentId: assignment.id, clockIn: created.clock_in },
+    });
+
     return NextResponse.json({ timesheet: created }, { status: 201 });
   }
 
@@ -156,6 +163,12 @@ export async function POST(request: NextRequest) {
       event_type: 'attendance.clocked_out',
       actor: session.staff_id,
       details: { assignmentId: assignment.id, clockOut: updated.clock_out, breakMinutes, totalHours: updated.total_hours },
+    });
+
+    await recordLauremAuditEvent({
+      lifecycleArea: 'workforce', entityType: 'timesheet', entityId: updated.id, staffId: session.staff_id,
+      actorType: 'staff', actor: session.email, action: 'attendance_clocked_out',
+      previousState: 'draft', newState: 'submitted', metadata: { assignmentId: assignment.id, clockOut: updated.clock_out, totalHours: updated.total_hours },
     });
 
     return NextResponse.json({ timesheet: updated });
