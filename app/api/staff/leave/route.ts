@@ -123,5 +123,11 @@ export async function PATCH(req: NextRequest) {
     details: { from: current.status, to: 'cancelled' },
   });
 
+  await recordLauremAuditEvent({
+    lifecycleArea: 'workforce', entityType: 'leave_request', entityId: id, staffId: session.staff_id,
+    actorType: 'staff', actor: session.email, action: 'leave_cancelled',
+    previousState: current.status, newState: 'cancelled',
+  });
+
   return NextResponse.json({ request: data });
 }
