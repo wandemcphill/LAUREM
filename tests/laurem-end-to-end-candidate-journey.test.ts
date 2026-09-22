@@ -33,7 +33,7 @@ describe('LAUREM end-to-end candidate journey', () => {
     expect(contractAdminApi).toContain('documentPackLink');
     expect(contractAdminApi).toContain('Your LAUREM employment offer package is ready');
     expect(acceptanceApi).toContain("eq('status', 'pending')");
-    expect(acceptanceApi).toContain('reuse it after');
+    expect(acceptanceApi).toContain('Reuse it after acceptance');
     expect(acceptanceApi).toContain("p_to_status: 'Documents'");
     expect(documentApi).toContain('laurem_sign_candidate_document');
     expect(documentApi).toContain('readiness: readiness.items');
