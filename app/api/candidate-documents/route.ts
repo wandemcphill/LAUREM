@@ -42,7 +42,7 @@ async function loadPack(token: string) {
   }
 
   const [{ data: application, error: applicationError }, { data: documents, error: documentsError }] = await Promise.all([
-    client.from('recruitment_applications').select('id,full_name,role_applied').eq('id', pack.application_id).maybeSingle(),
+    client.from('recruitment_applications').select('id,full_name,role_applied,living_in_uk').eq('id', pack.application_id).maybeSingle(),
     client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at,first_viewed_at,viewed_count').eq('pack_id', pack.id).order('document_type', { ascending: true }),
   ]);
   if (applicationError) throw applicationError;
@@ -146,6 +146,7 @@ export async function GET(request: NextRequest) {
       onboardingLink = onboarding?.onboardingLink || null;
       waitingForReadiness = Boolean(onboarding?.waitingForReadiness);
     }
+    const readiness = await getLauremOnboardingReadiness(loaded.client, loaded.application);
     return NextResponse.json({
       application: {
         full_name: loaded.application.full_name,
@@ -154,6 +155,7 @@ export async function GET(request: NextRequest) {
       pack: loaded.pack,
       onboardingLink,
       waitingForReadiness,
+      readiness: readiness.items,
       documents: loaded.documents.map((document) => ({
         id: document.id,
         document_type: document.document_type,

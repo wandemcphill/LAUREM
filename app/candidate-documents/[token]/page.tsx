@@ -16,6 +16,7 @@ type DocumentRow = {
 type PageData = {
   application: { full_name: string; role_applied: string };
   pack: { id: string; status: string; expires_at: string };
+  readiness: Array<{ id: string; item_key: string; title: string; description: string; required: boolean; status: 'pending' | 'completed' | 'waived' }>;
   documents: DocumentRow[];
 };
 
@@ -178,8 +179,7 @@ export default function CandidateDocumentsPage({
         </p>
         <h1>Review and sign your employment documents</h1>
         <p style={{ color: 'var(--muted)', lineHeight: 1.65 }}>
-          Hello {data?.application.full_name || 'there'}. Your employment contract has been accepted.
-          Read the Job Description and Handbook below and sign each one online.
+          Hello {data?.application.full_name || 'there'}. Your LAUREM employment offer package contains your Employment Contract, Job Description, Handbook and onboarding preparation checklist. Review each document online and complete the required preparation steps.
         </p>
 
         {error && (
@@ -192,6 +192,26 @@ export default function CandidateDocumentsPage({
             {message}
           </div>
         )}
+
+        <section style={{ marginTop: 18, padding: 16, borderRadius: 12, background: 'var(--soft)' }}>
+          <strong>Onboarding preparation</strong>
+          <p style={{ color: 'var(--muted)', lineHeight: 1.55, margin: '6px 0 12px' }}>
+            These are the recruitment checks that must be complete before LAUREM opens your formal onboarding and Staff Portal activation. Completing them here does not require you to sign your Contract, Job Description or Handbook again.
+          </p>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {data?.readiness.map((item) => (
+              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: 10, borderRadius: 9, background: 'white', border: '1px solid var(--line)' }}>
+                <div>
+                  <strong>{item.title}</strong>
+                  <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 3 }}>{item.description}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                  {item.status === 'completed' || item.status === 'waived' ? 'READY' : 'PENDING'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div style={{ marginTop: 18, padding: 16, borderRadius: 12, background: 'var(--soft)' }}>
           <strong>{signedCount} of {data?.documents.length || 0} documents signed</strong>

@@ -99,7 +99,7 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
       setDocumentPackUrl(body.documentPackUrl || '');
       setMessage(
         accepted
-          ? 'Your employment contract has been signed. Your Job Description and Handbook are now the next documents to complete.'
+          ? 'Your employment contract has been signed. Your Job Description, Handbook and onboarding preparation checklist are already included in your LAUREM offer package.'
           : 'Your response has been recorded. LAUREM will contact you regarding the next steps.',
       );
       setContract((current: any) => current ? { ...current, status: accepted ? 'accepted' : 'declined' } : current);
@@ -134,12 +134,12 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
           <section style={{ marginTop: 22, padding: 18, borderRadius: 12, background: '#f7fcf9' }}>
             <strong>Contract signed successfully</strong>
             <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-              Next, sign your Job Description and Handbook. These will be permanently recorded with your employment documents.
+              Next, open the Job Description and Handbook from the offer-package email and sign each online. Your onboarding preparation checklist is available in the same package.
             </p>
             {documentPackUrl ? (
               <a href={documentPackUrl} style={buttonPrimary}>Continue to Job Description & Handbook</a>
             ) : (
-              <p style={{ color: 'var(--muted)' }}>LAUREM has issued the next document pack to your email.</p>
+              <p style={{ color: 'var(--muted)' }}>Use the Job Description & Handbook link in your original LAUREM offer-package email.</p>
             )}
           </section>
         )}

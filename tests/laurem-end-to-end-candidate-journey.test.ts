@@ -24,15 +24,23 @@ describe('LAUREM end-to-end candidate journey', () => {
     expect(secondPage).toContain("current=\"interview2\"");
   });
 
-  it('issues a secure Job Description and Handbook pack after contract acceptance', async () => {
+  it('issues one secure offer package with the contract, Job Description, Handbook and onboarding preparation', async () => {
+    const contractAdminApi = await read('app/api/admin/contracts/route.ts');
     const acceptanceApi = await read('app/api/contracts/accept/route.ts');
     const documentApi = await read('app/api/candidate-documents/route.ts');
     const migration = await read('supabase/migrations/20260921200000_candidate_document_pack.sql');
-    expect(acceptanceApi).toContain('laurem_issue_candidate_document_pack');
+    const offerPackageMigration = await read('supabase/migrations/20260922120000_offer_document_pack_at_issue.sql');
+    expect(contractAdminApi).toContain('laurem_issue_candidate_document_pack');
+    expect(contractAdminApi).toContain('documentPackLink');
+    expect(contractAdminApi).toContain('Your LAUREM employment offer package is ready');
+    expect(acceptanceApi).toContain("eq('status', 'pending')");
+    expect(acceptanceApi).toContain('normally issued together with the contract');
     expect(acceptanceApi).toContain("p_to_status: 'Documents'");
     expect(documentApi).toContain('laurem_sign_candidate_document');
+    expect(documentApi).toContain('readiness: readiness.items');
     expect(migration).toContain('laurem_issue_candidate_document_pack');
     expect(migration).toContain('laurem_sign_candidate_document');
+    expect(offerPackageMigration).toContain("status in ('accepted','issued','viewed')");
   });
 
   it('prevents the three employment documents from being requested again during onboarding', async () => {
