@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
-type ContractResult = { id?:string; status?:string; acceptanceLink?:string; email?:{status?:string;error?:string} };
+type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string} };
 
 function eligible(app: Application | null) { return Boolean(app); }
 
@@ -58,7 +58,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     try{
       const response=await fetch(`/api/admin/contracts?id=${encodeURIComponent(result.id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'issued'})});
       const payload=await response.json(); if(!response.ok)throw new Error(payload.error||'Unable to issue contract.');
-      setResult(payload);setMessage(payload.email?.status==='sent'?'Contract issued and acceptance link emailed to the candidate.':'Contract issued, but email delivery needs attention.');
+      setResult(payload);setMessage(payload.email?.status==='sent'?'Complete offer package issued and emailed to the candidate.':'Complete offer package issued, but email delivery needs attention.');
     }catch(e){setMessage(e instanceof Error?e.message:'Unable to issue contract.');}finally{setBusy(false);}
   }
 
@@ -87,7 +87,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Pension" value={form.pensionScheme} onChange={(v)=>setField('pensionScheme',v)} />
     </div></section>
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Additional role terms</h2><Field label="Relocation support" value={form.relocationSupport} onChange={(v)=>setField('relocationSupport',v)} multiline /><Field label="Potentially repayable employer-funded expenses" value={form.repayableCosts} onChange={(v)=>setField('repayableCosts',v)} multiline /><Field label="Repayment schedule" value={form.repaymentSchedule} onChange={(v)=>setField('repaymentSchedule',v)} multiline /><p style={{color:'var(--muted)',fontSize:13,lineHeight:1.6,marginTop:14}}>Do not include recruitment fees, sponsor licence fees, Immigration Skills Charge, Certificate of Sponsorship costs or interview costs as employee-repayable expenses. Any repayment term must be supported by genuine, evidenced and auditable employer-funded expenses and must be reviewed for proportionality and individual circumstances.</p></section>
-    <section className="card" style={{padding:22}}><h2>Issue contract</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, explicitly issue it to create a fresh private acceptance link and email it to the candidate.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue contract and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div></>}</div>}</section>
+    <section className="card" style={{padding:22}}><h2>Issue complete offer package</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, issue one LAUREM offer package containing the Employment Contract, Job Description, Handbook and onboarding preparation checklist. The candidate signs the three employment documents online exactly once.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue complete offer package and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div>{result.documentPackLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Job Description & Handbook link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.documentPackLink}</div></>}</>}</div>}</section>
   </main>;
 }
 
