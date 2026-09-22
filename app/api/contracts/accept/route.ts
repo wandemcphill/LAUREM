@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
     const result = (Array.isArray(data) ? data[0] : data) as { ok?: boolean; code?: string; status?: string } | null;
     if (!result?.ok) return rpcErrorResponse(result?.code || 'UNKNOWN');
 
+    if (action === 'decline') {
+      const { error: revokeError } = await loaded.client
+        .from('laurem_candidate_document_packs')
+        .update({ status: 'revoked', updated_at: new Date().toISOString() })
+        .eq('application_id', loaded.contract.application_id)
+        .eq('status', 'pending');
+      if (revokeError) throw revokeError;
+    }
+
     const { data: application, error: applicationError } = await loaded.client
       .from('recruitment_applications')
       .select('id,full_name,email,role_applied,living_in_uk,status')
