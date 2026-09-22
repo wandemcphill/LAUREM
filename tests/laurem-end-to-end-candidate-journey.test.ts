@@ -29,6 +29,7 @@ describe('LAUREM end-to-end candidate journey', () => {
     const acceptanceApi = await read('app/api/contracts/accept/route.ts');
     const documentApi = await read('app/api/candidate-documents/route.ts');
     const migration = await read('supabase/migrations/20260921200000_candidate_document_pack.sql');
+    const offerPackageMigration = await read('supabase/migrations/20260922120000_offer_document_pack_at_issue.sql');
     expect(contractAdminApi).toContain('laurem_issue_candidate_document_pack');
     expect(contractAdminApi).toContain('documentPackLink');
     expect(contractAdminApi).toContain('Your LAUREM employment offer package is ready');
@@ -39,7 +40,7 @@ describe('LAUREM end-to-end candidate journey', () => {
     expect(documentApi).toContain('readiness: readiness.items');
     expect(migration).toContain('laurem_issue_candidate_document_pack');
     expect(migration).toContain('laurem_sign_candidate_document');
-    expect(migration).toContain("status in ('accepted','issued','viewed')");
+    expect(offerPackageMigration).toContain("status in ('accepted','issued','viewed')");
   });
 
   it('prevents the three employment documents from being requested again during onboarding', async () => {
