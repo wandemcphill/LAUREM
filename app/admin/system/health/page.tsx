@@ -44,7 +44,7 @@ export default function SystemHealthPage() {
     <header style={{ margin: '18px 0 24px' }}>
       <p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '.08em' }}>SYSTEM CONTROL</p>
       <h1>Production health</h1>
-      <p style={{ color: 'var(--muted)', maxWidth: 760 }}>Checks the LAUREM-isolated tables, server configuration, database connectivity and private document storage. BIMED-owned shared tables are intentionally outside this health contract.</p>
+      <p style={{ color: 'var(--muted)', maxWidth: 760 }}>Checks the LAUREM-isolated tables, server configuration, database connectivity and private document storage. Legacy shared tables are intentionally outside this health contract.</p>
     </header>
     {error && <div role="alert" className="card" style={{ padding: 14, marginBottom: 14 }}>{error}</div>}
     <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}><button onClick={() => void load()} disabled={loading} style={buttonPrimary}>{loading ? 'Checking…' : 'Run health check'}</button></div>

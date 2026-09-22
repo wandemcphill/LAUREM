@@ -1,6 +1,6 @@
 # Laurem Recruitment & Workforce Platform
 
-A Laurem Caregroup recruitment-to-workforce platform, designed from the proven BIMED recruitment architecture and structured for future white-label deployments.
+A Laurem Caregroup recruitment-to-workforce platform, designed from the LAUREM recruitment and workforce architecture and structured for future white-label deployments.
 
 ## Current build tracks
 

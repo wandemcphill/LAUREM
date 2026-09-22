@@ -19,7 +19,7 @@ export function handleBase(name: string) {
 }
 
 export async function ensureLauremMailbox(client: SupabaseClient, staff: { id: string; full_name: string; job_title?: string | null }) {
-  const existing = await client.from('staff_internal_mailboxes')
+  const existing = await client.from('laurem_staff_internal_mailboxes')
     .select('id,staff_id,handle,namespace,enabled')
     .eq('staff_id', staff.id).maybeSingle();
   if (existing.data) return existing.data;
@@ -28,9 +28,9 @@ export async function ensureLauremMailbox(client: SupabaseClient, staff: { id: s
   const base = handleBase(staff.full_name);
   for (let i = 1; i <= 100; i += 1) {
     const handle = i === 1 ? base : `${base}${i}`;
-    const clash = await client.from('staff_internal_mailboxes').select('id').eq('handle', handle).eq('namespace', namespace).maybeSingle();
+    const clash = await client.from('laurem_staff_internal_mailboxes').select('id').eq('handle', handle).eq('namespace', namespace).maybeSingle();
     if (clash.data) continue;
-    const { data, error } = await client.from('staff_internal_mailboxes')
+    const { data, error } = await client.from('laurem_staff_internal_mailboxes')
       .insert({ staff_id: staff.id, handle, namespace })
       .select('id,staff_id,handle,namespace,enabled').single();
     if (!error && data) {
@@ -53,7 +53,7 @@ export async function findLauremStaffByAddress(client: SupabaseClient, address: 
   const handle = value.slice(0, at);
   const namespace = value.slice(at + 1);
   if (!LAUREM_MESSAGE_NAMESPACES.includes(namespace as (typeof LAUREM_MESSAGE_NAMESPACES)[number])) return null;
-  const { data: mailbox, error } = await client.from('staff_internal_mailboxes')
+  const { data: mailbox, error } = await client.from('laurem_staff_internal_mailboxes')
     .select('staff_id,handle,namespace,enabled')
     .eq('handle', handle).eq('namespace', namespace).eq('enabled', true).maybeSingle();
   if (error || !mailbox) return null;
@@ -83,7 +83,7 @@ export async function getOrCreateConversation(client: SupabaseClient, a: string,
     if (retry.data) return retry.data;
     throw error || new Error('Unable to create conversation.');
   }
-  const { error: participantError } = await client.from('staff_message_participants').insert([
+  const { error: participantError } = await client.from('laurem_staff_message_participants').insert([
     { conversation_id: conversation.id, staff_id: a },
     { conversation_id: conversation.id, staff_id: b },
   ]);
@@ -107,14 +107,14 @@ export async function getOrCreateAdminConversation(client: SupabaseClient, staff
     throw error || new Error('Unable to create LAUREM admin conversation.');
   }
 
-  const { error: participantError } = await client.from('staff_message_participants')
+  const { error: participantError } = await client.from('laurem_staff_message_participants')
     .insert({ conversation_id: conversation.id, staff_id: staffId });
   if (participantError) throw participantError;
   return conversation;
 }
 
 export async function participantConversationIds(client: SupabaseClient, staffId: string) {
-  const { data, error } = await client.from('staff_message_participants').select('conversation_id').eq('staff_id', staffId);
+  const { data, error } = await client.from('laurem_staff_message_participants').select('conversation_id').eq('staff_id', staffId);
   if (error) throw error;
   return (data || []).map((row) => row.conversation_id);
 }

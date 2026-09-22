@@ -1,21 +1,21 @@
-# Jules Handoff: LAUREM Portal BIMED Parity
+# Jules Handoff: LAUREM Portal LAUREM Parity
 
 ## Mission
-Bring the latest **BIMED Portal recruitment/workforce integrity improvements** into **LAUREM Portal**, while preserving LAUREM's own product identity, data model, routes, branding, and business rules.
+Bring the latest **LAUREM Portal recruitment/workforce integrity improvements** into **LAUREM Portal**, while preserving LAUREM's own product identity, data model, routes, branding, and business rules.
 
 ## Product boundary
 - **LAUREM Portal** is the private recruitment/staff-management platform.
 - **LAUREM Web** is a separate public corporate website. Do not modify it.
-- **BIMED Portal** is a separate product and repository. Use it only as the reference implementation/pattern source.
-- Do not copy BIMED-specific branding, names, URLs, company facts, database identifiers, or business content into LAUREM.
+- **LAUREM Portal** is a separate product and repository. Use it only as the reference implementation/pattern source.
+- Do not copy LAUREM-specific branding, names, URLs, company facts, database identifiers, or business content into LAUREM.
 
 ## Starting point
 - Work from the current `main` branch of `wandemcphill/LAUREM`.
 - Review the existing open PR #1, `feat: add LAUREM Care private staff messaging and portal identity`, and preserve its useful work if it is compatible.
 - Before implementation, audit the current LAUREM recruitment/staff workflow and Supabase schema.
-- Inspect the corresponding BIMED Portal implementation in `wandemcphill/BIMED` for the latest merged improvements.
+- Inspect the corresponding LAUREM Portal implementation in `wandemcphill/LAUREM` for the latest merged improvements.
 
-## Required BIMED parity work
+## Required LAUREM parity work
 ### 1. Signed-contract promotion gate
 Staff must not be created/promoted from an application unless there is a valid signed employment contract.
 
@@ -49,7 +49,7 @@ Requirements:
 - Add local and international regression tests.
 
 ### 3. Role consistency
-Create/strengthen a central LAUREM role policy analogous to BIMED's role policy.
+Create/strengthen a central LAUREM role policy analogous to LAUREM's role policy.
 
 It should own:
 - canonical role slugs and display labels
@@ -118,12 +118,12 @@ Add/update:
 - `docs/ROLE-POLICY.md` or equivalent
 - `docs/PRODUCTION-READINESS.md`
 
-Each must clearly describe LAUREM, not BIMED.
+Each must clearly describe LAUREM, not LAUREM.
 
 ## Do not do
 - Do not modify LAUREM Web.
-- Do not modify BIMED.
-- Do not add BIMED URLs or branding.
+- Do not modify LAUREM.
+- Do not add LAUREM URLs or branding.
 - Do not invent regulatory, sponsorship, vacancy, employment or clinical claims.
 - Do not change production DNS, SMTP, payment systems or unrelated integrations.
 - Do not commit credentials or secrets.

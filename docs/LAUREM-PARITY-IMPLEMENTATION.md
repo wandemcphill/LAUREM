@@ -1,6 +1,6 @@
-# LAUREM Portal BIMED parity
+# LAUREM Portal LAUREM parity
 
-This document records safeguards translated from the current BIMED Portal into LAUREM Portal without making the products share branding, URLs or database tables.
+This document records safeguards translated from the current LAUREM Portal into LAUREM Portal without making the products share branding, URLs or database tables.
 
 ## Implemented
 

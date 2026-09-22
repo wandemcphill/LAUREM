@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         .eq('staff_id', session.staff_id)
         .order('work_date', { ascending: false })
         .limit(100),
-      client.from('staff_leave_requests')
+      client.from('laurem_staff_leave_requests')
         .select('id,leave_type,start_date,end_date,total_days,reason,status,review_note,created_at')
         .eq('staff_id', session.staff_id)
         .order('start_date', { ascending: false })
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         .eq('status', 'issued')
         .order('issued_at', { ascending: false })
         .limit(20),
-      client.from('staff_availability')
+      client.from('laurem_staff_availability')
         .select('id,effective_from,full_time,part_time,days,nights,weekends,notes')
         .eq('staff_id', session.staff_id)
         .lte('effective_from', londonToday)
@@ -169,14 +169,14 @@ export async function GET(request: NextRequest) {
 
       for (const conversation of conversations || []) {
         const [{ data: latest }, { data: participants }] = await Promise.all([
-          client.from('staff_messages')
+          client.from('laurem_staff_messages')
             .select('body,sender_staff_id,sender_admin_email,created_at')
             .eq('conversation_id', conversation.id)
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-          client.from('staff_message_participants')
+          client.from('laurem_staff_message_participants')
             .select('staff_id,last_read_at')
             .eq('conversation_id', conversation.id),
         ]);

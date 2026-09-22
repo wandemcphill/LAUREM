@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashToken } from '@/lib/token';
+import { hashToken, makeToken } from '@/lib/token';
+import { lauremCompany } from '@/lib/laurem-company-config';
+import { sendLauremEmail } from '@/lib/laurem-email';
+import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
 
 async function loadContract(request: NextRequest) {
   const token = request.headers.get('x-contract-token') || new URL(request.url).searchParams.get('token') || '';
@@ -79,7 +83,66 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     const result = (Array.isArray(data) ? data[0] : data) as { ok?: boolean; code?: string; status?: string } | null;
     if (!result?.ok) return rpcErrorResponse(result?.code || 'UNKNOWN');
-    return NextResponse.json({ ok: true, status: result.status });
+
+    const { data: application, error: applicationError } = await loaded.client
+      .from('recruitment_applications')
+      .select('id,full_name,email,role_applied,living_in_uk,status')
+      .eq('id', loaded.contract.application_id)
+      .maybeSingle();
+    if (applicationError) throw applicationError;
+    if (!application) throw new Error('APPLICATION_NOT_FOUND');
+
+    const transition = await loaded.client.rpc('laurem_transition_application_status', {
+      p_application_id: application.id,
+      p_to_status: 'Documents',
+      p_actor: 'candidate.contract.acceptance',
+      p_note: 'Employment contract accepted electronically. Candidate document pack is now due.',
+      p_override: false,
+      p_override_reason: null,
+    });
+    if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED')) {
+      throw transition.error;
+    }
+
+    const rawDocumentToken = makeToken();
+    const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const documents = getLauremRecruitmentDocumentPack({
+      role: application.role_applied,
+      staffName: application.full_name,
+      livingInUk: application.living_in_uk,
+    });
+    const jobHash = createHash('sha256').update(documents.jobDescription, 'utf8').digest('hex');
+    const handbookHash = createHash('sha256').update(documents.handbookContent, 'utf8').digest('hex');
+
+    const packResult = await loaded.client.rpc('laurem_issue_candidate_document_pack', {
+      p_application_id: application.id,
+      p_token_hash: hashToken(rawDocumentToken),
+      p_expires_at: documentPackExpiresAt,
+      p_job_description: documents.jobDescription,
+      p_job_description_sha256: jobHash,
+      p_handbook_title: documents.handbookTitle,
+      p_handbook_content: documents.handbookContent,
+      p_handbook_sha256: handbookHash,
+      p_actor: 'candidate.contract.acceptance',
+    });
+    if (packResult.error) throw packResult.error;
+
+    const documentPackUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/candidate-documents/' + rawDocumentToken;
+    await sendLauremEmail(loaded.client, {
+      eventType: 'candidate_document_pack_issued',
+      entityId: application.id,
+      idempotencyKey: 'candidate-document-pack:' + application.id + ':' + String((packResult.data && packResult.data.pack && packResult.data.pack.id) || 'pack'),
+      payload: {
+        from: lauremCompany.candidateCommunications.senderAddress,
+        to: [application.email],
+        reply_to: lauremCompany.candidateCommunications.replyToAddress,
+        subject: 'Your LAUREM employment documents are ready',
+        text: 'Dear ' + application.full_name + ',\n\nYour employment contract has been accepted. Your Job Description and Handbook are now ready to review and sign online.\n\nContinue here:\n' + documentPackUrl + '\n\nKind regards,\n' + lauremCompany.tradingName + ' Recruitment',
+        html: '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">' + lauremCompany.tradingName.toUpperCase() + ' RECRUITMENT</p><h1 style="font-size:28px">Your employment documents are ready</h1><p>Dear ' + application.full_name + ',</p><p>Your employment contract has been accepted.</p><p>Next, please review and sign your <strong>Job Description</strong> and <strong>Handbook</strong> online.</p><p><a href="' + documentPackUrl + '" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Review employment documents</a></p><p>Kind regards,<br>' + lauremCompany.tradingName + ' Recruitment</p></div>',
+      },
+    });
+
+    return NextResponse.json({ ok: true, status: result.status, documentPackUrl });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.acceptance_failed', reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to process contract acceptance.' }, { status: 500 });

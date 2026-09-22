@@ -1,17 +1,239 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 
 export default function ContractAcceptancePage({ params }: { params: Promise<{ token: string }> }) {
-  const [token,setToken]=useState(''); const [contract,setContract]=useState<any>(null); const [name,setName]=useState(''); const [declineReason,setDeclineReason]=useState(''); const [agree,setAgree]=useState(false); const [busy,setBusy]=useState(false); const [message,setMessage]=useState<string|null>(null);
-  const canvasRef=useRef<HTMLCanvasElement|null>(null); const drawing=useRef(false);
-  const attestation='I confirm that I have read and understood this employment contract and agree to sign it electronically.';
-  useEffect(()=>{params.then(p=>setToken(p.token));},[params]);
-  useEffect(()=>{if(!token)return;fetch(`/api/contracts/accept?token=${encodeURIComponent(token)}`,{headers:{'x-contract-token':token}}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.error||'Unable to load contract.');return b;}).then(b=>setContract(b.contract)).catch(e=>setMessage(e instanceof Error?e.message:'Unable to load contract.'));},[token]);
-  function point(e:React.PointerEvent<HTMLCanvasElement>){const c=canvasRef.current;if(!c)return null;const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};}
-  function start(e:React.PointerEvent<HTMLCanvasElement>){const c=canvasRef.current;if(!c)return;drawing.current=true;c.setPointerCapture(e.pointerId);const p=point(e);const x=c.getContext('2d');if(!p||!x)return;x.beginPath();x.moveTo(p.x,p.y);}
-  function draw(e:React.PointerEvent<HTMLCanvasElement>){if(!drawing.current)return;const c=canvasRef.current;if(!c)return;const p=point(e);const x=c.getContext('2d');if(!p||!x)return;x.lineWidth=2.2;x.lineCap='round';x.strokeStyle='#173a31';x.lineTo(p.x,p.y);x.stroke();}
-  function clear(){const c=canvasRef.current;const x=c?.getContext('2d');if(c&&x)x.clearRect(0,0,c.width,c.height);}
-  async function respond(accepted:boolean){setBusy(true);setMessage(null);try{const signatureData=canvasRef.current?.toDataURL('image/png')||null;const response=await fetch('/api/contracts/accept',{method:'POST',headers:{'content-type':'application/json','x-contract-token':token},body:JSON.stringify({accepted,acceptedByName:name,declineReason,signatureData,attestation})});const b=await response.json().catch(()=>({}));if(!response.ok)throw new Error(b.error||'Unable to process your response.');setMessage(accepted?'Your contract has been signed electronically. LAUREM will proceed with your onboarding.':'Your response has been recorded. LAUREM will contact you regarding the next steps.');setContract((current:any)=>current?{...current,status:accepted?'accepted':'declined'}:current);}catch(e){setMessage(e instanceof Error?e.message:'Unable to process your response.');}finally{setBusy(false);}}
-  return <main className='wrap' style={{padding:'38px 0 80px',maxWidth:1000}}><section className='card' style={{padding:28}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>LAUREM CARE</p><h1>Employment contract</h1><p style={{color:'var(--muted)'}}>Review and sign your contract online. You do not need to download or print it.</p>{message&&<div role='alert' style={{padding:14,margin:'16px 0',border:'1px solid var(--line)',borderRadius:10,background:'var(--soft)'}}>{message}</div>}{contract?.contract_content&&<pre style={{whiteSpace:'pre-wrap',fontFamily:'Arial,sans-serif',lineHeight:1.65,borderTop:'1px solid var(--line)',paddingTop:22}}>{contract.contract_content}</pre>}{contract?.status==='accepted'||contract?.status==='declined'?null:<><section style={{marginTop:24,paddingTop:20,borderTop:'1px solid var(--line)'}}><h2>Electronic signature</h2><p style={{color:'var(--muted)',lineHeight:1.6}}>Enter your full legal name and optionally draw your signature. The platform records the signing timestamp, document fingerprint, IP address and browser details.</p><label>Full legal name<input value={name} onChange={e=>setName(e.target.value)} style={{display:'block',width:'100%',marginTop:6,padding:12,border:'1px solid var(--line)',borderRadius:9}} /></label><div style={{marginTop:14,fontWeight:800,fontSize:13}}>Optional handwritten signature</div><canvas ref={canvasRef} width={900} height={180} onPointerDown={start} onPointerMove={draw} onPointerUp={()=>{drawing.current=false}} onPointerCancel={()=>{drawing.current=false}} style={{width:'100%',height:180,border:'1px solid var(--line)',borderRadius:10,marginTop:7,touchAction:'none'}}/><button type='button' onClick={clear} style={{marginTop:7,border:'1px solid var(--line)',background:'white',padding:'8px 11px',borderRadius:8,fontWeight:700}}>Clear signature</button><label style={{display:'flex',gap:9,alignItems:'flex-start',marginTop:16,fontSize:13,lineHeight:1.5}}><input type='checkbox' checked={agree} onChange={e=>setAgree(e.target.checked)} style={{marginTop:3}}/><span>{attestation}</span></label></section><div style={{marginTop:20}}><label>Reason for declining (optional)<textarea value={declineReason} onChange={e=>setDeclineReason(e.target.value)} rows={3} style={{display:'block',width:'100%',marginTop:6,padding:12,border:'1px solid var(--line)',borderRadius:9}} /></label></div><div style={{display:'flex',gap:10,marginTop:18,flexWrap:'wrap'}}><button disabled={busy||!name.trim()||!agree} onClick={()=>void respond(true)} style={{background:'var(--ink)',color:'white',border:0,padding:'12px 18px',borderRadius:9,fontWeight:800}}>{busy?'Signing…':'Sign contract electronically'}</button><button disabled={busy} onClick={()=>void respond(false)} style={{background:'white',color:'var(--ink)',border:'1px solid var(--line)',padding:'12px 18px',borderRadius:9,fontWeight:800}}>Decline</button></div></>}</section></main>;
+  const [token, setToken] = useState('');
+  const [contract, setContract] = useState<any>(null);
+  const [name, setName] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [documentPackUrl, setDocumentPackUrl] = useState('');
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+
+  const attestation = 'I confirm that I have read and understood this employment contract and agree to sign it electronically.';
+
+  useEffect(() => {
+    params.then((value) => setToken(value.token));
+  }, [params]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/contracts/accept?token=' + encodeURIComponent(token), { headers: { 'x-contract-token': token } })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Unable to load contract.');
+        return body;
+      })
+      .then((body) => setContract(body.contract))
+      .catch((error) => setMessage(error instanceof Error ? error.message : 'Unable to load contract.'));
+  }, [token]);
+
+  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height,
+    };
+  }
+
+  function start(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    drawing.current = true;
+    canvas.setPointerCapture(event.pointerId);
+    const position = point(event);
+    const context = canvas.getContext('2d');
+    if (!position || !context) return;
+    context.beginPath();
+    context.moveTo(position.x, position.y);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const position = point(event);
+    const context = canvas.getContext('2d');
+    if (!position || !context) return;
+    context.lineWidth = 2.2;
+    context.lineCap = 'round';
+    context.strokeStyle = '#173a31';
+    context.lineTo(position.x, position.y);
+    context.stroke();
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  async function respond(accepted: boolean) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const signatureData = canvasRef.current?.toDataURL('image/png') || null;
+      const response = await fetch('/api/contracts/accept', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-contract-token': token,
+        },
+        body: JSON.stringify({
+          accepted,
+          acceptedByName: name,
+          declineReason,
+          signatureData,
+          attestation,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Unable to process your response.');
+      setDocumentPackUrl(body.documentPackUrl || '');
+      setMessage(
+        accepted
+          ? 'Your employment contract has been signed. Your Job Description and Handbook are now the next documents to complete.'
+          : 'Your response has been recorded. LAUREM will contact you regarding the next steps.',
+      );
+      setContract((current: any) => current ? { ...current, status: accepted ? 'accepted' : 'declined' } : current);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to process your response.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="wrap" style={{ padding: '38px 0 80px', maxWidth: 1000 }}>
+      <LauremCandidateJourney current="documents" />
+      <section className="card" style={{ padding: 28 }}>
+        <p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '.08em' }}>LAUREM CARE</p>
+        <h1>Employment contract</h1>
+        <p style={{ color: 'var(--muted)' }}>Review and sign your contract online. You do not need to download or print it.</p>
+
+        {message && (
+          <div role="status" style={{ padding: 14, margin: '16px 0', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--soft)' }}>
+            {message}
+          </div>
+        )}
+
+        {contract?.contract_content && (
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'Arial,sans-serif', lineHeight: 1.65, borderTop: '1px solid var(--line)', paddingTop: 22 }}>
+            {contract.contract_content}
+          </pre>
+        )}
+
+        {contract?.status === 'accepted' && (
+          <section style={{ marginTop: 22, padding: 18, borderRadius: 12, background: '#f7fcf9' }}>
+            <strong>Contract signed successfully</strong>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+              Next, sign your Job Description and Handbook. These will be permanently recorded with your employment documents.
+            </p>
+            {documentPackUrl ? (
+              <a href={documentPackUrl} style={buttonPrimary}>Continue to Job Description & Handbook</a>
+            ) : (
+              <p style={{ color: 'var(--muted)' }}>LAUREM has issued the next document pack to your email.</p>
+            )}
+          </section>
+        )}
+
+        {contract?.status === 'declined' ? (
+          <div style={{ marginTop: 22, padding: 16, borderRadius: 10, background: '#fff8f8' }}>
+            Your response has been recorded. LAUREM will contact you regarding the next steps.
+          </div>
+        ) : contract?.status === 'accepted' ? null : (
+          <>
+            <section style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--line)' }}>
+              <h2>Electronic signature</h2>
+              <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+                Enter your full legal name and optionally draw your signature. The platform records the signing timestamp and audit details.
+              </p>
+              <label>
+                Full legal name
+                <input value={name} onChange={(event) => setName(event.target.value)} style={input} />
+              </label>
+
+              <div style={{ marginTop: 14, fontWeight: 800, fontSize: 13 }}>Optional handwritten signature</div>
+              <canvas
+                ref={canvasRef}
+                width={900}
+                height={180}
+                onPointerDown={start}
+                onPointerMove={draw}
+                onPointerUp={() => { drawing.current = false; }}
+                onPointerCancel={() => { drawing.current = false; }}
+                style={{ width: '100%', height: 180, border: '1px solid var(--line)', borderRadius: 10, marginTop: 7, touchAction: 'none' }}
+              />
+              <button type="button" onClick={clear} style={buttonSecondary}>Clear signature</button>
+
+              <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 16, fontSize: 13, lineHeight: 1.5 }}>
+                <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} style={{ marginTop: 3 }} />
+                <span>{attestation}</span>
+              </label>
+            </section>
+
+            <div style={{ marginTop: 20 }}>
+              <label>
+                Reason for declining (optional)
+                <textarea value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} rows={3} style={input} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+              <button
+                disabled={busy || !name.trim() || !agree}
+                onClick={() => void respond(true)}
+                style={{ ...buttonPrimary, opacity: busy || !name.trim() || !agree ? .55 : 1 }}
+              >
+                {busy ? 'Signing…' : 'Sign contract electronically'}
+              </button>
+              <button disabled={busy} onClick={() => void respond(false)} style={buttonSecondary}>
+                Decline
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+    </main>
+  );
 }
+
+const buttonPrimary: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '11px 14px',
+  borderRadius: 9,
+  background: 'var(--ink)',
+  color: 'white',
+  textDecoration: 'none',
+  border: 0,
+  fontWeight: 900,
+};
+
+const buttonSecondary: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '9px 12px',
+  borderRadius: 9,
+  background: 'white',
+  color: 'var(--ink)',
+  textDecoration: 'none',
+  border: '1px solid var(--line)',
+  fontWeight: 800,
+};
+
+const input: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: 11,
+  marginTop: 7,
+  border: '1px solid var(--line)',
+  borderRadius: 9,
+  font: 'inherit',
+};

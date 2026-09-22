@@ -24,10 +24,11 @@ describe('universal recruitment journey', () => {
     expect(round2Api).toContain("eq('second_interview_id',invite.id)");
   });
 
-  it('restricts contract generation to international Registered Nurses', () => {
-    expect(contractApi).toContain('isInternationalNurseApplication');
-    expect(contractApi).toContain('Employment contract generation is currently available only for international Registered Nurse applications.');
-    expect(standardContractPage).toContain('International Registered Nurse contract only');
+  it('supports standard and international contract generation through one LAUREM workflow', () => {
+    expect(contractApi).toContain("contract_type: internationalNurse ? 'international_nurse' : 'standard'");
+    expect(contractApi).toContain('renderLauremContract');
+    expect(contractApi).toContain('renderLauremInternationalNurseContract');
+    expect(standardContractPage).toContain('unified LAUREM contract workflow');
   });
 
   it('prevents candidate access to an unissued contract', () => {

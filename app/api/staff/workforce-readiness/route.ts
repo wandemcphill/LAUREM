@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       client.from('staff_assignments').select('id,scheduled_end,status').eq('staff_id', session.staff_id).in('status', ['scheduled', 'confirmed']).gte('scheduled_end', now).order('scheduled_start', { ascending: true }).limit(50),
       client.from('staff_timesheets').select('id,assignment_id').eq('staff_id', session.staff_id).is('clock_out', null).limit(50),
       client.from('staff_timesheets').select('id,status').eq('staff_id', session.staff_id).in('status', ['submitted', 'rejected']).limit(100),
-      client.from('staff_leave_requests').select('id,status').eq('staff_id', session.staff_id).eq('status', 'pending').limit(50),
+      client.from('laurem_staff_leave_requests').select('id,status').eq('staff_id', session.staff_id).eq('status', 'pending').limit(50),
       client.from('payroll_periods').select('id,period_start,period_end,status,pay_date').order('period_end', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
