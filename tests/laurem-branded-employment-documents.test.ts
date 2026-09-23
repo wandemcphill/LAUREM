@@ -37,7 +37,7 @@ describe('LAUREM branded employment documents', () => {
     expect(html).toContain('laurem-professional-practice.svg');
     expect(html).toContain('<h2>Job purpose</h2>');
     expect(html).toContain('<ol>');
-    expect(html).toContain('<strong>Job title:</strong> Healthcare Assistant');
+    expect(html).toContain('<span>Job title</span><strong>Healthcare Assistant</strong>');
     expect(html).not.toContain('<pre>');
   });
 
