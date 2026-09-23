@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const client = db();
   const { data: document, error } = await client
     .from('staff_documents')
-    .select('id,staff_id,title,original_filename,mime_type,storage_path,content_text,document_sha256,status,signature_status,issued_at')
+    .select('id,staff_id,title,original_filename,mime_type,storage_path,content_text,document_sha256,status,signature_status,signature_name,signed_at,issued_at')
     .eq('id', id)
     .eq('staff_id', session.staff_id)
     .maybeSingle();
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       content: document.content_text,
       assetBaseUrl: new URL(request.url).origin,
       signature: document.signature_status === 'signed'
-        ? { name: null, signedAt: null }
+        ? { name: document.signature_name, signedAt: document.signed_at }
         : null,
     });
     const htmlFilename = safeFilename(
