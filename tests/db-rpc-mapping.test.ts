@@ -7,10 +7,10 @@ describe('LAUREM Supabase RPC mapping', () => {
 
   it('does not double-prefix already namespace-qualified RPC names', () => {
     expect(source).toContain("if (name.startsWith('laurem_')) return name;");
-    expect(source).not.toContain("return `laurem_${name}`;");
+    expect(source).toContain("throw new Error(`LAUREM database namespace violation: RPC \"${name}\" is outside the LAUREM namespace.`);");
   });
 
   it('still maps legacy logical LAUREM RPC names into the LAUREM namespace', () => {
-    expect(source).toContain("return LAUREM_RPC_NAMES.has(name) ? `laurem_${name}` : name;");
+    expect(source).toContain("if (LAUREM_RPC_NAMES.has(name)) return `laurem_${name}`;");
   });
 });
