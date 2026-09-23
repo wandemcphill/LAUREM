@@ -45,7 +45,7 @@ describe('LAUREM branded employment documents', () => {
     const html = renderLauremDocumentBody({
       documentType: 'handbook',
       title: '<Unsafe>',
-      content: '# Title\n\nHello <script>alert("x")</script>',
+      content: '# Title\n\n---\n\nHello <script>alert("x")</script>',
     });
 
     expect(html).toContain('&lt;Unsafe&gt;');
