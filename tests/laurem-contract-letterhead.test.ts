@@ -37,9 +37,10 @@ describe('LAUREM employment contract letterhead', () => {
     expect(html).toContain('LAUREM CARE GROUP LIMITED');
     expect(html).toContain('Company No. SC490520');
     expect(html).toContain('557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE');
-    expect(html).toContain('1.'); 
+    expect(html).toContain('<span class="laurem-contract-number">1</span>'); 
     expect(html).toContain('COMMENCEMENT OF EMPLOYMENT');
     expect(html).not.toContain('<pre>');
+    expect(html).toContain('</div></section>');
   });
 
   it('renders an electronic signature record for an accepted contract', () => {
