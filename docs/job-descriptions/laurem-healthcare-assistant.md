@@ -17,7 +17,7 @@ The Healthcare Assistant supports service users to live safely, comfortably and 
 
 The role requires a professional, compassionate and reliable approach and a clear commitment to safeguarding, confidentiality, equality and safe working practices.
 
-The job description describes the principal responsibilities of the role. It should be read together with the employment contract, Staff Handbook, applicable policies, care plans, assignment instructions and mandatory training requirements.
+The job description describes the principal responsibilities of the role. This document should be read together with the employment contract and Staff Handbook.
 
 ---
 
