@@ -14,7 +14,7 @@ describe('professional standard staff handbook', () => {
 
   it('contains formal document governance and role boundaries', () => {
     expect(source).toContain('Document title:');
-    expect(source).toContain('Document owner: Laurem Caregroup Ltd');
+    expect(source).toContain('**Document owner:** Laurem Caregroup Ltd');
     expect(source).toContain('It does not replace your contract');
     expect(source).toContain('Working within your competence');
   });
