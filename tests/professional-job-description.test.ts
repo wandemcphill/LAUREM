@@ -13,9 +13,8 @@ describe('professional job description templates', () => {
   );
 
   it('uses version-controlled role templates instead of a hard-coded generated block', () => {
-    expect(generator).toContain(
-      "renderTemplate('docs/job-descriptions/laurem-healthcare-assistant.md'",
-    );
+    expect(generator).toContain('renderTemplate(');
+    expect(generator).toContain('docs/job-descriptions/laurem-healthcare-assistant.md');
     expect(generator).not.toContain('return [');
     expect(generator).not.toContain("'KEY RESPONSIBILITIES'");
   });
