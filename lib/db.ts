@@ -64,12 +64,15 @@ const LAUREM_RPC_NAMES = new Set([
 ]);
 
 function mapTableName(name: string) {
-  return LAUREM_TABLES.has(name) ? (name.startsWith('laurem_') ? name : `laurem_${name}`) : name;
+  if (name.startsWith('laurem_')) return name;
+  if (LAUREM_TABLES.has(name)) return `laurem_${name}`;
+  throw new Error(`LAUREM database namespace violation: table "${name}" is outside the LAUREM namespace.`);
 }
 
 function mapRpcName(name: string) {
   if (name.startsWith('laurem_')) return name;
-  return LAUREM_RPC_NAMES.has(name) ? `laurem_${name}` : name;
+  if (LAUREM_RPC_NAMES.has(name)) return `laurem_${name}`;
+  throw new Error(`LAUREM database namespace violation: RPC "${name}" is outside the LAUREM namespace.`);
 }
 
 let client: ReturnType<typeof createClient<any>> | null = null;
