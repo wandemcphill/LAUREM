@@ -35,7 +35,7 @@ describe('LAUREM branded employment documents', () => {
 
     expect(html).toContain('class="laurem-doc-cover"');
     expect(html).toContain('laurem-professional-practice.svg');
-    expect(html).toContain('<h2>Job description</h2>');
+    expect(html).toContain('<h2>Job purpose</h2>');
     expect(html).toContain('<ol>');
     expect(html).toContain('<strong>Job title:</strong> Healthcare Assistant');
     expect(html).not.toContain('<pre>');
@@ -45,7 +45,7 @@ describe('LAUREM branded employment documents', () => {
     const html = renderLauremDocumentBody({
       documentType: 'handbook',
       title: '<Unsafe>',
-      content: '# Title\\n\\nHello <script>alert("x")</script>',
+      content: '# Title\n\nHello <script>alert("x")</script>',
     });
 
     expect(html).toContain('&lt;Unsafe&gt;');
@@ -63,7 +63,7 @@ describe('LAUREM branded employment documents', () => {
     });
 
     expect(html).toContain('<!doctype html>');
-    expect(html).toContain('SIGNED');
+    expect(html).toContain('<strong>Signed</strong>');
     expect(html).toContain('https://recruitment.lauremcare.com/document-media/');
     expect(html).toContain('@page{size:A4');
   });
