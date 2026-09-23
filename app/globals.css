@@ -5,11 +5,82 @@
   --paper: #ffffff;
   --soft: #f5f9f7;
   --accent: #2c6d5c;
+  --mint: #8dcdb9;
+  --pale: #e1f2eb;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body { background: var(--soft); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
 a { color: inherit; }
+button, input { font: inherit; }
 .wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
 .card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 10px 30px rgba(24,55,47,.05); }
+
+.laurem-document-view {
+  margin-top: 18px;
+  background: #eef4f1;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.laurem-document-view .laurem-document {
+  margin: 0 auto;
+}
+
+.laurem-document-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 2px;
+}
+
+.laurem-doc-print {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .laurem-doc-cover {
+    grid-template-columns: 1fr !important;
+  }
+
+  .laurem-doc-cover-art {
+    min-height: 190px;
+    max-height: 230px;
+  }
+
+  .laurem-doc-cover-copy {
+    padding: 34px 26px 25px !important;
+  }
+
+  .laurem-doc-cover h1 {
+    font-size: 31px !important;
+  }
+
+  .laurem-doc-meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .laurem-doc-content {
+    padding: 28px 22px 20px !important;
+  }
+
+  .laurem-doc-signature {
+    margin-left: 22px !important;
+    margin-right: 22px !important;
+  }
+
+  .laurem-doc-signature-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media print {
+  body { background: white; }
+}

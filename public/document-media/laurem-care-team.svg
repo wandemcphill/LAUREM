@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+<title id="title">LAUREM Care team</title>
+<desc id="desc">Two LAUREM Care staff members welcoming a colleague beside a care setting.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f1faf6"/><stop offset="1" stop-color="#d9eee6"/></linearGradient>
+</defs>
+<rect width="1200" height="720" rx="42" fill="url(#bg)"/>
+<circle cx="1015" cy="125" r="72" fill="#b5ddcf" opacity=".6"/>
+<circle cx="180" cy="570" r="92" fill="#fff" opacity=".65"/>
+<rect x="820" y="405" width="240" height="160" rx="30" fill="#fff" stroke="#b9d9cd" stroke-width="5"/>
+<rect x="855" y="445" width="90" height="70" rx="10" fill="#e4f3ee"/>
+<rect x="975" y="450" width="50" height="12" rx="6" fill="#9bcaba"/>
+<rect x="975" y="477" width="70" height="12" rx="6" fill="#c2ddd4"/>
+<circle cx="210" cy="240" r="78" fill="#9b6d55"/>
+<path d="M145 230c10-78 142-85 152 6-28-20-61-25-98-9z" fill="#203d35"/>
+<path d="M115 615c0-175 52-246 122-246s122 71 122 246z" fill="#2c6d5c"/>
+<rect x="177" y="422" width="112" height="75" rx="14" fill="#245b4d"/>
+<rect x="190" y="438" width="86" height="29" rx="9" fill="#eef8f4"/>
+<text x="233" y="458" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="17" font-weight="800" fill="#18372f">LAUREM</text>
+<text x="233" y="480" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" fill="#2c6d5c">CARE</text>
+<path d="M188 311v58M263 311v58" stroke="#8c604d" stroke-width="16" stroke-linecap="round"/>
+<circle cx="545" cy="245" r="76" fill="#7e5541"/>
+<path d="M479 235c8-74 123-93 151-5-30-16-77-19-105 3z" fill="#253f39"/>
+<path d="M441 615c0-175 46-242 116-242s116 67 116 242z" fill="#235d4f"/>
+<rect x="504" y="419" width="106" height="76" rx="14" fill="#1f5548"/>
+<rect x="517" y="437" width="80" height="28" rx="8" fill="#f0faf7"/>
+<text x="557" y="457" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="800" fill="#18372f">LAUREM</text>
+<text x="557" y="479" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" fill="#2c6d5c">CARE</text>
+<path d="M493 312v62M576 312v62" stroke="#704b39" stroke-width="16" stroke-linecap="round"/>
+<circle cx="695" cy="270" r="66" fill="#c7906e"/>
+<path d="M636 259c7-70 99-86 128-13-24-18-53-26-82-13z" fill="#37483f"/>
+<path d="M603 615c0-144 38-203 92-203s92 59 92 203z" fill="#eaf2ef"/>
+<path d="M664 412v-51M726 412v-51" stroke="#9b6f59" stroke-width="14" stroke-linecap="round"/>
+<rect x="655" y="455" width="82" height="58" rx="12" fill="#fff" stroke="#c7ddd5" stroke-width="3"/>
+<path d="M669 473h54M669 489h44" stroke="#7aa896" stroke-width="7" stroke-linecap="round"/>
+<text x="600" y="650" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="800" fill="#18372f">People. Care. Professionalism.</text>
+</svg>
