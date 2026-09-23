@@ -24,6 +24,35 @@ function escapeHtml(value: string) {
   return value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 }
 
+export async function GET(request: NextRequest) {
+  const session = readAdminSession(request);
+  if (!session) return operationalError(getRequestId(request), 'Unauthorised', 401, 'UNAUTHORISED');
+
+  const requestId = getRequestId(request);
+  const applicationId = new URL(request.url).searchParams.get('applicationId')?.trim() || '';
+  if (!applicationId) return operationalError(requestId, 'Application id is required.', 400, 'APPLICATION_ID_REQUIRED');
+
+  try {
+    const { data: contract, error } = await db()
+      .from('recruitment_contracts')
+      .select('*')
+      .eq('application_id', applicationId)
+      .maybeSingle();
+    if (error) throw error;
+
+    return withRequestId(NextResponse.json({ contract: contract || null }), requestId);
+  } catch (error) {
+    logOperationalError({
+      requestId,
+      event: 'admin.contract.load_failed',
+      actor: session.email,
+      reason: error,
+      metadata: { applicationId },
+    });
+    return operationalError(requestId, 'Unable to load employment contract.', 500, 'CONTRACT_LOAD_FAILED');
+  }
+}
+
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
   const session = readAdminSession(request);
@@ -156,7 +185,15 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) throw error;
 
-    return withRequestId(NextResponse.json({ contract, contractType: contract.contract_type }, { status: 201 }), requestId);
+    return withRequestId(
+      NextResponse.json({
+        id: contract.id,
+        status: contract.status,
+        contractType: contract.contract_type,
+        contract,
+      }, { status: 201 }),
+      requestId,
+    );
   } catch (error) {
     logOperationalError({ requestId, event: 'admin.contract.generate_failed', actor: session.email, reason: error, metadata: { applicationId } });
     return operationalError(requestId, 'Unable to generate employment contract.', 500, 'CONTRACT_GENERATION_FAILED');

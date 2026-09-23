@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
-type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string} };
+type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null} };
 
 function eligible(app: Application | null) { return Boolean(app); }
 
@@ -30,7 +30,21 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     if (!id) return;
     fetch('/api/admin/applications',{cache:'no-store'})
       .then(async (r)=>{const p=await r.json();if(!r.ok)throw new Error(p.error||'Unable to load application.');return p;})
-      .then((p)=>setApplication((p.applications||[]).find((a:Application)=>a.id===id)||null))
+      .then(async (p)=>{
+        const app=(p.applications||[]).find((a:Application)=>a.id===id)||null;
+        setApplication(app);
+        if (!app) return;
+        const contractResponse=await fetch('/api/admin/contracts?applicationId='+encodeURIComponent(id),{cache:'no-store'});
+        const contractPayload=await contractResponse.json().catch(()=>({}));
+        if (!contractResponse.ok) throw new Error(contractPayload.error||'Unable to load existing contract.');
+        const existing=contractPayload.contract;
+        if (existing) {
+          setResult({ id: existing.id, status: existing.status, contract: existing });
+          setMessage(existing.status==='draft'
+            ? 'A saved contract draft is already available. Review it, then issue the complete offer package.'
+            : 'Existing contract status: '+existing.status+'.');
+        }
+      })
       .catch((e)=>setMessage(e instanceof Error?e.message:'Unable to load application.'));
   },[id]);
 
@@ -48,7 +62,8 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
         workLocations:form.workLocations.split(',').map(v=>v.trim()).filter(Boolean),relocationSupport:form.relocationSupport,repayableCosts:form.repayableCosts,repaymentSchedule:form.repaymentSchedule,
       })});
       const payload=await response.json(); if(!response.ok)throw new Error(payload.error||'Unable to generate contract.');
-      setResult(payload);setMessage('Contract draft generated. Review all terms before issuing it to the candidate.');
+      const normalized={...payload,id:payload.id||payload.contract?.id,status:payload.status||payload.contract?.status,contract:payload.contract};
+      setResult(normalized);setMessage('Contract draft generated. Review all terms before issuing it to the candidate.');
     }catch(e){setMessage(e instanceof Error?e.message:'Unable to generate contract.');}finally{setBusy(false);}
   }
 
@@ -58,7 +73,8 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     try{
       const response=await fetch(`/api/admin/contracts?id=${encodeURIComponent(result.id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'issued'})});
       const payload=await response.json(); if(!response.ok)throw new Error(payload.error||'Unable to issue contract.');
-      setResult(payload);setMessage(payload.email?.status==='sent'?'Complete offer package issued and emailed to the candidate.':'Complete offer package issued, but email delivery needs attention.');
+      const normalized={...payload,id:payload.id||payload.contract?.id,status:payload.status||payload.contract?.status,contract:payload.contract};
+      setResult(normalized);setMessage(payload.email?.status==='sent'?'Complete offer package issued and emailed to the candidate.':'Complete offer package issued, but email delivery needs attention.');
     }catch(e){setMessage(e instanceof Error?e.message:'Unable to issue contract.');}finally{setBusy(false);}
   }
 
@@ -87,7 +103,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Pension" value={form.pensionScheme} onChange={(v)=>setField('pensionScheme',v)} />
     </div></section>
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Additional role terms</h2><Field label="Relocation support" value={form.relocationSupport} onChange={(v)=>setField('relocationSupport',v)} multiline /><Field label="Potentially repayable employer-funded expenses" value={form.repayableCosts} onChange={(v)=>setField('repayableCosts',v)} multiline /><Field label="Repayment schedule" value={form.repaymentSchedule} onChange={(v)=>setField('repaymentSchedule',v)} multiline /><p style={{color:'var(--muted)',fontSize:13,lineHeight:1.6,marginTop:14}}>Do not include recruitment fees, sponsor licence fees, Immigration Skills Charge, Certificate of Sponsorship costs or interview costs as employee-repayable expenses. Any repayment term must be supported by genuine, evidenced and auditable employer-funded expenses and must be reviewed for proportionality and individual circumstances.</p></section>
-    <section className="card" style={{padding:22}}><h2>Issue complete offer package</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, issue one LAUREM offer package containing the Employment Contract, Job Description, Handbook and onboarding preparation checklist. The candidate signs the three employment documents online exactly once.</p><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':'Generate draft contract'}</button>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Draft status: {result.status||'draft'}</strong>{result.status==='draft'&&<button disabled={busy} onClick={issue} style={{display:'block',...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue complete offer package and email candidate'}</button>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div>{result.documentPackLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Job Description & Handbook link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.documentPackLink}</div></>}</>}</div>}</section>
+    <section className="card" style={{padding:22}}><h2>Issue complete offer package</h2><p style={{color:'var(--muted)',lineHeight:1.65}}>Generate a draft first. After reviewing the terms, issue one LAUREM offer package containing the Employment Contract, Job Description, Handbook and onboarding preparation checklist. The candidate signs the three employment documents online exactly once.</p><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button disabled={busy} onClick={generate} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Generating…':result?.status==='draft'?'Regenerate draft':'Generate draft contract'}</button>{result?.id&&result.status==='draft'&&<button disabled={busy} onClick={issue} style={{...primaryButton,opacity:busy?.6:1}}>{busy?'Issuing…':'Issue complete offer package and email candidate'}</button>}</div>{result?.id&&<div style={{marginTop:18,padding:15,background:'var(--soft)',borderRadius:10}}><strong>Contract status: {result.status||'draft'}</strong>{result.status==='draft'&&<p style={{margin:'7px 0 0',color:'var(--muted)'}}>This draft is saved against the candidate. Review the terms above, then use <strong>Issue complete offer package and email candidate</strong>. No candidate email is sent until you explicitly issue it.</p>}{result.acceptanceLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Acceptance link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.acceptanceLink}</div>{result.documentPackLink&&<><div style={{marginTop:12,fontSize:12,color:'var(--muted)'}}>Job Description & Handbook link</div><div style={{marginTop:5,wordBreak:'break-all'}}>{result.documentPackLink}</div></>}</>}</div>}</section>
   </main>;
 }
 
