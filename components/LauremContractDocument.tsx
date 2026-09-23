@@ -18,11 +18,10 @@ export default function LauremContractDocument(input: LauremContractDocumentInpu
     return () => style.remove();
   }, []);
 
-  function printDocument() {
+  const contractPrintCss = LAUREM_CONTRACT_PRINT_CSS;\n\n  function printDocument() {
     const popup = window.open('', '_blank', 'noopener,noreferrer');
     if (!popup) return;
-    popup.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LAUREM Employment Contract</title><style>' + contractScreenCss + '<style>');
-    popup.document.write('</style></head><body>' + renderLauremContractDocument(input) + '</body></html>');
+    popup.document.write('<!doctype html><html><head><meta charset="utf-8"><title>LAUREM Employment Contract</title><style>' + contractPrintCss + '</style></head><body>' + renderLauremContractDocument(input) + '</body></html>');
     popup.document.close();
     popup.focus();
     popup.print();
