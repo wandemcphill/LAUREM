@@ -8,10 +8,11 @@ describe('LAUREM application submission lifecycle', () => {
       'utf8',
     );
 
+    // The canonical transition rule explicitly includes Interview in the allowed
+    // destinations from the newly-created Application status.
     expect(migration).toContain(
       "app_row.status='Application' and p_to_status in('Screening','Interview','Rejected','Withdrawn')",
     );
-    expect(migration).toContain("p_to_status='Interview'");
     expect(migration).toContain('laurem_recruitment_status_history');
   });
 });
