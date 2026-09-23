@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
+import { renderLauremPrintableHtml } from '@/lib/laurem-document-renderer';
 
 const BUCKET = 'laurem-private-documents';
 
@@ -76,6 +77,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       downloaded_at: now,
     },
   });
+
+  const brandedTextDocument =
+    !document.storage_path &&
+    typeof document.content_text === 'string' &&
+    (document.title.toLowerCase().includes('handbook') || document.title.toLowerCase().includes('job description'));
+
+  if (brandedTextDocument) {
+    const html = renderLauremPrintableHtml({
+      documentType: document.title.toLowerCase().includes('handbook') ? 'handbook' : 'job_description',
+      title: document.title,
+      content: document.content_text,
+      assetBaseUrl: new URL(request.url).origin,
+      signature: document.signature_status === 'signed'
+        ? { name: null, signedAt: null }
+        : null,
+    });
+    const htmlFilename = safeFilename(
+      document.title + (document.signature_status === 'signed' ? ' - Signed' : ''),
+      'text/html',
+    ).replace(/.(txt|md)$/i, '') + '.html';
+
+    return new NextResponse(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="' + htmlFilename.replace(/"/g, '') + '"',
+        'Cache-Control': 'private, no-store, max-age=0',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
 
   const baseFilename = document.original_filename ||
     document.title + (document.signature_status === 'signed' ? ' - Signed' : '');
