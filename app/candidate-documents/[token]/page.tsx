@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import LauremCandidateJourney from '@/components/LauremCandidateJourney';
+import LauremDocument from '@/components/LauremDocument';
 
 type DocumentRow = {
   id: string;
@@ -255,7 +256,7 @@ export default function CandidateDocumentsPage({
                     href={'/api/candidate-documents/download?token=' + encodeURIComponent(token) + '&documentId=' + encodeURIComponent(document.id)}
                     style={buttonSecondary}
                   >
-                    Download signed copy
+                    Download designed signed copy
                   </a>
                 )}
               </div>
@@ -291,21 +292,24 @@ export default function CandidateDocumentsPage({
             if (event.target === event.currentTarget) setSelected(null);
           }}
         >
-          <section className="card" style={{ width: 'min(960px, 100%)', maxHeight: '92vh', overflow: 'auto', padding: 28, background: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
+          <section className="card" style={{ width: 'min(1040px, 100%)', maxHeight: '94vh', overflow: 'auto', padding: 18, background: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '4px 8px 8px' }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)' }}>{selected.title}</div>
-                <h2 style={{ margin: '5px 0 0' }}>LAUREM Caregroup</h2>
+                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', letterSpacing: '.08em' }}>{selected.title}</div>
+                <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 3 }}>LAUREM Caregroup Ltd</div>
               </div>
               <button type="button" onClick={() => setSelected(null)} style={buttonSecondary}>Close</button>
             </div>
 
-            <pre style={{ marginTop: 20, whiteSpace: 'pre-wrap', fontFamily: 'Arial, sans-serif', lineHeight: 1.65 }}>
-              {selected.content}
-            </pre>
+            <LauremDocument
+              documentType={selected.document_type}
+              title={selected.title}
+              content={selected.content}
+              signature={selected.signature_status === 'signed' ? { name: selected.signed_name, signedAt: selected.signed_at } : null}
+            />
 
             {selected.signature_status !== 'signed' ? (
-              <div style={{ borderTop: '1px solid var(--line)', marginTop: 22, paddingTop: 20 }}>
+              <div style={{ borderTop: '1px solid var(--line)', margin: '20px 10px 0', padding: '20px 0 4px' }}>
                 <h3>Electronic signature</h3>
                 <label style={{ display: 'block', fontWeight: 800, fontSize: 13 }}>
                   Full legal name
@@ -341,11 +345,7 @@ export default function CandidateDocumentsPage({
                   {busy ? 'Signing…' : 'Sign document electronically'}
                 </button>
               </div>
-            ) : (
-              <div style={{ marginTop: 20, padding: 14, borderRadius: 10, background: 'var(--soft)', color: 'var(--muted)' }}>
-                This document has already been signed and cannot be signed again.
-              </div>
-            )}
+            ) : null}
           </section>
         </div>
       )}
@@ -374,6 +374,7 @@ const buttonSecondary: React.CSSProperties = {
   textDecoration: 'none',
   border: '1px solid var(--line)',
   fontWeight: 800,
+  cursor: 'pointer',
 };
 
 const input: React.CSSProperties = {
@@ -390,10 +391,11 @@ const input: React.CSSProperties = {
 const overlay: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,.52)',
+  background: 'rgba(14,28,23,.68)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: 20,
+  padding: 18,
   zIndex: 50,
 };
+

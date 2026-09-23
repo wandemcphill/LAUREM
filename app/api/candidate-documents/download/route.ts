@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashToken } from '@/lib/token';
+import { lauremCompany } from '@/lib/laurem-company-config';
+import { renderLauremPrintableHtml } from '@/lib/laurem-document-renderer';
+
+function appUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
+}
 
 function filename(title: string) {
-  return title
-    .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase() + '.txt';
+  return (
+    title
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase() + '.html'
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -33,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const { data: document, error: documentError } = await client
       .from('laurem_candidate_documents')
-      .select('id,title,content_text,signature_status,signature_name,signed_at')
+      .select('id,document_type,title,content_text,signature_status,signature_name,signed_at')
       .eq('id', documentId)
       .eq('pack_id', pack.id)
       .maybeSingle();
@@ -53,16 +61,25 @@ export async function GET(request: NextRequest) {
       metadata: { action: 'download_signed_copy' },
     });
 
-    const body = document.content_text + '\n\nSigned by: ' + (document.signature_name || '') + '\nSigned at: ' + (document.signed_at || '') + '\nSignature status: SIGNED\n';
-    const response = new NextResponse(body, {
+    const html = renderLauremPrintableHtml({
+      documentType: document.document_type as 'job_description' | 'handbook',
+      title: document.title,
+      content: document.content_text,
+      assetBaseUrl: appUrl(),
+      signature: {
+        name: document.signature_name,
+        signedAt: document.signed_at,
+      },
+    });
+
+    return new NextResponse(html, {
       status: 200,
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'text/html; charset=utf-8',
         'Content-Disposition': 'attachment; filename="' + filename(document.title) + '"',
         'Cache-Control': 'private, no-store',
       },
     });
-    return response;
   } catch (error) {
     console.error(JSON.stringify({
       level: 'error',
