@@ -84,7 +84,7 @@ function extractMetadata(lines: string[]): { titleLines: string[]; metadata: Met
 
 function renderSections(lines: string[], start: number): string {
   const html: string[] = [];
-  let sectionOpen = false;
+  let openSection: 'clause' | 'special' | null = null;
   let paragraph: string[] = [];
 
   const closeParagraph = () => {
@@ -95,10 +95,12 @@ function renderSections(lines: string[], start: number): string {
 
   const closeSection = () => {
     closeParagraph();
-    if (sectionOpen) {
+    if (openSection === 'special') {
+      html.push('</div></section>');
+    } else if (openSection === 'clause') {
       html.push('</section>');
-      sectionOpen = false;
     }
+    openSection = null;
   };
 
   for (let index = start; index < lines.length; index += 1) {
@@ -122,7 +124,7 @@ function renderSections(lines: string[], start: number): string {
         '<h2>' + inlineText(heading) + '</h2>' +
         '</div>',
       );
-      sectionOpen = true;
+      openSection = 'clause';
       continue;
     }
 
@@ -133,7 +135,7 @@ function renderSections(lines: string[], start: number): string {
         '<div class="laurem-contract-special-kicker">' + escapeHtml(line.toUpperCase()) + '</div>' +
         '<div class="laurem-contract-special-body">',
       );
-      sectionOpen = true;
+      openSection = 'special';
       continue;
     }
 
