@@ -130,6 +130,7 @@ export function renderLauremDocumentBody(input: {
   const body: string[] = [];
   let listType: 'ul' | 'ol' | null = null;
   let paragraph: string[] = [];
+  let sectionOpen = false;
 
   const closeList = () => {
     if (listType) {
@@ -216,7 +217,7 @@ export function renderLauremDocumentBody(input: {
 
   closeParagraph();
   closeList();
-  body.push('</section>');
+  if (sectionOpen) body.push('</section>');
 
   const metaHtml = metadata.length
     ? \`<div class="laurem-doc-meta-grid">\${metadata
