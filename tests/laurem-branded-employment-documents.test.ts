@@ -65,6 +65,6 @@ describe('LAUREM branded employment documents', () => {
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('SIGNED');
     expect(html).toContain('https://recruitment.lauremcare.com/document-media/');
-    expect(html).toContain('Print-ready');
+    expect(html).toContain('@page{size:A4');
   });
 });
