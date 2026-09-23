@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import LauremCandidateJourney from '@/components/LauremCandidateJourney';
+import LauremContractDocument from '@/components/LauremContractDocument';
 
 export default function ContractAcceptancePage({ params }: { params: Promise<{ token: string }> }) {
   const [token, setToken] = useState('');
@@ -125,9 +126,15 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
         )}
 
         {contract?.contract_content && (
-          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'Arial,sans-serif', lineHeight: 1.65, borderTop: '1px solid var(--line)', paddingTop: 22 }}>
-            {contract.contract_content}
-          </pre>
+          <LauremContractDocument
+            content={contract.contract_content}
+            employeeName={contract.employeeName || contract.employee_name || contract.accepted_by_name || undefined}
+            jobTitle={contract.job_title}
+            status={contract.status}
+            version={contract.version}
+            acceptedByName={contract.accepted_by_name}
+            acceptedAt={contract.accepted_at}
+          />
         )}
 
         {contract?.status === 'accepted' && (
