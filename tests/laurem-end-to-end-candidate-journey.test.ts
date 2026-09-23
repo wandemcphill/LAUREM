@@ -71,7 +71,8 @@ describe('LAUREM end-to-end candidate journey', () => {
   it('provides downloadable signed candidate documents', async () => {
     const page = await read('app/candidate-documents/[token]/page.tsx');
     const route = await read('app/api/candidate-documents/download/route.ts');
-    expect(page).toContain('Download signed copy');
+    expect(page).toContain('Download designed signed copy');
+    expect(page).toContain('/api/candidate-documents/download?token=');
     expect(route).toContain('Content-Disposition');
     expect(route).toContain('signed copy');
   });
