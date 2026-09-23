@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import LauremDocument from '@/components/LauremDocument';
 
 export default function StaffDocumentPage() {
   const router = useRouter();
@@ -64,7 +65,16 @@ export default function StaffDocumentPage() {
       {error && <div role='alert' style={{background:'#fff4f4',border:'1px solid #f3cccc',padding:14,borderRadius:12,color:'#8a2323',marginTop:14}}>{error}</div>}
       <section style={{background:'#fff',border:'1px solid #e5eaf0',borderRadius:16,padding:22,marginTop:14}}>
         {document.description && <p style={{color:'#627d98',lineHeight:1.6}}>{document.description}</p>}
-        {document.content_text && <pre style={{whiteSpace:'pre-wrap',fontFamily:'Arial,sans-serif',lineHeight:1.65,borderTop:'1px solid #edf2f7',paddingTop:20}}>{document.content_text}</pre>}
+        {document.content_text && (document.category === 'job_description' || document.category === 'handbook') ? (
+          <LauremDocument
+            documentType={document.category}
+            title={document.title}
+            content={document.content_text}
+            signature={signed ? { name: document.signature_name, signedAt: document.signed_at } : null}
+          />
+        ) : document.content_text ? (
+          <pre style={{whiteSpace:'pre-wrap',fontFamily:'Arial,sans-serif',lineHeight:1.65,borderTop:'1px solid #edf2f7',paddingTop:20}}>{document.content_text}</pre>
+        ) : null}
         {document.previewUrl && isPdf && <iframe title={document.title} src={document.previewUrl} style={{width:'100%',height:900,border:0,borderRadius:10}} />}
         {document.previewUrl && isImage && <img src={document.previewUrl} alt={document.title} style={{maxWidth:'100%',display:'block',margin:'0 auto'}} />}
         {document.previewUrl && !document.content_text && !isPdf && !isImage && <div style={{padding:18,background:'#f7fafc',borderRadius:12}}>Preview is available from the secured file URL. <a href={document.previewUrl} target='_blank' rel='noreferrer'>Open document</a></div>}
