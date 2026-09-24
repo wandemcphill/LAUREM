@@ -1,4 +1,4 @@
-import { renderLauremLetterhead, renderLauremLetterheadFooter, LAUREM_LETTERHEAD_CSS, LAUREM_LETTERHEAD_PRINT_CSS } from '@/lib/laurem-letterhead';
+import { renderLauremLetterhead, renderLauremLetterheadFooter, LAUREM_LETTERHEAD_PRINT_CSS } from '@/lib/laurem-letterhead';
 
 export type LauremDocumentType = 'job_description' | 'handbook';
 
@@ -181,8 +181,7 @@ export function renderLauremDocumentBody(input: {
         status: input.signature ? 'SIGNED ELECTRONICALLY' : 'ISSUED FOR REVIEW',
       }) +
       metaHtml +
-      '<div class="laurem-doc-rule"></div>' +
-      '<div class="laurem-doc-content">' + body.join('') + '</div>' +
+      '<div class="laurem-doc-content"> + body.join('') + '</div>' +
       signatureHtml +
       renderLauremLetterheadFooter() +
     '</article>'
@@ -206,43 +205,33 @@ export function renderLauremPrintableHtml(input: {
 }
 
 export const PRINT_CSS = [
-  '@page{size:A4;margin:15mm 14mm 17mm}',
-  LAUREM_LETTERHEAD_CSS,
+  LAUREM_LETTERHEAD_PRINT_CSS,
   '*{box-sizing:border-box}',
-  'body{margin:0;background:#eef4f1;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.62}',
+  'body{margin:0;background:#eef4f1;color:var(--lh-ink);font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.62}',
   '.laurem-document{width:190mm;margin:12mm auto;background:#fff;box-shadow:0 18px 45px rgba(24,55,47,.10);overflow:hidden}',
-  '.laurem-doc-cover{color:#fff}',
-  '.laurem-doc-cover-copy{padding:0}',
-  '.laurem-doc-kicker{font-size:7.5pt;font-weight:800;letter-spacing:.16em}',
-  '.laurem-doc-brand{margin-top:6mm;font-size:12pt;font-weight:800;letter-spacing:.18em}',
-  '.laurem-doc-brand span{font-weight:500}',
-  '.laurem-doc-cover h1{font-size:20pt;line-height:1.12;margin:1.5mm 0 0}',
-  '.laurem-doc-cover p{margin:1mm 0 0;font-size:9pt;opacity:.86}',
-  '.laurem-doc-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}',
+  '.laurem-doc-kicker{font-size:7.5pt;font-weight:800;letter-spacing:.16em;color:var(--lh-green)}',
+  '.laurem-doc-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--lh-line);border:1px solid var(--lh-line)}',
   '.laurem-doc-meta{background:#fff;padding:5mm 6mm;min-height:19mm}',
-  '.laurem-doc-meta span{display:block;color:var(--muted);font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5mm}',
-  '.laurem-doc-meta strong{display:block;font-size:9.5pt}',
-  '.laurem-doc-rule{height:2mm;background:linear-gradient(90deg,var(--accent),var(--mint),transparent)}',
+  '.laurem-doc-meta span{display:block;color:var(--lh-muted);font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5mm}',
+  '.laurem-doc-meta strong{display:block;font-size:9.5pt;color:var(--lh-ink)}',
   '.laurem-doc-content{padding:11mm 13mm 8mm}',
   '.laurem-doc-section{margin:0 0 8mm}',
-  '.laurem-doc-section-heading{display:flex;gap:3.5mm;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:2.5mm;margin-bottom:4mm}',
-  '.laurem-doc-section-number{display:inline-flex;align-items:center;justify-content:center;min-width:9mm;height:9mm;border-radius:999px;background:var(--pale);color:var(--accent);font-weight:800;font-size:8pt}',
-  '.laurem-doc-section h2{margin:0;font-size:16pt;line-height:1.15}',
-  '.laurem-doc-content h3{margin:5mm 0 2mm;font-size:11pt;color:var(--accent)}',
+  '.laurem-doc-section-heading{display:flex;gap:3.5mm;align-items:flex-start;border-bottom:1px solid var(--lh-line);padding-bottom:2.5mm;margin-bottom:4mm}',
+  '.laurem-doc-section-number{display:inline-flex;align-items:center;justify-content:center;min-width:9mm;height:9mm;border-radius:999px;background:#e1f2eb;color:var(--lh-green);font-weight:800;font-size:8pt}',
+  '.laurem-doc-section h2{margin:0;color:var(--lh-ink);font-size:16pt;line-height:1.15}',
+  '.laurem-doc-content h3{margin:5mm 0 2mm;font-size:11pt;color:var(--lh-green)}',
   '.laurem-doc-content p{margin:0 0 3.2mm;color:#253a34}',
   '.laurem-doc-content ul,.laurem-doc-content ol{margin:1mm 0 4mm 5mm;padding-left:5mm}',
   '.laurem-doc-content li{margin-bottom:1.6mm;padding-left:1mm}',
-  '.laurem-doc-content li::marker{color:var(--accent);font-weight:700}',
-  '.laurem-doc-content strong{color:var(--ink)}',
-  '.laurem-doc-content hr{border:0;border-top:1px solid var(--line);margin:7mm 0}',
-  '.laurem-doc-signature{margin:7mm 13mm 10mm;padding:6mm;border:1px solid #bfdacf;border-radius:5mm;background:var(--soft);break-inside:avoid}',
-  '.laurem-doc-signature h2{margin:1mm 0;font-size:14pt}',
-  '.laurem-doc-signature p{margin:0;color:var(--muted)}',
+  '.laurem-doc-content li::marker{color:var(--lh-green);font-weight:700}',
+  '.laurem-doc-content strong{color:var(--lh-ink)}',
+  '.laurem-doc-content hr{border:0;border-top:1px solid var(--lh-line);margin:7mm 0}',
+  '.laurem-doc-signature{margin:7mm 13mm 10mm;padding:6mm;border:1px solid #bfdacf;border-radius:5mm;background:var(--lh-soft);break-inside:avoid}',
+  '.laurem-doc-signature h2{margin:1mm 0;font-size:14pt;color:var(--lh-ink)}',
+  '.laurem-doc-signature p{margin:0;color:var(--lh-muted)}',
   '.laurem-doc-signature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:5mm}',
-  '.laurem-doc-signature-grid div{background:#fff;border:1px solid var(--line);border-radius:3mm;padding:3mm}',
-  '.laurem-doc-signature-grid span{display:block;font-size:7pt;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}',
-  '.laurem-doc-signature-grid strong{display:block;margin-top:1mm;font-size:8.5pt}',
-  '.laurem-doc-footer{display:none}',
-  LAUREM_LETTERHEAD_PRINT_CSS,
+  '.laurem-doc-signature-grid div{background:#fff;border:1px solid var(--lh-line);border-radius:3mm;padding:3mm}',
+  '.laurem-doc-signature-grid span{display:block;font-size:7pt;text-transform:uppercase;letter-spacing:.08em;color:var(--lh-muted)}',
+  '.laurem-doc-signature-grid strong{display:block;margin-top:1mm;font-size:8.5pt;color:var(--lh-ink)}',
   '@media print{body{background:#fff}.laurem-document{width:100%;margin:0;box-shadow:none}.laurem-doc-content{padding-bottom:5mm}}',
 ].join('');
