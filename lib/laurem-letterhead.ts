@@ -59,7 +59,7 @@ export function renderLauremLetterheadFooter(): string {
   return (
     '<footer class="laurem-letterhead-footer">' +
       '<div><strong>' + escapeHtml(LAUREM_LETTERHEAD.legalName) + '</strong><span>' +
-      escapeHtml(LAUREM_LETTERHEAD.registration) + ' · Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span></div>' +
+      escapeHtml(LAUREM_LETTERHEAD.registration) + '&nbsp;·&nbsp;Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span></div>' +
       '<div><span>Registered Office</span><span>' + escapeHtml(LAUREM_LETTERHEAD.registeredOffice) + '</span></div>' +
       '<div><span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span><span>&nbsp;·&nbsp;</span><span>' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span></div>' +
     '</footer>'
