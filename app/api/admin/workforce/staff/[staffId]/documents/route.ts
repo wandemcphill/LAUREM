@@ -40,7 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const template = clean(form.get('template'));
     const contentInput = clean(form.get('content')) || null;
     const content = template === 'job_description' ? null : contentInput;
-    const requiresSignature = clean(form.get('requiresSignature')) === 'true';
+    const requiresSignature = category === 'job_description' || template === 'job_description' || clean(form.get('requiresSignature')) === 'true';
     const fileEntry = form.get('file');
     const file = fileEntry instanceof File && fileEntry.size > 0 ? fileEntry : null;
     if (!title) return NextResponse.json({ error: 'Document title is required.' }, { status: 400 });
