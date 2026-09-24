@@ -67,4 +67,15 @@ describe('LAUREM staff employment documents', () => {
     const nurse = readFileSync('lib/laurem-international-nurse-contract.ts', 'utf8');
     expect(nurse).toContain('Name: Dezou Maurice');
   });
+
+  it('hardens Hired-path RPCs against production schema drift', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260924232000_fix_laurem_hire_rpc_production_drift.sql',
+      'utf8',
+    );
+    expect(migration).toContain("encode(extensions.digest(convert_to(v_contract.contract_content, 'utf8'), 'sha256'), 'hex')");
+    expect(migration).toContain('create or replace function public.laurem_attach_signed_candidate_documents_to_staff');
+    expect(migration).toContain('laurem_candidate_document_packs');
+    expect(migration).toContain('grant execute on function public.laurem_attach_signed_candidate_documents_to_staff(uuid, uuid, text)');
+  });
 });
