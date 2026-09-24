@@ -1,6 +1,9 @@
 export const lauremCompany = {
-  legalName: 'Laurem Caregroup Ltd',
+  legalName: 'Laurem Care Group Limited',
   tradingName: 'Laurem Caregroup',
+  companyNumber: 'SC490520',
+  registration: 'Registered in Scotland',
+  registeredOffice: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE',
   website: 'https://lauremcare.com',
   locations: ['London', 'Glasgow', 'Manchester', 'West Midlands'],
   publicEmails: {
