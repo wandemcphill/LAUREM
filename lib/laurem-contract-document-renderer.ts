@@ -47,6 +47,7 @@ function extractMetadata(lines: string[]): { titleLines: string[]; metadata: Met
 
   if (index < lines.length && lines[index].trim().toUpperCase().startsWith('LAUREM CARE')) {
     index += 1;
+    while (index < lines.length && !lines[index].trim()) index += 1;
   }
 
   const titleLines: string[] = [];
