@@ -2,25 +2,62 @@ export type LauremDocumentType = 'job_description' | 'handbook';
 
 type MetadataEntry = { label: string; value: string };
 
+const PHOTO_BASE = 'https://images.pexels.com';
+
 const MEDIA: Record<LauremDocumentType, {
   cover: string;
   sectionImages: Array<{ match: string[]; src: string; alt: string; caption: string }>;
 }> = {
   handbook: {
-    cover: '/document-media/laurem-care-team.svg',
+    cover: PHOTO_BASE + '/photos/18429309/pexels-photo-18429309.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18429309.jpg&fm=jpg',
     sectionImages: [
-      { match: ['Welcome to Laurem Caregroup'], src: '/document-media/laurem-care-team.svg', alt: 'LAUREM Care staff welcoming a colleague', caption: 'People at the heart of LAUREM Care' },
-      { match: ['Safeguarding'], src: '/document-media/laurem-compassionate-care.svg', alt: 'LAUREM Care worker supporting a service user', caption: 'Safe, respectful and person-centred care' },
-      { match: ['Health, safety and infection prevention', 'Professional appearance'], src: '/document-media/laurem-professional-practice.svg', alt: 'LAUREM Care worker preparing for professional care', caption: 'Professional practice starts with safe preparation' },
-      { match: ['Wellbeing and support', 'Professional development'], src: '/document-media/laurem-wellbeing.svg', alt: 'LAUREM Care worker using a tablet with a colleague', caption: 'Supporting the people who support others' },
+      {
+        match: ['Welcome to Laurem Caregroup'],
+        src: PHOTO_BASE + '/photos/18429309/pexels-photo-18429309.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18429309.jpg&fm=jpg',
+        alt: 'Care professionals spending time with residents in a care setting',
+        caption: 'Real care photography: people, support and community',
+      },
+      {
+        match: ['Safeguarding'],
+        src: PHOTO_BASE + '/photos/29372724/pexels-photo-29372724.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-29372724.jpg&fm=jpg',
+        alt: 'Caregiver holding hands with an older adult at home',
+        caption: 'Real care photography: dignity, reassurance and human connection',
+      },
+      {
+        match: ['Health, safety and infection prevention', 'Professional appearance'],
+        src: PHOTO_BASE + '/photos/18459198/pexels-photo-18459198.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18459198.jpg&fm=jpg',
+        alt: 'Caregiver supporting an older resident in a residential care setting',
+        caption: 'Real care photography: attentive support in everyday care',
+      },
+      {
+        match: ['Wellbeing and support', 'Professional development'],
+        src: PHOTO_BASE + '/photos/18459245/pexels-photo-18459245.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18459245.jpg&fm=jpg',
+        alt: 'Care worker speaking with older residents in a care setting',
+        caption: 'Real care photography: conversation, trust and wellbeing',
+      },
     ],
   },
   job_description: {
-    cover: '/document-media/laurem-professional-practice.svg',
+    cover: PHOTO_BASE + '/photos/18459198/pexels-photo-18459198.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18459198.jpg&fm=jpg',
     sectionImages: [
-      { match: ['Job purpose'], src: '/document-media/laurem-professional-practice.svg', alt: 'LAUREM Care professional reviewing a care plan', caption: 'Clear responsibilities. Confident practice.' },
-      { match: ['Key responsibilities'], src: '/document-media/laurem-compassionate-care.svg', alt: 'LAUREM Care worker providing person-centred support', caption: 'Every responsibility connects back to safe, person-centred care' },
-      { match: ['Person specification', 'Performance and development'], src: '/document-media/laurem-wellbeing.svg', alt: 'LAUREM Care professionals reviewing development', caption: 'Skills, development and professional standards' },
+      {
+        match: ['Job purpose'],
+        src: PHOTO_BASE + '/photos/18459198/pexels-photo-18459198.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18459198.jpg&fm=jpg',
+        alt: 'Caregiver supporting an older resident in a residential care setting',
+        caption: 'Real care photography: attentive support and practical care',
+      },
+      {
+        match: ['Key responsibilities'],
+        src: PHOTO_BASE + '/photos/18459245/pexels-photo-18459245.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18459245.jpg&fm=jpg',
+        alt: 'Care worker speaking with older residents in a care setting',
+        caption: 'Real care photography: communication and person-centred support',
+      },
+      {
+        match: ['Person specification', 'Performance and development'],
+        src: PHOTO_BASE + '/photos/18429309/pexels-photo-18429309.jpeg?cs=srgb&dl=pexels-jsme-mila-523821574-18429309.jpg&fm=jpg',
+        alt: 'Care professionals supporting residents together in a care setting',
+        caption: 'Real care photography: teamwork and professional practice',
+      },
     ],
   },
 };
@@ -83,6 +120,7 @@ export function renderLauremDocumentBody(input: {
   signature?: { name?: string | null; signedAt?: string | null } | null;
 }): string {
   const assetBaseUrl = (input.assetBaseUrl || '').replace(/\/$/, '');
+  const resolveAssetUrl = (src: string) => /^https?:\/\//i.test(src) ? src : assetBaseUrl + src;
   const lines = input.content.replace(/\r\n?/g, '\n').split('\n');
   const parsed = parseMetadata(lines);
   const metadata = parsed.metadata;
@@ -149,7 +187,7 @@ export function renderLauremDocumentBody(input: {
       if (sectionImage) {
         body.push(
           '<figure class="laurem-doc-figure">' +
-          '<img src="' + escapeHtml(assetBaseUrl + sectionImage.src) + '" alt="' + escapeHtml(sectionImage.alt) + '" loading="lazy" />' +
+          '<img src="' + escapeHtml(resolveAssetUrl(sectionImage.src)) + '" alt="' + escapeHtml(sectionImage.alt) + '" loading="lazy" />' +
           '<figcaption>' + escapeHtml(sectionImage.caption) + '</figcaption>' +
           '</figure>',
         );
@@ -220,7 +258,7 @@ export function renderLauremDocumentBody(input: {
           '<h1>' + escapeHtml(input.title) + '</h1>' +
           '<p>Laurem Caregroup Ltd</p>' +
         '</div>' +
-        '<div class="laurem-doc-cover-art"><img src="' + escapeHtml(assetBaseUrl + media.cover) + '" alt="LAUREM Care staff" /></div>' +
+        '<div class="laurem-doc-cover-art"><img src="' + escapeHtml(resolveAssetUrl(media.cover)) + '" alt="LAUREM Care staff" /></div>' +
       '</header>' +
       metaHtml +
       '<div class="laurem-doc-rule"></div>' +
