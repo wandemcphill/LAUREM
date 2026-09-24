@@ -40,8 +40,8 @@ export function renderLauremLetterhead(input?: {
         '<div class="laurem-letterhead-contact">' +
           '<strong>' + escapeHtml(LAUREM_LETTERHEAD.legalName) + '</strong>' +
           '<span>' + escapeHtml(LAUREM_LETTERHEAD.registeredOffice) + '</span>' +
-          '<span>' + escapeHtml(LAUREM_LETTERHEAD.registration) + ' · Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span>' +
-          '<span>' + escapeHtml(LAUREM_LETTERHEAD.email) + ' · ' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span>' +
+          '<span>' + escapeHtml(LAUREM_LETTERHEAD.registration) + '&nbsp;·&nbsp;Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span>' +
+          '<span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '&nbsp;·&nbsp;' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="laurem-letterhead-rule"></div>' +
@@ -61,7 +61,7 @@ export function renderLauremLetterheadFooter(): string {
       '<div><strong>' + escapeHtml(LAUREM_LETTERHEAD.legalName) + '</strong><span>' +
       escapeHtml(LAUREM_LETTERHEAD.registration) + ' · Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span></div>' +
       '<div><span>Registered Office</span><span>' + escapeHtml(LAUREM_LETTERHEAD.registeredOffice) + '</span></div>' +
-      '<div><span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span><span>' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span></div>' +
+      '<div><span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span><span>&nbsp;·&nbsp;</span><span>' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span></div>' +
     '</footer>'
   );
 }
