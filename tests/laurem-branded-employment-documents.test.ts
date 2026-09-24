@@ -34,7 +34,8 @@ describe('LAUREM branded employment documents', () => {
     });
 
     expect(html).toContain('class="laurem-doc-cover"');
-    expect(html).toContain('images.pexels.com/photos/18459198/pexels-photo-18459198.jpeg');
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('images.pexels.com');
     expect(html).not.toContain('laurem-professional-practice.svg');
     expect(html).toContain('<h2>Job purpose</h2>');
     expect(html).toContain('<ol>');
