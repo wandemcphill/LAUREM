@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
+import LauremContractDocument from '@/components/LauremContractDocument';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
-type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null} };
+type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null} };
 
 function eligible(app: Application | null) { return Boolean(app); }
 
@@ -83,6 +84,26 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     <Link href={`/admin/applications/${id}`} style={{color:'var(--muted)',textDecoration:'none'}}>← Candidate file</Link>
     <header style={{margin:'18px 0 24px'}}><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>LAUREM EMPLOYMENT CONTRACT</p><h1>{application.full_name}</h1><p style={{color:'var(--muted)'}}>{application.role_applied} · {application.email}</p></header>
     {message&&<div role="alert" className="card" style={{padding:14,marginBottom:16}}>{message}</div>}
+    {result?.contract?.contract_content && (
+      <section className="card" style={{padding:22,marginBottom:16}}>
+        <div style={{marginBottom:14}}>
+          <h2 style={{margin:'0 0 6px'}}>Contract document</h2>
+          <p style={{color:'var(--muted)',lineHeight:1.6,margin:0}}>
+            This preview uses the permanent LAUREM letterhead and current document typography, including for contracts issued before the letterhead redesign.
+          </p>
+        </div>
+        <LauremContractDocument
+          content={result.contract.contract_content}
+          employeeName={application.full_name}
+          jobTitle={result.contract.job_title || application.role_applied}
+          status={result.contract.status}
+          version={result.contract.version}
+          acceptedByName={result.contract.accepted_by_name}
+          acceptedAt={result.contract.accepted_at}
+        />
+      </section>
+    )}
+
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Employment terms</h2><div style={grid}>
       <Field label="Weekly contracted hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
       <Field label="Annual salary (£, where applicable)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
