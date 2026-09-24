@@ -16,5 +16,8 @@ describe('LAUREM atomic staff onboarding', () => {
     expect(migration).toContain("laurem_transition_application_status");
     expect(migration).toContain("app_row.status not in ('Onboarding', 'Hired')");
     expect(migration).toContain("revoke all on function public.laurem_prepare_staff_onboarding_atomic");
+    expect(migration).toContain("app_row.application_data->>'nmc_number'");
+    expect(migration).not.toContain('app_row.nmc_number');
+
   });
 });
