@@ -25,6 +25,7 @@ describe('LAUREM staff employment documents', () => {
     expect(source).toContain('laurem-private-documents');
     expect(source).toContain('sendLauremEmail');
     expect(source).toContain('lauremCompany.documentIssuer.name');
+    expect(source).toContain("const requiresSignature = category === 'job_description' || template === 'job_description' || clean(form.get('requiresSignature')) === 'true';");
   });
 
   it('requires online staff signature rather than a download workflow', () => {
