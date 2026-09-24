@@ -34,7 +34,8 @@ describe('LAUREM branded employment documents', () => {
     });
 
     expect(html).toContain('class="laurem-doc-cover"');
-    expect(html).toContain('laurem-professional-practice.svg');
+    expect(html).toContain('images.pexels.com/photos/18459198/pexels-photo-18459198.jpeg');
+    expect(html).not.toContain('laurem-professional-practice.svg');
     expect(html).toContain('<h2>Job purpose</h2>');
     expect(html).toContain('<ol>');
     expect(html).toContain('<span>Job title</span><strong>Healthcare Assistant</strong>');
@@ -64,7 +65,8 @@ describe('LAUREM branded employment documents', () => {
 
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<strong>Signed</strong>');
-    expect(html).toContain('https://recruitment.lauremcare.com/document-media/');
+    expect(html).toContain('https://images.pexels.com/photos/18429309/pexels-photo-18429309.jpeg');
+    expect(html).not.toContain('document-media/laurem-');
     expect(html).toContain('@page{size:A4');
   });
 });
