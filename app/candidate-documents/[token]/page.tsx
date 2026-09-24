@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 import LauremDocument from '@/components/LauremDocument';
+import LauremElectronicSignature from '@/components/LauremElectronicSignature';
 
 type DocumentRow = {
   id: string;
@@ -40,8 +41,6 @@ export default function CandidateDocumentsPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawing = useRef(false);
 
   useEffect(() => {
     params.then((value) => setToken(value.token));
@@ -68,48 +67,6 @@ export default function CandidateDocumentsPage({
   useEffect(() => {
     void load();
   }, [token]);
-
-  function clearSignature() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
-    setSignatureData('');
-  }
-
-  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * canvas.width / rect.width,
-      y: (event.clientY - rect.top) * canvas.height / rect.height,
-    };
-  }
-
-  function startDraw(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    const point = getPoint(event);
-    if (!canvas || !context || !point) return;
-    drawing.current = true;
-    canvas.setPointerCapture(event.pointerId);
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-  }
-
-  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    const point = getPoint(event);
-    if (!canvas || !context || !point) return;
-    context.lineWidth = 2.2;
-    context.lineCap = 'round';
-    context.strokeStyle = '#173a31';
-    context.lineTo(point.x, point.y);
-    context.stroke();
-    setSignatureData(canvas.toDataURL('image/png'));
-  }
 
   async function signSelected() {
     if (!selected || busy) return;
@@ -138,7 +95,7 @@ export default function CandidateDocumentsPage({
 
       setSelected(null);
       setAgree(false);
-      clearSignature();
+      setSignatureData('');
       if (body.onboardingLink) setOnboardingLink(body.onboardingLink);
       setWaitingForReadiness(Boolean(body.waitingForReadiness));
       setMessage(
@@ -245,7 +202,7 @@ export default function CandidateDocumentsPage({
                   onClick={() => {
                     setSelected(document);
                     setAgree(false);
-                    clearSignature();
+                    setSignatureData('');
                   }}
                   style={buttonPrimary}
                 >
@@ -306,46 +263,21 @@ export default function CandidateDocumentsPage({
               title={selected.title}
               content={selected.content}
               signature={selected.signature_status === 'signed' ? { name: selected.signed_name, signedAt: selected.signed_at } : null}
+              signaturePanel={selected.signature_status !== 'signed' ? (
+                <LauremElectronicSignature
+                  name={name}
+                  onNameChange={setName}
+                  agree={agree}
+                  onAgreeChange={setAgree}
+                  onSignatureChange={setSignatureData}
+                  onSign={() => void signSelected()}
+                  busy={busy}
+                  attestation={attestation}
+                  buttonLabel="Sign document electronically"
+                />
+              ) : null}
             />
 
-            {selected.signature_status !== 'signed' ? (
-              <div style={{ borderTop: '1px solid var(--line)', margin: '20px 10px 0', padding: '20px 0 4px' }}>
-                <h3>Electronic signature</h3>
-                <label style={{ display: 'block', fontWeight: 800, fontSize: 13 }}>
-                  Full legal name
-                  <input value={name} onChange={(event) => setName(event.target.value)} style={input} />
-                </label>
-
-                <div style={{ marginTop: 14, fontWeight: 800, fontSize: 13 }}>Optional handwritten signature</div>
-                <canvas
-                  ref={canvasRef}
-                  width={900}
-                  height={180}
-                  onPointerDown={startDraw}
-                  onPointerMove={draw}
-                  onPointerUp={() => { drawing.current = false; }}
-                  onPointerCancel={() => { drawing.current = false; }}
-                  style={{ width: '100%', height: 180, border: '1px solid var(--line)', borderRadius: 10, marginTop: 7, touchAction: 'none' }}
-                />
-                <button type="button" onClick={clearSignature} style={{ ...buttonSecondary, marginTop: 7 }}>
-                  Clear signature
-                </button>
-
-                <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 16, fontSize: 13, lineHeight: 1.5 }}>
-                  <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} style={{ marginTop: 3 }} />
-                  <span>{attestation}</span>
-                </label>
-
-                <button
-                  type="button"
-                  disabled={busy || !name.trim() || !agree}
-                  onClick={() => void signSelected()}
-                  style={{ ...buttonPrimary, opacity: busy || !name.trim() || !agree ? .55 : 1, marginTop: 12 }}
-                >
-                  {busy ? 'Signing…' : 'Sign document electronically'}
-                </button>
-              </div>
-            ) : null}
           </section>
         </div>
       )}

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import LauremCandidateJourney from '@/components/LauremCandidateJourney';
 import LauremContractDocument from '@/components/LauremContractDocument';
+import LauremElectronicSignature from '@/components/LauremElectronicSignature';
 
 export default function ContractAcceptancePage({ params }: { params: Promise<{ token: string }> }) {
   const [token, setToken] = useState('');
@@ -13,8 +14,7 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [documentPackUrl, setDocumentPackUrl] = useState('');
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawing = useRef(false);
+  const [signatureData, setSignatureData] = useState('');
 
   const attestation = 'I confirm that I have read and understood this employment contract and agree to sign it electronically.';
 
@@ -34,53 +34,11 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
       .catch((error) => setMessage(error instanceof Error ? error.message : 'Unable to load contract.'));
   }, [token]);
 
-  function point(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * canvas.width / rect.width,
-      y: (event.clientY - rect.top) * canvas.height / rect.height,
-    };
-  }
-
-  function start(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    drawing.current = true;
-    canvas.setPointerCapture(event.pointerId);
-    const position = point(event);
-    const context = canvas.getContext('2d');
-    if (!position || !context) return;
-    context.beginPath();
-    context.moveTo(position.x, position.y);
-  }
-
-  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const position = point(event);
-    const context = canvas.getContext('2d');
-    if (!position || !context) return;
-    context.lineWidth = 2.2;
-    context.lineCap = 'round';
-    context.strokeStyle = '#173a31';
-    context.lineTo(position.x, position.y);
-    context.stroke();
-  }
-
-  function clear() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
   async function respond(accepted: boolean) {
     setBusy(true);
     setMessage(null);
     try {
-      const signatureData = canvasRef.current?.toDataURL('image/png') || null;
+      const signedSignatureData = signatureData || null;
       const response = await fetch('/api/contracts/accept', {
         method: 'POST',
         headers: {
@@ -91,7 +49,7 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
           accepted,
           acceptedByName: name,
           declineReason,
-          signatureData,
+          signatureData: signedSignatureData,
           attestation,
         }),
       });
@@ -134,6 +92,19 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
             version={contract.version}
             acceptedByName={contract.accepted_by_name}
             acceptedAt={contract.accepted_at}
+            signaturePanel={contract.status === 'accepted' ? null : (
+              <LauremElectronicSignature
+                name={name}
+                onNameChange={setName}
+                agree={agree}
+                onAgreeChange={setAgree}
+                onSignatureChange={setSignatureData}
+                onSign={() => void respond(true)}
+                busy={busy}
+                attestation={attestation}
+                buttonLabel="Sign contract electronically"
+              />
+            )}
           />
         )}
 
@@ -157,35 +128,6 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
           </div>
         ) : contract?.status === 'accepted' ? null : (
           <>
-            <section style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--line)' }}>
-              <h2>Electronic signature</h2>
-              <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-                Enter your full legal name and optionally draw your signature. The platform records the signing timestamp and audit details.
-              </p>
-              <label>
-                Full legal name
-                <input value={name} onChange={(event) => setName(event.target.value)} style={input} />
-              </label>
-
-              <div style={{ marginTop: 14, fontWeight: 800, fontSize: 13 }}>Optional handwritten signature</div>
-              <canvas
-                ref={canvasRef}
-                width={900}
-                height={180}
-                onPointerDown={start}
-                onPointerMove={draw}
-                onPointerUp={() => { drawing.current = false; }}
-                onPointerCancel={() => { drawing.current = false; }}
-                style={{ width: '100%', height: 180, border: '1px solid var(--line)', borderRadius: 10, marginTop: 7, touchAction: 'none' }}
-              />
-              <button type="button" onClick={clear} style={buttonSecondary}>Clear signature</button>
-
-              <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 16, fontSize: 13, lineHeight: 1.5 }}>
-                <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} style={{ marginTop: 3 }} />
-                <span>{attestation}</span>
-              </label>
-            </section>
-
             <div style={{ marginTop: 20 }}>
               <label>
                 Reason for declining (optional)
@@ -193,14 +135,7 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
               </label>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-              <button
-                disabled={busy || !name.trim() || !agree}
-                onClick={() => void respond(true)}
-                style={{ ...buttonPrimary, opacity: busy || !name.trim() || !agree ? .55 : 1 }}
-              >
-                {busy ? 'Signing…' : 'Sign contract electronically'}
-              </button>
+            <div style={{ marginTop: 18 }}>
               <button disabled={busy} onClick={() => void respond(false)} style={buttonSecondary}>
                 Decline
               </button>
