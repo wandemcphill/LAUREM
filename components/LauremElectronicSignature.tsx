@@ -147,7 +147,7 @@ export default function LauremElectronicSignature({
           onChange={(event) => onAgreeChange(event.target.checked)}
           style={{ marginTop: 3 }}
         />
-        <span>{attestation}</span>
+        <span>{attestation || 'I confirm that I have read this document, understand it, and agree to sign it electronically.'}</span>
       </label>
 
       <button
