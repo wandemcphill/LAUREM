@@ -41,9 +41,7 @@ export function renderLauremLetterhead(input?: {
           '<strong>' + escapeHtml(LAUREM_LETTERHEAD.legalName) + '</strong>' +
           '<span>' + escapeHtml(LAUREM_LETTERHEAD.registeredOffice) + '</span>' +
           '<span>' + escapeHtml(LAUREM_LETTERHEAD.registration) + '&nbsp;·&nbsp;Company No. ' + escapeHtml(LAUREM_LETTERHEAD.companyNumber) + '</span>' +
-          '<span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span>' +
-          '<span>&nbsp;·&nbsp;</span>' +
-          '<span>' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span>' +
+          '<span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span><span>&nbsp;·&nbsp;</span><span>' + escapeHtml(LAUREM_LETTERHEAD.website) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="laurem-letterhead-rule"></div>' +
