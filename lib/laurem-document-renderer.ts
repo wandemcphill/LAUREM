@@ -1,3 +1,5 @@
+import { renderLauremLetterhead, renderLauremLetterheadFooter, LAUREM_LETTERHEAD_CSS, LAUREM_LETTERHEAD_PRINT_CSS } from '@/lib/laurem-letterhead';
+
 export type LauremDocumentType = 'job_description' | 'handbook';
 
 type MetadataEntry = { label: string; value: string };
@@ -173,19 +175,16 @@ export function renderLauremDocumentBody(input: {
 
   return (
     '<article class="laurem-document" data-document-type="' + escapeHtml(input.documentType) + '">' +
-      '<header class="laurem-doc-cover">' +
-        '<div class="laurem-doc-cover-copy">' +
-          '<span class="laurem-doc-kicker">' + documentKindLabel(input.documentType) + '</span>' +
-          '<div class="laurem-doc-brand">LAUREM <span>CARE</span></div>' +
-          '<h1>' + escapeHtml(input.title) + '</h1>' +
-          '<p>Laurem Caregroup Ltd</p>' +
-        '</div>' +
-      '</header>' +
+      renderLauremLetterhead({
+        documentLabel: documentKindLabel(input.documentType),
+        title: input.title,
+        status: input.signature ? 'SIGNED ELECTRONICALLY' : 'ISSUED FOR REVIEW',
+      }) +
       metaHtml +
       '<div class="laurem-doc-rule"></div>' +
       '<div class="laurem-doc-content">' + body.join('') + '</div>' +
       signatureHtml +
-      '<footer class="laurem-doc-footer"><span>LAUREM CAREGROUP LTD</span><span>' + documentKindLabel(input.documentType) + '</span></footer>' +
+      renderLauremLetterheadFooter() +
     '</article>'
   );
 }
@@ -207,18 +206,18 @@ export function renderLauremPrintableHtml(input: {
 }
 
 export const PRINT_CSS = [
-  '@page{size:A4;margin:14mm 13mm 16mm}',
-  ':root{--ink:#18372f;--muted:#63746d;--line:#dbe8e2;--soft:#f3f8f5;--accent:#2c6d5c;--mint:#8dcdb9;--pale:#e1f2eb}',
+  '@page{size:A4;margin:15mm 14mm 17mm}',
+  LAUREM_LETTERHEAD_CSS,
   '*{box-sizing:border-box}',
   'body{margin:0;background:#eef4f1;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;line-height:1.62}',
   '.laurem-document{width:190mm;margin:12mm auto;background:#fff;box-shadow:0 18px 45px rgba(24,55,47,.10);overflow:hidden}',
-  '.laurem-doc-cover{min-height:92mm;display:grid;grid-template-columns:1.05fr .95fr;background:linear-gradient(135deg,#173a31 0%,#235d4f 65%,#5f9d8b 100%);color:#fff}',
-  '.laurem-doc-cover-copy{padding:18mm 11mm 13mm 16mm;display:flex;flex-direction:column;justify-content:center}',
+  '.laurem-doc-cover{color:#fff}',
+  '.laurem-doc-cover-copy{padding:0}',
   '.laurem-doc-kicker{font-size:7.5pt;font-weight:800;letter-spacing:.16em}',
   '.laurem-doc-brand{margin-top:6mm;font-size:12pt;font-weight:800;letter-spacing:.18em}',
   '.laurem-doc-brand span{font-weight:500}',
-  '.laurem-doc-cover h1{font-size:29pt;line-height:1.07;margin:5mm 0 3mm;max-width:120mm}',
-  '.laurem-doc-cover p{margin:0;font-size:11pt;opacity:.86}',
+  '.laurem-doc-cover h1{font-size:20pt;line-height:1.12;margin:1.5mm 0 0}',
+  '.laurem-doc-cover p{margin:1mm 0 0;font-size:9pt;opacity:.86}',
   '.laurem-doc-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}',
   '.laurem-doc-meta{background:#fff;padding:5mm 6mm;min-height:19mm}',
   '.laurem-doc-meta span{display:block;color:var(--muted);font-size:7.5pt;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5mm}',
@@ -243,6 +242,7 @@ export const PRINT_CSS = [
   '.laurem-doc-signature-grid div{background:#fff;border:1px solid var(--line);border-radius:3mm;padding:3mm}',
   '.laurem-doc-signature-grid span{display:block;font-size:7pt;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}',
   '.laurem-doc-signature-grid strong{display:block;margin-top:1mm;font-size:8.5pt}',
-  '.laurem-doc-footer{display:flex;justify-content:space-between;gap:4mm;padding:4mm 13mm;color:#71817b;font-size:7pt;letter-spacing:.08em;border-top:1px solid var(--line)}',
-  '@media print{body{background:#fff}.laurem-document{width:100%;margin:0;box-shadow:none}.laurem-doc-cover{page-break-after:always}.laurem-doc-content{padding-bottom:5mm}}',
+  '.laurem-doc-footer{display:none}',
+  LAUREM_LETTERHEAD_PRINT_CSS,
+  '@media print{body{background:#fff}.laurem-document{width:100%;margin:0;box-shadow:none}.laurem-doc-content{padding-bottom:5mm}}',
 ].join('');
