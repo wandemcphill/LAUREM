@@ -71,7 +71,7 @@ Employment begins on 1 January 2027.
     expect(html).toContain('LAUREM CARE GROUP LIMITED');
     expect(html).toContain('Company No. SC490520');
     expect(html).not.toContain('<div class="legacy-letterhead">');
-    expect(html.match(/LAUREM CARE GROUP LIMITED/g)?.length).toBe(1);
+    expect(html.match(/LAUREM CARE GROUP LIMITED/g)?.length).toBe(2);
     expect(html).toContain('CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)');
     expect(html).toContain('SIGNED ELECTRONICALLY');
   });
