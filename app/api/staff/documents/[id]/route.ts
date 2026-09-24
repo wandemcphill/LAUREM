@@ -26,7 +26,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (signedError) return NextResponse.json({ error: 'Unable to prepare document preview.' }, { status: 500 });
     previewUrl = signed?.signedUrl || null;
   }
-  return NextResponse.json({ document: { ...document, content_text: document.storage_path ? null : document.content_text, previewUrl }, attestation: ATTESTATION });
+  return NextResponse.json({
+    document: {
+      ...document,
+      requires_signature: document.category === 'job_description' || document.requires_signature,
+      signature_status: document.category === 'job_description' && document.signature_status === 'not_required' ? 'pending' : document.signature_status,
+      content_text: document.storage_path ? null : document.content_text,
+      previewUrl,
+    },
+    attestation: ATTESTATION,
+  });
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
