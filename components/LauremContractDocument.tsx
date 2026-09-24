@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   LAUREM_CONTRACT_PRINT_CSS,
   renderLauremContractDocument,
   type LauremContractDocumentInput,
 } from '@/lib/laurem-contract-document-renderer';
 
-export default function LauremContractDocument(input: LauremContractDocumentInput) {
+export default function LauremContractDocument(input: LauremContractDocumentInput & { signaturePanel?: ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function LauremContractDocument(input: LauremContractDocumentInpu
         </button>
       </div>
       <div dangerouslySetInnerHTML={{ __html: renderLauremContractDocument(input) }} />
+      {input.signaturePanel ? <div className="laurem-contract-signing">{input.signaturePanel}</div> : null}
     </div>
   );
 }
