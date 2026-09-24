@@ -33,7 +33,7 @@ export function renderLauremLetterhead(input?: {
         '<div class="laurem-letterhead-brand">' +
           '<span class="laurem-letterhead-mark" aria-hidden="true">LC</span>' +
           '<div>' +
-            '<div class="laurem-letterhead-wordmark">LAUREM <span>CARE</span></div>' +
+            '<div class="laurem-letterhead-wordmark">LAUREM CAREGROUP</div>' +
             '<div class="laurem-letterhead-strapline">' + escapeHtml(LAUREM_LETTERHEAD.strapline) + '</div>' +
           '</div>' +
         '</div>' +
