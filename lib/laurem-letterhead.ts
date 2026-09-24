@@ -67,8 +67,8 @@ export function renderLauremLetterheadFooter(): string {
 }
 
 export const LAUREM_LETTERHEAD_CSS = [
-  ':root{--lh-navy:#183b36;--lh-green:#2f7765;--lh-mint:#91cdbd;--lh-ink:#233a35;--lh-muted:#64766f;--lh-line:#d7e4df;--lh-soft:#f3f8f6}',
-  '.laurem-letterhead{background:#fff;color:var(--lh-ink)}',
+  ':root{--lh-navy:#183b36;--lh-green:#2f7765;--lh-mint:#91cdbd;--lh-ink:#233a35;--lh-muted:#64766f;--lh-line:#d7e4df;--lh-soft:#f3f8f6;--lh-font:Arial,Helvetica,sans-serif}',
+  '.laurem-letterhead{background:#fff;color:var(--lh-ink);font-family:var(--lh-font)}',
   '.laurem-letterhead-top{display:flex;justify-content:space-between;gap:12mm;align-items:center;padding:8mm 12mm 7mm}',
   '.laurem-letterhead-brand{display:flex;align-items:center;gap:4mm;min-width:70mm}',
   '.laurem-letterhead-mark{width:13mm;height:13mm;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--lh-navy);color:#fff;font-size:7.5pt;font-weight:900;letter-spacing:.04em}',
@@ -80,7 +80,7 @@ export const LAUREM_LETTERHEAD_CSS = [
   '.laurem-letterhead-rule{height:2.1mm;background:linear-gradient(90deg,var(--lh-navy),var(--lh-green) 60%,var(--lh-mint))}',
   '.laurem-letterhead-document-heading{display:flex;justify-content:space-between;gap:8mm;align-items:flex-end;padding:7mm 12mm 6mm;border-bottom:1px solid var(--lh-line)}',
   '.laurem-letterhead-document-heading span{display:block;color:var(--lh-green);font-size:6.8pt;font-weight:900;letter-spacing:.15em}',
-  '.laurem-letterhead-document-heading h1{margin:1.5mm 0 0;color:var(--lh-navy);font-size:20pt;line-height:1.12}',
+  '.laurem-letterhead-document-heading h1{margin:1.5mm 0 0;color:var(--lh-navy);font-size:18.5pt;line-height:1.16;font-weight:800}',
   '.laurem-letterhead-status{padding:2mm 3mm;border:1px solid #b9d8ce;border-radius:999px;color:var(--lh-green);font-size:6.8pt;letter-spacing:.10em;white-space:nowrap}',
   '.laurem-letterhead-footer{display:grid;grid-template-columns:1.2fr 1.5fr .9fr;gap:8mm;padding:4mm 12mm;color:var(--lh-muted);font-size:6.4pt;line-height:1.4;border-top:1px solid var(--lh-line);background:#fbfcfc}',
   '.laurem-letterhead-footer div{display:flex;flex-direction:column;gap:1mm}',
