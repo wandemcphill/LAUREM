@@ -142,7 +142,6 @@ export default function ContractAcceptancePage({ params }: { params: Promise<{ t
             </div>
           </>
         )}
-}
       </section>
     </main>
   );
