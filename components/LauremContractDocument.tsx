@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { LAUREM_LETTERHEAD_CSS } from '@/lib/laurem-letterhead';
 import {
   LAUREM_CONTRACT_PRINT_CSS,
   renderLauremContractDocument,
@@ -48,6 +49,7 @@ export default function LauremContractDocument(input: LauremContractDocumentInpu
 }
 
 const contractScreenCss = [
+  LAUREM_LETTERHEAD_CSS,
   '.laurem-contract-view{background:#edf2f4;border:1px solid #d8e1e5;border-radius:16px;padding:14px}',
   '.laurem-contract-actions{display:flex;justify-content:flex-end;padding:0 0 10px}',
   '.laurem-contract-actions button{border:1px solid #d8e1e5;border-radius:10px;background:#fff;color:#16394a;padding:10px 14px;font-weight:800;cursor:pointer}',
