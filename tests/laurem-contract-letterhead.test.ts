@@ -43,6 +43,39 @@ describe('LAUREM employment contract letterhead', () => {
     expect(html).toContain('</div></section>');
   });
 
+
+  it('re-renders legacy issued contracts through the current permanent letterhead', () => {
+    const legacy = `LAUREM CARE GROUP LIMITED
+
+CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)
+
+Employer: Laurem Caregroup Ltd
+Employee: Alul Dominic
+Job title: Healthcare Assistant
+
+1. COMMENCEMENT OF EMPLOYMENT
+Employment begins on 1 January 2027.
+`;
+
+    const html = renderLauremContractDocument({
+      content: legacy,
+      employeeName: 'Alul Dominic',
+      jobTitle: 'Healthcare Assistant',
+      status: 'accepted',
+      version: 1,
+      acceptedByName: 'Alul Dominic',
+      acceptedAt: '2026-09-23T21:00:00.000Z',
+    });
+
+    expect(html).toContain('LAUREM CAREGROUP');
+    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Company No. SC490520');
+    expect(html).not.toContain('<div class="legacy-letterhead">');
+    expect(html.match(/LAUREM CARE GROUP LIMITED/g)?.length).toBe(1);
+    expect(html).toContain('CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)');
+    expect(html).toContain('SIGNED ELECTRONICALLY');
+  });
+
   it('renders an electronic signature record for an accepted contract', () => {
     const html = renderLauremContractDocument({
       content: standard,
