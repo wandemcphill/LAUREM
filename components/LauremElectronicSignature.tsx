@@ -104,6 +104,8 @@ export default function LauremElectronicSignature({
         Enter your full legal name and optionally draw your signature. LAUREM will record the electronic acceptance against this document.
       </p>
 
+      <div style={{ marginTop: 10, fontWeight: 800, fontSize: 13 }}>Electronic acceptance</div>
+
       <label style={{ display: 'block', fontWeight: 800, fontSize: 13 }}>
         Full legal name
         <input
