@@ -1,3 +1,5 @@
+import { LAUREM_LETTERHEAD, renderLauremLetterhead, renderLauremLetterheadFooter, LAUREM_LETTERHEAD_PRINT_CSS } from '@/lib/laurem-letterhead';
+
 export type LauremContractDocumentInput = {
   content: string;
   employeeName?: string | null;
@@ -10,15 +12,6 @@ export type LauremContractDocumentInput = {
 
 type MetadataEntry = { label: string; value: string };
 
-const COMPANY = {
-  legalName: 'LAUREM CARE GROUP LIMITED',
-  tradingName: 'LAUREM CAREGROUP',
-  companyNumber: 'SC490520',
-  registration: 'Registered in Scotland',
-  registeredOffice: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE',
-  email: 'recruitment@lauremcare.com',
-  website: 'lauremcare.com',
-};
 
 function escapeHtml(value: string): string {
   return value
@@ -183,20 +176,11 @@ export function renderLauremContractDocument(input: LauremContractDocumentInput)
 
   return (
     '<article class="laurem-contract-document">' +
-      '<header class="laurem-contract-letterhead">' +
-        '<div class="laurem-contract-brandmark"><span class="laurem-contract-mark">LC</span><div><div class="laurem-contract-brand">' +
-          COMPANY.tradingName + '</div><div class="laurem-contract-tagline">Care &amp; Support Services</div></div></div>' +
-        '<div class="laurem-contract-contact">' +
-          '<strong>' + COMPANY.legalName + '</strong>' +
-          '<span>' + escapeHtml(COMPANY.registeredOffice) + '</span>' +
-          '<span>' + escapeHtml(COMPANY.email) + ' · ' + escapeHtml(COMPANY.website) + '</span>' +
-        '</div>' +
-      '</header>' +
-      '<div class="laurem-contract-accent"></div>' +
-      '<div class="laurem-contract-document-bar">' +
-        '<div><span>EMPLOYMENT DOCUMENT</span><strong>' + inlineText(primaryTitle || 'Contract of Employment') + '</strong></div>' +
-        '<div class="laurem-contract-status">' + escapeHtml(statusLabel) + '</div>' +
-      '</div>' +
+      renderLauremLetterhead({
+        documentLabel: 'EMPLOYMENT CONTRACT',
+        title: primaryTitle || 'Contract of Employment',
+        status: statusLabel,
+      }) +
       metaHtml +
       '<div class="laurem-contract-intro">' +
         '<div><span>Employee</span><strong>' + escapeHtml(employee) + '</strong></div>' +
@@ -207,32 +191,18 @@ export function renderLauremContractDocument(input: LauremContractDocumentInput)
         renderSections(lines, parsed.bodyStart) +
       '</div>' +
       signatureHtml +
-      '<footer class="laurem-contract-footer">' +
-        '<div><strong>' + COMPANY.legalName + '</strong><span>Company No. ' + COMPANY.companyNumber + ' · ' + COMPANY.registration + '</span></div>' +
-        '<div><span>Registered Office</span><span>' + escapeHtml(COMPANY.registeredOffice) + '</span></div>' +
-      '</footer>' +
+      renderLauremLetterheadFooter() +
     '</article>'
   );
 }
 
 export const LAUREM_CONTRACT_PRINT_CSS = [
-  '@page{size:A4;margin:14mm 15mm 16mm}',
+  LAUREM_LETTERHEAD_PRINT_CSS,
   ':root{--navy:#16394a;--teal:#1f705e;--mint:#8dcdb9;--ink:#20353d;--muted:#68777e;--line:#d8e1e5;--soft:#f4f8f9;--paper:#fff}',
   '*{box-sizing:border-box}',
   'body{margin:0;background:#edf2f4;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:10.4pt;line-height:1.6}',
   '.laurem-contract-document{width:190mm;max-width:100%;margin:12mm auto;background:var(--paper);box-shadow:0 12px 38px rgba(22,57,74,.10);overflow:hidden}',
-  '.laurem-contract-letterhead{display:flex;justify-content:space-between;gap:10mm;padding:11mm 13mm 8mm;border-bottom:1px solid var(--line);background:#fff}',
-  '.laurem-contract-brandmark{display:flex;gap:4mm;align-items:center}',
-  '.laurem-contract-mark{display:flex;width:14mm;height:14mm;align-items:center;justify-content:center;border-radius:50%;background:var(--navy);color:#fff;font-size:8pt;font-weight:900;letter-spacing:.04em}',
-  '.laurem-contract-brand{font-size:17pt;font-weight:900;letter-spacing:.10em;color:var(--navy)}',
-  '.laurem-contract-tagline{margin-top:1mm;color:var(--teal);font-size:8pt;font-weight:800;letter-spacing:.10em;text-transform:uppercase}',
-  '.laurem-contract-contact{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:1mm;max-width:92mm;color:var(--muted);font-size:7.4pt;line-height:1.4;text-align:right}',
-  '.laurem-contract-contact strong{color:var(--navy);font-size:8pt}',
-  '.laurem-contract-accent{height:2.2mm;background:linear-gradient(90deg,var(--navy),var(--teal),var(--mint))}',
-  '.laurem-contract-document-bar{display:flex;justify-content:space-between;gap:8mm;align-items:flex-end;padding:9mm 13mm 7mm}',
-  '.laurem-contract-document-bar span{display:block;color:var(--teal);font-size:7pt;font-weight:900;letter-spacing:.15em}',
-  '.laurem-contract-document-bar strong{display:block;margin-top:1.5mm;color:var(--navy);font-size:20pt;line-height:1.15}',
-  '.laurem-contract-status{padding:2.2mm 3.2mm;border:1px solid #b9d9ce;border-radius:999px;color:var(--teal);font-size:7pt;font-weight:900;letter-spacing:.10em;white-space:nowrap}',
+
   '.laurem-contract-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0 13mm;border:1px solid var(--line);background:var(--line);gap:1px}',
   '.laurem-contract-meta-item{padding:4mm 4.5mm;background:#fff}',
   '.laurem-contract-meta-item span,.laurem-contract-intro span,.laurem-contract-signature-grid span{display:block;color:var(--muted);font-size:7pt;font-weight:800;text-transform:uppercase;letter-spacing:.08em}',
@@ -256,18 +226,16 @@ export const LAUREM_CONTRACT_PRINT_CSS = [
   '.laurem-contract-signature-grid div{padding:3.5mm;background:#fff;border:1px solid var(--line);border-radius:2mm}',
   '.laurem-contract-signature-grid strong{display:block;margin-top:1mm;font-size:8.4pt}',
   '.laurem-contract-signature-record p{margin:4mm 0 0;color:var(--muted);font-size:8pt}',
-  '.laurem-contract-footer{display:grid;grid-template-columns:1.1fr 1fr;gap:8mm;padding:5mm 13mm;color:#64737a;font-size:6.8pt;line-height:1.45;border-top:1px solid var(--line);background:#fbfcfc}',
-  '.laurem-contract-footer div{display:flex;flex-direction:column;gap:1mm}',
-  '.laurem-contract-footer strong{color:var(--navy);font-size:7.2pt}',
-  '@media screen and (max-width:760px){.laurem-contract-document{width:calc(100vw - 24px);margin:0 auto 24px}.laurem-contract-letterhead,.laurem-contract-document-bar{display:block}.laurem-contract-contact{align-items:flex-start;text-align:left;margin-top:5mm}.laurem-contract-status{display:inline-block;margin-top:4mm}.laurem-contract-meta,.laurem-contract-intro,.laurem-contract-footer{grid-template-columns:1fr}.laurem-contract-meta{margin-left:8mm;margin-right:8mm}.laurem-contract-intro{margin-left:8mm;margin-right:8mm}.laurem-contract-body{padding-left:8mm;padding-right:8mm}.laurem-contract-signature-record{margin-left:8mm;margin-right:8mm}}',
-  '@media print{body{background:#fff}.laurem-contract-document{width:100%;margin:0;box-shadow:none}.laurem-contract-letterhead{break-inside:avoid}.laurem-contract-footer{break-inside:avoid}}',
+
+  '@media screen and (max-width:760px){.laurem-contract-document{width:calc(100vw - 24px);margin:0 auto 24px}.laurem-contract-meta,.laurem-contract-intro{grid-template-columns:1fr}.laurem-contract-meta{margin-left:8mm;margin-right:8mm}.laurem-contract-intro{margin-left:8mm;margin-right:8mm}.laurem-contract-body{padding-left:8mm;padding-right:8mm}.laurem-contract-signature-record{margin-left:8mm;margin-right:8mm}}',
+  '@media print{body{background:#fff}.laurem-contract-document{width:100%;margin:0;box-shadow:none}.laurem-letterhead{break-inside:avoid}.laurem-letterhead-footer{break-inside:avoid}}',
 ].join('');
 
 export function renderLauremPrintableContractHtml(input: LauremContractDocumentInput & { assetBaseUrl?: string }): string {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8" />' +
     '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
     '<meta name="description" content="LAUREM Caregroup employment contract" />' +
-    '<title>' + escapeHtml(input.jobTitle || 'Employment Contract') + ' | ' + COMPANY.tradingName + '</title>' +
+    '<title>' + escapeHtml(input.jobTitle || 'Employment Contract') + ' | ' + LAUREM_LETTERHEAD.tradingName + '</title>' +
     '<style>' + LAUREM_CONTRACT_PRINT_CSS + '</style></head><body>' +
     renderLauremContractDocument(input) +
     '</body></html>';
