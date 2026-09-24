@@ -26,6 +26,9 @@ describe('LAUREM staff employment documents', () => {
     expect(source).toContain('sendLauremEmail');
     expect(source).toContain('lauremCompany.documentIssuer.name');
     expect(source).toContain("const requiresSignature = category === 'job_description' || template === 'job_description' || clean(form.get('requiresSignature')) === 'true';");
+    const signingMigration = readFileSync('supabase/migrations/20260924_job_description_signature_hardening.sql', 'utf8');
+    expect(signingMigration).toContain("v_doc.category = 'job_description' and not v_doc.requires_signature");
+    expect(signingMigration).toContain("signature_status = case when signature_status = 'not_required' then 'pending' else signature_status end");
   });
 
   it('requires online staff signature rather than a download workflow', () => {
