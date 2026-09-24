@@ -181,7 +181,7 @@ export function renderLauremDocumentBody(input: {
         status: input.signature ? 'SIGNED ELECTRONICALLY' : 'ISSUED FOR REVIEW',
       }) +
       metaHtml +
-      '<div class="laurem-doc-content"> + body.join('') + '</div>' +
+      '<div class="laurem-doc-content">' + body.join('') + '</div>' +
       signatureHtml +
       renderLauremLetterheadFooter() +
     '</article>'
