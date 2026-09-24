@@ -33,7 +33,11 @@ describe('LAUREM branded employment documents', () => {
       content: sample,
     });
 
-    expect(html).toContain('class="laurem-doc-cover"');
+    expect(html).toContain('class="laurem-letterhead"');
+    expect(html).toContain('LAUREM CARE');
+    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Company No. SC490520');
+    expect(html).toContain('557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE');
     expect(html).not.toContain('<img');
     expect(html).not.toContain('images.pexels.com');
     expect(html).not.toContain('laurem-professional-practice.svg');
@@ -65,6 +69,8 @@ describe('LAUREM branded employment documents', () => {
     });
 
     expect(html).toContain('<!doctype html>');
+    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Company No. SC490520');
     expect(html).toContain('<strong>Signed</strong>');
     expect(html).not.toContain('<img');
     expect(html).not.toContain('images.pexels.com');
