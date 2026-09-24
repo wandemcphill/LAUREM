@@ -10,6 +10,7 @@ describe('LAUREM electronic signing across the three employment documents', () =
   it('uses the shared electronic-signature component for Contract, Job Description and Handbook', async () => {
     const signature = await read('components/LauremElectronicSignature.tsx');
     const contractViewer = await read('components/LauremContractDocument.tsx');
+    const letterhead = await read('lib/laurem-letterhead.ts');
     const contractPage = await read('app/contracts/accept/[token]/page.tsx');
     const candidateDocuments = await read('app/candidate-documents/[token]/page.tsx');
 
@@ -17,6 +18,9 @@ describe('LAUREM electronic signing across the three employment documents', () =
     expect(signature).toContain('Electronic acceptance');
     expect(signature).toContain('I confirm that I have read this document, understand it, and agree to sign it electronically.');
     expect(contractViewer).toContain('signaturePanel');
+    expect(contractViewer).toContain("import { LAUREM_LETTERHEAD_CSS } from '@/lib/laurem-letterhead';");
+    expect(contractViewer).toContain('LAUREM_LETTERHEAD_CSS,');
+    expect(letterhead).toContain('.laurem-letterhead{background:#fff');
     expect(contractPage).toContain('<LauremElectronicSignature');
     expect(contractPage).toContain('Sign contract electronically');
     expect(candidateDocuments).toContain('<LauremElectronicSignature');
