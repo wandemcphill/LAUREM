@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { renderLauremDocumentBody, renderLauremPrintableHtml } from '@/lib/laurem-document-renderer';
 
 type DocumentType = 'job_description' | 'handbook';
@@ -10,11 +10,13 @@ export default function LauremDocument({
   title,
   content,
   signature,
+  signaturePanel,
 }: {
   documentType: DocumentType;
   title: string;
   content: string;
   signature?: { name?: string | null; signedAt?: string | null } | null;
+  signaturePanel?: ReactNode;
 }) {
   const html = useMemo(
     () =>
@@ -50,6 +52,7 @@ export default function LauremDocument({
   return (
     <div className="laurem-document-view">
       <div dangerouslySetInnerHTML={{ __html: html }} />
+      {signaturePanel ? <div className="laurem-document-signing">{signaturePanel}</div> : null}
       <div className="laurem-document-actions">
         <button type="button" className="laurem-doc-print" onClick={printDocument}>
           Print / Save as PDF
