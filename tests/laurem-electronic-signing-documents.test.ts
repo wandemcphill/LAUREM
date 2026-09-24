@@ -40,7 +40,7 @@ describe('LAUREM electronic signing across the three employment documents', () =
     const letterhead = await read('lib/laurem-letterhead.ts');
 
     expect(letterhead).toContain('&nbsp;·&nbsp;');
-    expect(letterhead).toContain("LAUREM_LETTERHEAD.email + '</span><span>&nbsp;·&nbsp;</span><span>'");
-    expect(letterhead).not.toContain("LAUREM_LETTERHEAD.email) + ' · ' + LAUREM_LETTERHEAD.website");
+    expect(letterhead).toContain("'<span>' + escapeHtml(LAUREM_LETTERHEAD.email) + '</span><span>&nbsp;·&nbsp;</span><span>'");
+    expect(letterhead).not.toContain("LAUREM_LETTERHEAD.email) + ' · ' + escapeHtml(LAUREM_LETTERHEAD.website)");
   });
 });
