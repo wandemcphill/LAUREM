@@ -6,6 +6,7 @@ import {
   evaluateDbsPvg,
   buildStaffComplianceSnapshot,
   isNurseRole,
+  normalizeRightToWorkPathway,
   StaffProfileRow,
 } from '../lib/laurem-hr-workforce';
 import {
@@ -22,6 +23,8 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(isNurseRole('RN Care Lead')).toBe(true);
     expect(isNurseRole('Senior Care Assistant')).toBe(false);
     expect(isNurseRole('Healthcare Assistant')).toBe(false);
+    expect(isNurseRole('Learning Coordinator')).toBe(false);
+    expect(isNurseRole('RN Care Lead')).toBe(true);
   });
 
   it('categorizes compliance dates accurately relative to today', () => {
@@ -70,6 +73,7 @@ describe('HR / Workforce Administration Domain Tests', () => {
       email: 'arthur@lauremcare.co.uk',
       job_title: 'Senior Care Assistant',
       employment_status: 'active',
+      right_to_work_pathway: 'uk',
       right_to_work_verified: true,
       right_to_work_expiry_date: '2027-12-31',
     };
@@ -78,9 +82,15 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(rtw.verified).toBe(true);
     expect(rtw.statusCategory).toBe('Current');
 
-    const unverified = evaluateRightToWork({ ...staff, right_to_work_verified: false }, 'uk', fakeNow);
+    const unverified = evaluateRightToWork({ ...staff, right_to_work_verified: false }, undefined, fakeNow);
     expect(unverified.verified).toBe(false);
     expect(unverified.statusCategory).toBe('Under Review');
+
+    expect(normalizeRightToWorkPathway('sponsorship')).toBe('sponsorship');
+    expect(normalizeRightToWorkPathway('nonsense')).toBe('unknown');
+    const unknownPathway = evaluateRightToWork({ ...staff, right_to_work_pathway: null }, undefined, fakeNow);
+    expect(unknownPathway.statusCategory).toBe('Under Review');
+    expect(unknownPathway.detail).toContain('not been recorded authoritatively');
   });
 
   it('evaluates DBS/PVG background check states', () => {
@@ -111,6 +121,7 @@ describe('HR / Workforce Administration Domain Tests', () => {
       email: 'david@lauremcare.co.uk',
       job_title: 'Registered Nurse',
       employment_status: 'active',
+      right_to_work_pathway: 'uk',
       right_to_work_verified: true,
       right_to_work_expiry_date: '2027-01-01',
       dbs_verified: false,
