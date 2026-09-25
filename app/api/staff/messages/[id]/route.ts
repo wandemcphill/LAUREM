@@ -4,6 +4,7 @@ import { getStaffSession, requestIp } from '@/lib/laurem-staff-auth';
 import { participantConversationIds } from '@/lib/laurem-messaging';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
+import { readLauremIdempotencyKey } from '@/lib/laurem-message-idempotency';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest, context: Context) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
   if (!message || message.length > 10000) return NextResponse.json({ error: 'A message is required.' }, { status: 400 });
+  const idempotencyKey = readLauremIdempotencyKey(req);
+  if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
   const client = db();
   const { data: me } = await client.from('staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
@@ -60,22 +63,38 @@ export async function POST(req: NextRequest, context: Context) {
   if (limiterError) return NextResponse.json({ error: 'Unable to process message.' }, { status: 503 });
   if (!limiter?.allowed) return NextResponse.json({ error: 'Messaging rate limit reached. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 300) } });
 
-  // Idempotency check (within 3 seconds)
   const { data: duplicate } = await client.from('staff_messages')
-    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at')
-    .eq('conversation_id', id)
+    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
     .eq('sender_staff_id', session.staff_id)
-    .eq('body', message)
-    .gt('created_at', new Date(Date.now() - 3000).toISOString())
+    .eq('idempotency_key', idempotencyKey)
     .maybeSingle();
 
   if (duplicate) {
+    if (duplicate.conversation_id !== id || duplicate.body !== message) {
+      return NextResponse.json({ error: 'This Idempotency-Key was already used for a different message.' }, { status: 409 });
+    }
     return NextResponse.json({ message: duplicate }, { status: 200 });
   }
 
-  const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message })
-    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at').single();
-  if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
+  const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
+    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key').single();
+  if (error) {
+    if (error.code === '23505') {
+      const { data: retry } = await client.from('staff_messages')
+        .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
+        .eq('sender_staff_id', session.staff_id)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (retry) {
+        if (retry.conversation_id !== id || retry.body !== message) {
+          return NextResponse.json({ error: 'This Idempotency-Key was already used for a different message.' }, { status: 409 });
+        }
+        return NextResponse.json({ message: retry }, { status: 200 });
+      }
+    }
+    return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
+  }
+  if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
 
