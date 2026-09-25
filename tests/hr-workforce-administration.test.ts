@@ -13,6 +13,7 @@ import {
 } from '../lib/laurem-hr-workforce';
 const staffDirectoryRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/route.ts'), 'utf8');
 const staffRecordRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/route.ts'), 'utf8');
+const staffRecordPage = readFileSync(resolve(process.cwd(), 'app/admin/workforce/[staffId]/page.tsx'), 'utf8');
 const hrActionRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/hr-action/route.ts'), 'utf8');
 const hrMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260926000000_laurem_hr_workforce_administration.sql'), 'utf8');
 
@@ -190,6 +191,15 @@ describe('HR / Workforce Administration integration guards', () => {
     expect(staffRecordRoute).not.toContain("select('pathway, payload')");
     expect(staffRecordRoute).toContain('International Sponsorship');
     expect(staffRecordRoute).toContain('Visa Switch');
+  });
+
+  it('keeps pending staff behind the one-time portal activation boundary', () => {
+    expect(staffRecordPage).not.toContain("s.employment_status === 'pending' && <button disabled={busy} onClick={() => void patchStaffStatus('active')}");
+    expect(staffRecordPage).toContain('STAFF PORTAL ACTIVATION REQUIRED');
+    expect(staffRecordPage).toContain('/admin/workforce/staff-account');
+    expect(staffRecordPage).toContain("action: 'reissue_activation'");
+    expect(staffRecordRoute).toContain('STAFF_ACTIVATION_REQUIRED');
+    expect(staffRecordRoute).toContain('Staff portal activation is required before the employment status can become active.');
   });
 
   it('routes HR data mutations through atomic database procedures', () => {
