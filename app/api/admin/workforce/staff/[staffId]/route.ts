@@ -92,7 +92,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (visaPathway === 'international_sponsorship') employmentPathway = 'International Sponsorship';
     else if (visaPathway === 'visa_switch') employmentPathway = 'Visa Switch';
-    else if (recordedPathway === 'international' && /\\bnurse\\b|\\brn\\b|\\brgn\\b/i.test(appData?.role_applied || staff.job_title)) employmentPathway = 'International Nurse';
+    else if (recordedPathway === 'international' && /\bnurse\b|\brn\b|\brgn\b/i.test(appData?.role_applied || staff.job_title)) employmentPathway = 'International Nurse';
     else if (requiresSponsorship) employmentPathway = 'Sponsorship';
     else if (recordedPathway === 'uk') employmentPathway = 'UK Standard';
     else if (recordedPathway === 'international') employmentPathway = 'International';
