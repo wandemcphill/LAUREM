@@ -28,5 +28,7 @@ describe('LAUREM readiness schema alignment', () => {
     expect(candidateRoute).not.toContain('start_date,nmc_number,application_data,status');
     expect(candidateRoute).not.toContain('application.nmc_number');
     expect(candidateRoute).toContain("typeof applicationData.nmc_number === 'string'");
+    expect(candidateRoute).toContain("status', 'accepted'");
+    expect(candidateRoute).toContain('waitingForContract');
   });
 });
