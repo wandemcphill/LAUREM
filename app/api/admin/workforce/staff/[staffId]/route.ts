@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
+import { buildStaffComplianceSnapshot } from '@/lib/laurem-hr-workforce';
 
 const transitions: Record<string, string[]> = {
   pending: ['active'],
@@ -19,10 +20,72 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const client = db();
   const { data: staff, error: staffError } = await client.from('staff_profiles')
-    .select('id,application_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,end_date,location,nmc_number,right_to_work_verified,dbs_verified,contract_id,address_line_1,address_line_2,city,county,postcode,country,profile_photo_path,profile_photo_updated_at,created_at,updated_at')
+    .select(`
+      id,
+      application_id,
+      employee_number,
+      laurem_id,
+      full_name,
+      email,
+      phone,
+      job_title,
+      employment_status,
+      start_date,
+      end_date,
+      location,
+      manager_id,
+      nmc_number,
+      nmc_status,
+      nmc_expiry_date,
+      right_to_work_verified,
+      right_to_work_expiry_date,
+      right_to_work_notes,
+      dbs_verified,
+      dbs_pvg_status,
+      dbs_pvg_check_date,
+      dbs_pvg_expiry_date,
+      emergency_contact_name,
+      emergency_contact_phone,
+      emergency_contact_relationship,
+      contract_id,
+      address_line_1,
+      address_line_2,
+      city,
+      county,
+      postcode,
+      country,
+      profile_photo_path,
+      profile_photo_updated_at,
+      activated_at,
+      created_at,
+      updated_at
+    `)
     .eq('id', staffId).maybeSingle();
+
   if (staffError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!staff) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
+
+  // Fetch manager details if manager_id is present
+  let manager: { id: string; full_name: string; job_title: string; email: string } | null = null;
+  if (staff.manager_id) {
+    const { data: mgrData } = await client.from('staff_profiles')
+      .select('id, full_name, job_title, email')
+      .eq('id', staff.manager_id)
+      .maybeSingle();
+    if (mgrData) manager = mgrData;
+  }
+
+  // Fetch pathway from application if application_id exists
+  let employmentPathway: string = 'UK Standard';
+  if (staff.application_id) {
+    const { data: appData } = await client.from('recruitment_applications')
+      .select('pathway, payload')
+      .eq('id', staff.application_id)
+      .maybeSingle();
+    if (appData?.pathway) {
+      employmentPathway = appData.pathway === 'nurse' ? 'International Nurse' : appData.pathway === 'sponsorship' ? 'Overseas Sponsorship' : 'UK Standard';
+    }
+  }
 
   const [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult, documentsResult] = await Promise.all([
     client.from('staff_assignments').select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes,created_at,updated_at').eq('staff_id', staffId).order('scheduled_start', { ascending: false }).limit(100),
@@ -32,7 +95,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     client.from('laurem_audit_events').select('id,lifecycle_area,entity_type,entity_id,application_id,staff_id,actor_type,actor,action,previous_state,new_state,reason,metadata,occurred_at').eq('staff_id', staffId).order('occurred_at', { ascending: false }).limit(100),
     client.from('payroll_entries').select('id,payroll_period_id,staff_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(100),
     client.from('staff_availability').select('id,staff_id,effective_from,full_time,part_time,days,nights,weekends,notes,created_at').eq('staff_id', staffId).lte('effective_from', new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())).order('effective_from', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    client.from('staff_documents').select('id,title,category,signature_status,issued_at,status').eq('staff_id', staffId).eq('status','issued').order('issued_at', { ascending: false }).limit(50),
+    client.from('staff_documents').select('id,title,category,source_type,source_key,signature_status,requires_signature,issued_at,status,signed_at,superseded_at,superseded_by').eq('staff_id', staffId).order('issued_at', { ascending: false }).limit(100),
   ]);
 
   const failed = [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult, documentsResult].find((result) => result.error);
@@ -57,13 +120,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     payrollEntries: payrollResult.data || [],
   });
 
+  const allDocuments = documentsResult.data || [];
+  const activeDocuments = allDocuments.filter((doc: any) => doc.status === 'issued');
+
+  const tasksList = onboarding?.tasks || [];
+  const requiredTotal = tasksList.filter((t: any) => t.required).length;
+  const requiredDone = tasksList.filter((t: any) => t.required && ['completed', 'waived'].includes(t.status)).length;
+  const onboardingComplete = requiredTotal > 0 ? requiredDone === requiredTotal : true;
+
+  const compliance = buildStaffComplianceSnapshot(staff, {
+    documentsComplete: activeDocuments.every((doc: any) => !doc.requires_signature || doc.signature_status === 'signed'),
+    onboardingComplete,
+  });
+
   return NextResponse.json({
-    staff: { ...staff, profile_photo_url: profilePhotoUrl },
+    staff: { ...staff, profile_photo_url: profilePhotoUrl, manager, employment_pathway: employmentPathway },
+    compliance,
     assignments: assignmentsResult.data || [],
     timesheets: timesheetsResult.data || [],
     leaveRequests: leaveResult.data || [],
     payrollEntries: payrollResult.data || [],
     onboarding,
+    documents: allDocuments,
     audit: (auditResult.data || []).map((event: any) => ({
       id: event.id,
       entity_type: event.entity_type,
@@ -83,9 +161,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     availability: availabilityResult.data || null,
     operationalState,
     documentsSummary: {
-      total: (documentsResult.data || []).length,
-      signaturePending: (documentsResult.data || []).filter((item: any) => item.signature_status === 'pending').length,
-      latestIssuedAt: (documentsResult.data || [])[0]?.issued_at || null,
+      total: activeDocuments.length,
+      signaturePending: activeDocuments.filter((item: any) => item.requires_signature && item.signature_status === 'pending').length,
+      latestIssuedAt: activeDocuments[0]?.issued_at || null,
     },
     actor: session.email,
   });

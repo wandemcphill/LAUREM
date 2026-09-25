@@ -1,0 +1,152 @@
+import { describe, expect, it } from 'vitest';
+import {
+  calculateDateCategory,
+  evaluateNurseRegistration,
+  evaluateRightToWork,
+  evaluateDbsPvg,
+  buildStaffComplianceSnapshot,
+  isNurseRole,
+  StaffProfileRow,
+} from '../lib/laurem-hr-workforce';
+import {
+  LAUREM_STAFF_EMPLOYMENT_STATUSES,
+  LAUREM_STAFF_EMPLOYMENT_TRANSITIONS,
+  isLauremStaffEmploymentStatus,
+  isLauremStaffEmploymentTransitionAllowed,
+} from '../lib/laurem-lifecycle-policy';
+
+describe('HR / Workforce Administration Domain Tests', () => {
+  it('correctly identifies nurse roles', () => {
+    expect(isNurseRole('Registered Nurse')).toBe(true);
+    expect(isNurseRole('Staff Nurse')).toBe(true);
+    expect(isNurseRole('RN Care Lead')).toBe(true);
+    expect(isNurseRole('Senior Care Assistant')).toBe(false);
+    expect(isNurseRole('Healthcare Assistant')).toBe(false);
+  });
+
+  it('categorizes compliance dates accurately relative to today', () => {
+    const fakeNow = new Date('2026-09-25T12:00:00Z');
+    expect(calculateDateCategory(null, fakeNow)).toBe('Missing');
+    expect(calculateDateCategory('2026-09-20', fakeNow)).toBe('Expired');
+    expect(calculateDateCategory('2026-10-15', fakeNow)).toBe('Expiring Soon');
+    expect(calculateDateCategory('2027-09-25', fakeNow)).toBe('Current');
+  });
+
+  it('evaluates Registered Nurses NMC registration states', () => {
+    const fakeNow = new Date('2026-09-25T12:00:00Z');
+    const nurseStaff: StaffProfileRow = {
+      id: 'staff-1',
+      employee_number: 'EMP1001',
+      full_name: 'Fiona Gallagher',
+      email: 'fiona@lauremcare.co.uk',
+      job_title: 'Registered Nurse',
+      employment_status: 'active',
+      nmc_number: '12A3456E',
+      nmc_status: 'fully_registered',
+      nmc_expiry_date: '2027-06-30',
+    };
+
+    const evaluation = evaluateNurseRegistration(nurseStaff, fakeNow);
+    expect(evaluation.isNurse).toBe(true);
+    expect(evaluation.nmcNumber).toBe('12A3456E');
+    expect(evaluation.registrationState).toBe('fully_registered');
+    expect(evaluation.statusCategory).toBe('Current');
+
+    const expiredNurse: StaffProfileRow = {
+      ...nurseStaff,
+      nmc_expiry_date: '2026-08-01',
+    };
+    const expiredEval = evaluateNurseRegistration(expiredNurse, fakeNow);
+    expect(expiredEval.registrationState).toBe('restricted_not_cleared');
+    expect(expiredEval.statusCategory).toBe('Expired');
+  });
+
+  it('evaluates Right to Work pathways', () => {
+    const fakeNow = new Date('2026-09-25T12:00:00Z');
+    const staff: StaffProfileRow = {
+      id: 'staff-2',
+      employee_number: 'EMP1002',
+      full_name: 'Arthur Pendelton',
+      email: 'arthur@lauremcare.co.uk',
+      job_title: 'Senior Care Assistant',
+      employment_status: 'active',
+      right_to_work_verified: true,
+      right_to_work_expiry_date: '2027-12-31',
+    };
+
+    const rtw = evaluateRightToWork(staff, 'uk', fakeNow);
+    expect(rtw.verified).toBe(true);
+    expect(rtw.statusCategory).toBe('Current');
+
+    const unverified = evaluateRightToWork({ ...staff, right_to_work_verified: false }, 'uk', fakeNow);
+    expect(unverified.verified).toBe(false);
+    expect(unverified.statusCategory).toBe('Under Review');
+  });
+
+  it('evaluates DBS/PVG background check states', () => {
+    const fakeNow = new Date('2026-09-25T12:00:00Z');
+    const staff: StaffProfileRow = {
+      id: 'staff-3',
+      employee_number: 'EMP1003',
+      full_name: 'Claire Bennet',
+      email: 'claire@lauremcare.co.uk',
+      job_title: 'Care Assistant',
+      employment_status: 'active',
+      dbs_verified: true,
+      dbs_pvg_check_date: '2025-01-10',
+      dbs_pvg_expiry_date: '2026-10-10',
+    };
+
+    const dbs = evaluateDbsPvg(staff, fakeNow);
+    expect(dbs.verified).toBe(true);
+    expect(dbs.statusCategory).toBe('Expiring Soon');
+  });
+
+  it('builds comprehensive compliance snapshot and detects attention items', () => {
+    const fakeNow = new Date('2026-09-25T12:00:00Z');
+    const staff: StaffProfileRow = {
+      id: 'staff-4',
+      employee_number: 'EMP1004',
+      full_name: 'David Tennant',
+      email: 'david@lauremcare.co.uk',
+      job_title: 'Registered Nurse',
+      employment_status: 'active',
+      right_to_work_verified: true,
+      right_to_work_expiry_date: '2027-01-01',
+      dbs_verified: false,
+      nmc_number: '99X1122E',
+      nmc_status: 'fully_registered',
+      nmc_expiry_date: '2027-05-01',
+    };
+
+    const snapshot = buildStaffComplianceSnapshot(staff, {
+      documentsComplete: true,
+      onboardingComplete: true,
+      now: fakeNow,
+    });
+
+    expect(snapshot.overallStatus).toBe('Missing');
+    expect(snapshot.attentionItems.length).toBeGreaterThan(0);
+    expect(snapshot.attentionItems[0]).toContain('DBS/PVG');
+  });
+
+  it('enforces canonical staff employment status transitions', () => {
+    expect(LAUREM_STAFF_EMPLOYMENT_STATUSES).toEqual(['pending', 'active', 'suspended', 'leaver']);
+
+    expect(isLauremStaffEmploymentStatus('pending')).toBe(true);
+    expect(isLauremStaffEmploymentStatus('active')).toBe(true);
+    expect(isLauremStaffEmploymentStatus('suspended')).toBe(true);
+    expect(isLauremStaffEmploymentStatus('leaver')).toBe(true);
+    expect(isLauremStaffEmploymentStatus('fired')).toBe(false);
+
+    expect(isLauremStaffEmploymentTransitionAllowed('pending', 'active')).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('active', 'suspended')).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('active', 'leaver')).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('suspended', 'active')).toBe(true);
+    expect(isLauremStaffEmploymentTransitionAllowed('suspended', 'leaver')).toBe(true);
+
+    expect(isLauremStaffEmploymentTransitionAllowed('leaver', 'active')).toBe(false);
+    expect(isLauremStaffEmploymentTransitionAllowed('pending', 'suspended')).toBe(false);
+    expect(isLauremStaffEmploymentTransitionAllowed('pending', 'leaver')).toBe(false);
+  });
+});

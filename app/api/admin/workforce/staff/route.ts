@@ -4,18 +4,133 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 import { LAUREM_STAFF_EMPLOYMENT_TRANSITIONS, isLauremStaffEmploymentStatus } from '@/lib/laurem-lifecycle-policy';
+import { buildStaffComplianceSnapshot } from '@/lib/laurem-hr-workforce';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  const status = new URL(request.url).searchParams.get('status');
-  let query = db().from('staff_profiles')
-    .select('id,application_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,end_date,location,nmc_number,right_to_work_verified,dbs_verified,contract_id,activated_at,activation_expires_at,created_at,updated_at')
-    .order('full_name', { ascending: true }).limit(500);
-  if (status && ['pending','active','suspended','leaver'].includes(status)) query = query.eq('employment_status', status);
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: 'Unable to load staff.' }, { status: 500 });
-  return NextResponse.json({ staff: data || [] });
+
+  const url = new URL(request.url);
+  const q = url.searchParams.get('q')?.trim() || '';
+  const status = url.searchParams.get('status')?.trim();
+  const role = url.searchParams.get('role')?.trim();
+  const location = url.searchParams.get('location')?.trim();
+  const managerId = url.searchParams.get('managerId')?.trim();
+  const complianceState = url.searchParams.get('complianceState')?.trim();
+  const pageParam = parseInt(url.searchParams.get('page') || '1', 10);
+  const limitParam = parseInt(url.searchParams.get('limit') || '50', 10);
+
+  const page = Math.max(1, isNaN(pageParam) ? 1 : pageParam);
+  const limit = Math.min(100, Math.max(1, isNaN(limitParam) ? 50 : limitParam));
+  const offset = (page - 1) * limit;
+
+  const client = db();
+
+  // Query base profiles
+  let query = client.from('staff_profiles')
+    .select(`
+      id,
+      application_id,
+      employee_number,
+      laurem_id,
+      full_name,
+      email,
+      phone,
+      job_title,
+      employment_status,
+      start_date,
+      end_date,
+      location,
+      manager_id,
+      nmc_number,
+      nmc_status,
+      nmc_expiry_date,
+      right_to_work_verified,
+      right_to_work_expiry_date,
+      right_to_work_notes,
+      dbs_verified,
+      dbs_pvg_status,
+      dbs_pvg_check_date,
+      dbs_pvg_expiry_date,
+      emergency_contact_name,
+      emergency_contact_phone,
+      emergency_contact_relationship,
+      contract_id,
+      activated_at,
+      created_at,
+      updated_at
+    `, { count: 'exact' });
+
+  if (status && ['pending', 'active', 'suspended', 'leaver'].includes(status)) {
+    query = query.eq('employment_status', status);
+  }
+
+  if (managerId) {
+    query = query.eq('manager_id', managerId);
+  }
+
+  if (location) {
+    query = query.ilike('location', `%${location}%`);
+  }
+
+  if (role) {
+    query = query.ilike('job_title', `%${role}%`);
+  }
+
+  if (q) {
+    query = query.or(`full_name.ilike.%${q}%,employee_number.ilike.%${q}%,laurem_id.ilike.%${q}%,email.ilike.%${q}%`);
+  }
+
+  query = query.order('full_name', { ascending: true }).range(offset, offset + limit - 1);
+
+  const { data: rawStaff, count, error } = await query;
+  if (error) {
+    return NextResponse.json({ error: 'Unable to load staff records.' }, { status: 500 });
+  }
+
+  const staffList = rawStaff || [];
+
+  // Fetch managers mapping to populate manager names
+  const managerIds = Array.from(new Set(staffList.map((s) => s.manager_id).filter(Boolean))) as string[];
+  let managerMap: Record<string, { id: string; full_name: string; job_title: string }> = {};
+  if (managerIds.length > 0) {
+    const { data: managers } = await client.from('staff_profiles')
+      .select('id, full_name, job_title')
+      .in('id', managerIds);
+    if (managers) {
+      managerMap = Object.fromEntries(managers.map((m) => [m.id, m]));
+    }
+  }
+
+  // Calculate compliance snapshots
+  const enrichedStaff = staffList.map((item) => {
+    const compliance = buildStaffComplianceSnapshot(item);
+    const manager = item.manager_id ? managerMap[item.manager_id] || null : null;
+    return {
+      ...item,
+      manager,
+      compliance,
+    };
+  });
+
+  // Filter in memory for complianceState if specified
+  let filteredStaff = enrichedStaff;
+  if (complianceState && ['Current', 'Expiring Soon', 'Expired', 'Missing', 'Under Review'].includes(complianceState)) {
+    filteredStaff = enrichedStaff.filter((s) => s.compliance.overallStatus === complianceState);
+  }
+
+  const total = count ?? filteredStaff.length;
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  return NextResponse.json({
+    staff: filteredStaff,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+    },
+  });
 }
 
 export async function PATCH(request: NextRequest) {
