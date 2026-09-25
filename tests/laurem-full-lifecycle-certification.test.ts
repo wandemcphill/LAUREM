@@ -26,8 +26,8 @@ describe('LAUREM end-to-end lifecycle certification', () => {
     expect(onboarding).not.toContain("from('recruitment_applications').update({ status: 'Onboarding'");
     expect(hire).toContain("readAdminSession(request)");
     expect(hire).toContain("rpc('laurem_prepare_staff_onboarding_atomic'");
-    expect(hire).toContain("rpc('laurem_issue_staff_employment_document_package'");
-    expect(hire).toContain("p_to_status: 'Hired'");
+    expect(hire).toContain("rpc('laurem_hire_application_atomic'");
+    expect(hire).toContain('makeActivationToken');
     expect(lifecycle).toContain('Every staff conversion requires an accepted employment contract.');
     expect(atomicMigration).toContain('laurem_prepare_staff_onboarding_atomic');
   });

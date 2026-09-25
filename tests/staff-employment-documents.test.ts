@@ -54,7 +54,7 @@ describe('LAUREM staff employment documents', () => {
     expect(onboarding).not.toContain('provisionLauremStaffPortal');
 
     const hireRoute = readFileSync('app/api/admin/applications/hire/route.ts', 'utf8');
-    expect(hireRoute).toContain('laurem_issue_staff_employment_document_package');
+    expect(hireRoute).toContain('laurem_hire_application_atomic');
     expect(hireRoute).toContain('provisionLauremStaffPortal');
   });
 
