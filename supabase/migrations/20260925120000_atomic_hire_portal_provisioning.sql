@@ -55,6 +55,7 @@ declare
   mailbox_base text;
   mailbox_handle text;
   now_value timestamptz := clock_timestamp();
+  had_activation_token boolean := false;
   i integer;
   package_result jsonb;
   signed_result jsonb := '{}'::jsonb;
