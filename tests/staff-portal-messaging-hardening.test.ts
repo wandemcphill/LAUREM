@@ -30,7 +30,7 @@ describe('staff messaging idempotency hardening', () => {
       expect(source).toContain("readLauremIdempotencyKey(req)");
       expect(source).toContain("idempotency_key: idempotencyKey");
       expect(source).toContain(".eq('idempotency_key', idempotencyKey)");
-      expect(source).toContain("error?.code === '23505'");
+      expect(source).toContain("error.code === '23505'");
     }
   });
 });
