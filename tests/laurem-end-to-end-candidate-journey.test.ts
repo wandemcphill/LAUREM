@@ -55,7 +55,7 @@ describe('LAUREM end-to-end candidate journey', () => {
   it('carries signed pre-hire documents into the staff record at hire', async () => {
     const hireApi = await read('app/api/admin/applications/hire/route.ts');
     const migration = await read('supabase/migrations/20260921201500_attach_signed_candidate_documents_to_staff.sql');
-    expect(hireApi).toContain('laurem_attach_signed_candidate_documents_to_staff');
+    expect(hireApi).toContain('laurem_hire_application_atomic');
     expect(migration).toContain('candidate-document:');
     expect(migration).toContain("signature_status = 'signed'");
   });
