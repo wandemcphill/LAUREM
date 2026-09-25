@@ -39,6 +39,9 @@ type Staff = {
   emergency_contact_phone: string | null;
   emergency_contact_relationship: string | null;
   contract_id: string | null;
+  activated_at: string | null;
+  activation_expires_at: string | null;
+  activation_used_at: string | null;
   address_line_1: string | null;
   address_line_2: string | null;
   city: string | null;
@@ -118,6 +121,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
   const [data, setData] = useState<StaffPayload | null>(null);
   const [tab, setTab] = useState<Tab>('Identity');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
 
@@ -138,6 +142,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
   async function load() {
     if (!staffId) return;
     setError('');
+    setNotice('');
     try {
       const response = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}`, { cache: 'no-store' });
       const body = await response.json();
@@ -171,6 +176,33 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       setShowIssueDoc(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'HR action failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reissueActivation() {
+    const reason = window.prompt(`Why are you issuing a new staff activation link for ${data?.staff.full_name || 'this staff member'}?`)?.trim() || '';
+    if (reason.length < 5) {
+      setError('A reason of at least 5 characters is required for activation recovery.');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/admin/workforce/staff/account', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ staffId, action: 'reissue_activation', reason }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Unable to issue the staff activation link.');
+      setNotice(`Staff activation link issued for ${data?.staff.full_name || 'the staff member'}.`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to issue the staff activation link.');
     } finally {
       setBusy(false);
     }
@@ -229,6 +261,11 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
 
   const s = data.staff;
   const c = data.compliance;
+  const activationLinkActive = Boolean(
+    s.employment_status === 'pending' &&
+    s.activation_expires_at &&
+    new Date(s.activation_expires_at).getTime() > Date.now()
+  );
 
   return (
     <main className="wrap" style={{ padding: '30px 0 80px', maxWidth: 1180 }}>
@@ -269,7 +306,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
           <button onClick={() => setShowEditDetails(!showEditDetails)} style={buttonSecondary}>Edit Employment</button>
           <button onClick={() => setShowIssueDoc(!showIssueDoc)} style={buttonSecondary}>Issue Document</button>
 
-          {s.employment_status === 'pending' && <button disabled={busy} onClick={() => void patchStaffStatus('active')} style={buttonPrimary}>Activate</button>}
+          {s.employment_status === 'pending' && <span style={{ ...badge('pending'), color: '#1f4f73' }}>Portal activation pending</span>}
           {s.employment_status === 'active' && (
             <>
               <button disabled={busy} onClick={() => void patchStaffStatus('suspended')} style={buttonSecondary}>Suspend</button>
@@ -281,6 +318,21 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       </div>
 
       {error && <div role="alert" className="card" style={{ padding: 14, marginTop: 16, color: '#8a2323' }}>{error}</div>}
+      {notice && <div role="status" className="card" style={{ padding: 14, marginTop: 16, color: '#176b4f' }}>{notice}</div>}
+      {s.employment_status === 'pending' && (
+        <section className="card" style={{ padding: 16, marginTop: 16, background: '#f7fbff', border: '1px solid #cfe3f5' }}>
+          <strong style={{ color: '#1f4f73' }}>STAFF PORTAL ACTIVATION REQUIRED</strong>
+          <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13, lineHeight: 1.5 }}>
+            Pending staff accounts become active through the one-time staff portal activation flow. Employment status cannot be manually changed to active before the staff member completes that activation.
+          </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+            <Link href="/admin/workforce/staff-account" style={buttonSecondary}>Manage Staff Account</Link>
+            {activationLinkActive
+              ? <span style={{ color: '#176b4f', fontSize: 12, fontWeight: 800 }}>Activation link is currently active.</span>
+              : <button disabled={busy} onClick={() => void reissueActivation()} style={buttonPrimary}>{busy ? 'Issuing…' : 'Issue / Reissue Activation'}</button>}
+          </div>
+        </section>
+      )}
 
       {showEditDetails && (
         <section className="card" style={{ padding: 20, marginTop: 18, background: '#fafafa' }}>
