@@ -41,12 +41,14 @@ async function loadPack(token: string) {
     throw new Error('DOCUMENT_PACK_EXPIRED');
   }
 
-  const [{ data: application, error: applicationError }, { data: documents, error: documentsError }] = await Promise.all([
+  const [{ data: application, error: applicationError }, { data: documents, error: documentsError }, { data: contract, error: contractError }] = await Promise.all([
     client.from('recruitment_applications').select('id,full_name,role_applied,living_in_uk').eq('id', pack.application_id).maybeSingle(),
     client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at,first_viewed_at,viewed_count').eq('pack_id', pack.id).order('document_type', { ascending: true }),
+    client.from('recruitment_contracts').select('status,accepted_at,job_title,version').eq('application_id', pack.application_id).order('version', { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (applicationError) throw applicationError;
   if (documentsError) throw documentsError;
+  if (contractError) throw contractError;
   if (!application) throw new Error('APPLICATION_NOT_FOUND');
 
   const now = new Date().toISOString();
@@ -62,7 +64,7 @@ async function loadPack(token: string) {
       .eq('id', document.id);
   }
 
-  return { client, tokenHash, pack, application, documents: documents || [] };
+  return { client, tokenHash, pack, application, contract, documents: documents || [] };
 }
 
 async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicationId: string) {
@@ -74,6 +76,20 @@ async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicati
   if (error) throw error;
   if (!application || application.status === 'Hired' || application.status === 'Onboarding') {
     return null;
+  }
+
+  const { data: acceptedContract, error: acceptedContractError } = await client
+    .from('recruitment_contracts')
+    .select('id,status,accepted_at,job_title')
+    .eq('application_id', applicationId)
+    .eq('status', 'accepted')
+    .not('accepted_at', 'is', null)
+    .order('accepted_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (acceptedContractError) throw acceptedContractError;
+  if (!acceptedContract || String(acceptedContract.job_title || '').trim().toLowerCase() !== String(application.role_applied || '').trim().toLowerCase()) {
+    return { onboardingLink: null, waitingForReadiness: false, waitingForContract: true };
   }
 
   const readiness = await getLauremOnboardingReadiness(client, application);
@@ -146,6 +162,7 @@ export async function GET(request: NextRequest) {
       onboardingLink = onboarding?.onboardingLink || null;
       waitingForReadiness = Boolean(onboarding?.waitingForReadiness);
     }
+    const waitingForContract = Boolean((loaded.pack.status === 'completed' && loaded.contract?.status !== 'accepted'));
     const readiness = await getLauremOnboardingReadiness(loaded.client, loaded.application);
     return NextResponse.json({
       application: {
@@ -155,6 +172,13 @@ export async function GET(request: NextRequest) {
       pack: loaded.pack,
       onboardingLink,
       waitingForReadiness,
+      waitingForContract,
+      contract: loaded.contract ? {
+        status: loaded.contract.status,
+        accepted_at: loaded.contract.accepted_at,
+        job_title: loaded.contract.job_title,
+        version: loaded.contract.version,
+      } : null,
       readiness: readiness.items,
       documents: loaded.documents.map((document) => ({
         id: document.id,
@@ -219,6 +243,7 @@ export async function POST(request: NextRequest) {
       packStatus: result?.pack_status || 'pending',
       onboardingLink,
       waitingForReadiness,
+      waitingForContract: Boolean((result?.pack_status === 'completed' && loaded.contract?.status !== 'accepted')),
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : 'DOCUMENT_SIGN_FAILED';
