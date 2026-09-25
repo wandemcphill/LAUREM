@@ -18,6 +18,7 @@ type DocumentRow = {
 type PageData = {
   application: { full_name: string; role_applied: string };
   pack: { id: string; status: string; expires_at: string };
+  contract: { status: string; accepted_at?: string | null; job_title?: string | null; version?: number | null } | null;
   readiness: Array<{ id: string; item_key: string; title: string; description: string; required: boolean; status: 'pending' | 'completed' | 'waived' }>;
   documents: DocumentRow[];
 };
@@ -38,6 +39,7 @@ export default function CandidateDocumentsPage({
   const [signatureData, setSignatureData] = useState('');
   const [onboardingLink, setOnboardingLink] = useState('');
   const [waitingForReadiness, setWaitingForReadiness] = useState(false);
+  const [waitingForContract, setWaitingForContract] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -58,6 +60,7 @@ export default function CandidateDocumentsPage({
       setData(body);
       if (body.onboardingLink) setOnboardingLink(body.onboardingLink);
       setWaitingForReadiness(Boolean(body.waitingForReadiness));
+      setWaitingForContract(Boolean(body.waitingForContract));
       if (!name && body.application?.full_name) setName(body.application.full_name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your documents.');
@@ -98,6 +101,7 @@ export default function CandidateDocumentsPage({
       setSignatureData('');
       if (body.onboardingLink) setOnboardingLink(body.onboardingLink);
       setWaitingForReadiness(Boolean(body.waitingForReadiness));
+      setWaitingForContract(Boolean(body.waitingForContract));
       setMessage(
         body.packStatus === 'completed'
           ? 'Your employment documents are complete. Your contract, Job Description and Handbook will not be requested again.'
@@ -174,7 +178,7 @@ export default function CandidateDocumentsPage({
         <div style={{ marginTop: 18, padding: 16, borderRadius: 12, background: 'var(--soft)' }}>
           <strong>{signedCount} of {data?.documents.length || 0} documents signed</strong>
           <div style={{ color: 'var(--muted)', marginTop: 5 }}>
-            Employment Contract ✓ · Job Description {data?.documents.some((item) => item.document_type === 'job_description' && item.signature_status === 'signed') ? '✓' : 'awaiting signature'} · Handbook {data?.documents.some((item) => item.document_type === 'handbook' && item.signature_status === 'signed') ? '✓' : 'awaiting signature'}
+            Employment Contract {data?.contract?.status === 'accepted' ? '✓' : 'awaiting signature'} · Job Description {data?.documents.some((item) => item.document_type === 'job_description' && item.signature_status === 'signed') ? '✓' : 'awaiting signature'} · Handbook {data?.documents.some((item) => item.document_type === 'handbook' && item.signature_status === 'signed') ? '✓' : 'awaiting signature'}
           </div>
         </div>
 
@@ -221,7 +225,16 @@ export default function CandidateDocumentsPage({
           ))}
         </div>
 
-        {complete && (
+        {complete && waitingForContract && (
+          <section style={{ marginTop: 22, padding: 18, border: '1px solid var(--line)', borderRadius: 12, background: '#fffaf0' }}>
+            <strong>Employment contract signature still required</strong>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+              Your Job Description and Handbook are recorded as signed. The employment contract is still awaiting signature, so LAUREM will not open formal Staff Portal onboarding yet. Please use your employment-contract link to complete the contract signature first.
+            </p>
+          </section>
+        )}
+
+        {complete && !waitingForContract && (
           <section style={{ marginTop: 22, padding: 18, border: '1px solid var(--line)', borderRadius: 12, background: '#f7fcf9' }}>
             <strong>Employment documents complete</strong>
             <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
