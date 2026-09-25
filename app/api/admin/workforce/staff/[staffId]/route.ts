@@ -4,13 +4,6 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
 import { buildStaffComplianceSnapshot } from '@/lib/laurem-hr-workforce';
 
-const transitions: Record<string, string[]> = {
-  pending: ['active'],
-  active: ['suspended', 'leaver'],
-  suspended: ['active', 'leaver'],
-  leaver: [],
-};
-
 export async function GET(request: NextRequest, { params }: { params: Promise<{ staffId: string }> }) {
   const session = readAdminSession(request);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
@@ -37,6 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       nmc_number,
       nmc_status,
       nmc_expiry_date,
+      right_to_work_pathway,
       right_to_work_verified,
       right_to_work_expiry_date,
       right_to_work_notes,
@@ -75,16 +69,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (mgrData) manager = mgrData;
   }
 
-  // Fetch pathway from application if application_id exists
-  let employmentPathway: string = 'UK Standard';
+  // Resolve employment pathway only from authoritative recruitment/visa records.
+  let employmentPathway = 'Not recorded';
   if (staff.application_id) {
-    const { data: appData } = await client.from('recruitment_applications')
-      .select('pathway, payload')
-      .eq('id', staff.application_id)
-      .maybeSingle();
-    if (appData?.pathway) {
-      employmentPathway = appData.pathway === 'nurse' ? 'International Nurse' : appData.pathway === 'sponsorship' ? 'Overseas Sponsorship' : 'UK Standard';
-    }
+    const [{ data: appData, error: appError }, { data: visaCase, error: visaError }] = await Promise.all([
+      client.from('recruitment_applications')
+        .select('application_data, requires_sponsorship, role_applied')
+        .eq('id', staff.application_id)
+        .maybeSingle(),
+      client.from('staff_visa_cases')
+        .select('pathway,status,requested_at')
+        .eq('staff_id', staff.id)
+        .order('requested_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (appError || visaError) return NextResponse.json({ error: 'Unable to resolve the authoritative employment pathway.' }, { status: 500 });
+
+    const recordedPathway = typeof appData?.application_data?.pathway === 'string' ? appData.application_data.pathway.trim().toLowerCase() : '';
+    const requiresSponsorship = typeof appData?.requires_sponsorship === 'string' && ['yes','true','required'].includes(appData.requires_sponsorship.trim().toLowerCase());
+    const visaPathway = typeof visaCase?.pathway === 'string' ? visaCase.pathway.trim().toLowerCase() : '';
+
+    if (visaPathway === 'international_sponsorship') employmentPathway = 'International Sponsorship';
+    else if (visaPathway === 'visa_switch') employmentPathway = 'Visa Switch';
+    else if (recordedPathway === 'international' && /\\bnurse\\b|\\brn\\b|\\brgn\\b/i.test(appData?.role_applied || staff.job_title)) employmentPathway = 'International Nurse';
+    else if (requiresSponsorship) employmentPathway = 'Sponsorship';
+    else if (recordedPathway === 'uk') employmentPathway = 'UK Standard';
+    else if (recordedPathway === 'international') employmentPathway = 'International';
   }
 
   const [assignmentsResult, timesheetsResult, leaveResult, packageResult, auditResult, payrollResult, availabilityResult, documentsResult] = await Promise.all([
@@ -180,51 +191,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : '';
   const endDate = typeof body?.endDate === 'string' ? body.endDate : null;
   if (!['pending', 'active', 'suspended', 'leaver'].includes(nextStatus)) return NextResponse.json({ error: 'Invalid employment status.' }, { status: 400 });
+  if (['active', 'suspended', 'leaver'].includes(nextStatus) && !note) return NextResponse.json({ error: 'A reason is required for this employment status change.' }, { status: 400 });
   if (nextStatus === 'leaver' && (!endDate || !/^\d{4}-\d{2}-\d{2}$/.test(endDate))) return NextResponse.json({ error: 'A valid end date is required when marking staff as a leaver.' }, { status: 400 });
-  if (['suspended', 'leaver'].includes(nextStatus) && !note) return NextResponse.json({ error: 'A reason is required for suspension or leaver status.' }, { status: 400 });
 
   const client = db();
-  const { data: current, error: currentError } = await client.from('staff_profiles').select('id,application_id,employment_status,activated_at,password_hash,full_name,session_version').eq('id', staffId).maybeSingle();
+  const { data: current, error: currentError } = await client.from('staff_profiles').select('id,employment_status,full_name').eq('id', staffId).maybeSingle();
   if (currentError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
-  if (current.employment_status === nextStatus) return NextResponse.json({ error: 'Staff member is already in that status.' }, { status: 400 });
-  if (!transitions[current.employment_status]?.includes(nextStatus)) return NextResponse.json({ error: `Transition from ${current.employment_status} to ${nextStatus} is not allowed.` }, { status: 409 });
 
-  if (
-    nextStatus === 'active'
-    && current.employment_status !== 'active'
-    && (!current.activated_at || !current.password_hash)
-  ) {
-    return NextResponse.json({
-      error: 'Staff accounts become active through the one-time staff portal activation flow. Complete portal activation instead of manually marking this staff record active.',
-    }, { status: 409 });
-  }
-
-  const patch: Record<string, unknown> = { employment_status: nextStatus, end_date: nextStatus === 'leaver' ? endDate : null, updated_at: new Date().toISOString() };
-  if (typeof current.session_version === 'number') patch.session_version = current.session_version + 1;
-
-  const { data, error } = await client.from('staff_profiles').update(patch).eq('id', staffId).eq('employment_status', current.employment_status)
-    .select('id,employee_number,full_name,email,job_title,employment_status,start_date,end_date,location,updated_at').single();
-  if (error || !data) return NextResponse.json({ error: 'Unable to update staff status. It may have changed; refresh and try again.' }, { status: 409 });
-
-  const { error: auditError } = await client.rpc('laurem_record_audit_event', {
-    p_lifecycle_area: 'workforce',
-    p_entity_type: 'staff',
-    p_entity_id: staffId,
-    p_application_id: null,
+  const { data, error } = await client.rpc('laurem_change_staff_employment_status', {
     p_staff_id: staffId,
-    p_actor_type: 'admin',
+    p_next_status: nextStatus,
     p_actor: session.email,
-    p_action: 'staff.status_changed',
-    p_previous_state: current.employment_status,
-    p_new_state: nextStatus,
-    p_reason: note || null,
-    p_source_table: null,
-    p_source_event_id: null,
-    p_metadata: { endDate },
+    p_reason: note,
+    p_end_date: endDate,
   });
-  if (auditError) {
-    return NextResponse.json({ error: 'Staff status changed, but the canonical audit record could not be written. Escalate this event before continuing.' }, { status: 503 });
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Unable to update staff status.' }, { status: 409 });
   }
 
   return NextResponse.json({ staff: data });
