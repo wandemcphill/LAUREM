@@ -19,13 +19,21 @@ export function operationalError(requestId: string, message: string, status: num
   return withRequestId(response, requestId);
 }
 
+function serializeOperationalReason(reason: unknown) {
+  if (reason instanceof Error) return reason.message;
+  if (reason && typeof reason === 'object') {
+    try { return JSON.stringify(reason); } catch { return 'unserializable_error'; }
+  }
+  return String(reason);
+}
+
 export function logOperationalError(input: { requestId: string; event: string; actor?: string | null; reason: unknown; metadata?: Record<string, unknown> }) {
   console.error(JSON.stringify({
     level: 'error',
     requestId: input.requestId,
     event: input.event,
     actor: input.actor || null,
-    reason: input.reason instanceof Error ? input.reason.message : String(input.reason),
+    reason: serializeOperationalReason(input.reason),
     metadata: input.metadata || undefined,
   }));
 }
