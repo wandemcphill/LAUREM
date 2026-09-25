@@ -219,6 +219,37 @@ export function evaluateDbsPvg(staff: StaffProfileRow, now: Date = new Date()): 
   const verified = Boolean(staff.dbs_verified);
   const checkDate = staff.dbs_pvg_check_date || null;
   const expiryDate = staff.dbs_pvg_expiry_date || null;
+  const recordedStatus = staff.dbs_pvg_status?.trim().toLowerCase() || '';
+
+  if (recordedStatus === 'not_applicable') {
+    return {
+      verified: true,
+      statusCategory: 'Current',
+      checkDate,
+      expiryDate,
+      detail: 'DBS/PVG check is recorded as not applicable for this staff record.',
+    };
+  }
+
+  if (recordedStatus === 'expired') {
+    return {
+      verified,
+      statusCategory: 'Expired',
+      checkDate,
+      expiryDate,
+      detail: 'DBS/PVG check has been marked expired.',
+    };
+  }
+
+  if (recordedStatus === 'pending' || recordedStatus === 'under_review') {
+    return {
+      verified,
+      statusCategory: 'Under Review',
+      checkDate,
+      expiryDate,
+      detail: 'DBS/PVG check is pending or under administrative review.',
+    };
+  }
 
   if (!verified) {
     return {
@@ -226,7 +257,7 @@ export function evaluateDbsPvg(staff: StaffProfileRow, now: Date = new Date()): 
       statusCategory: 'Missing',
       checkDate,
       expiryDate,
-      detail: 'DBS/PVG background check is outstanding or under review.',
+      detail: 'DBS/PVG background check is outstanding or evidence is missing.',
     };
   }
 
