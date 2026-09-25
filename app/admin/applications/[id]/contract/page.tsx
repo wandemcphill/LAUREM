@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 import { validateContractCompleteness, ContractValidationResult } from '@/lib/laurem-contract-validator';
 import LauremContractDocument from '@/components/LauremContractDocument';
-import { isNurseRole } from '@/lib/laurem-company-config';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
 type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; completeness?:ContractValidationResult; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null} };
@@ -22,22 +21,19 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
     employmentType: 'Permanent',
     startDate: '',
     continuousEmploymentDate: '',
-    contractEndDate: '',
     weeklyHours: String(contractConfig.defaultWeeklyHours),
     normalWorkingDays: 'Monday to Friday / Rostered shift rotation',
     shiftPattern: 'Standard operational rota',
-    annualSalary: '',
+    annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark),
     hourlyRate: '',
     payFrequency: 'Monthly in arrears',
     payMethod: 'Direct bank transfer (BACS)',
-    postRegistrationSalary: '',
-    preRegistrationSalary: '',
-    preRegistrationRole: '',
-    registrationTransitionTerms: '',
+    postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark),
+    preRegistrationSalary: '26115',
     visaRoute: contractConfig.defaultVisaRoute,
     sponsorshipOccupationCode: contractConfig.defaultOccupationCode,
     nmcStatus: 'Working towards full NMC registration',
-    registrationDeadline: '',
+    registrationDeadline: 'Within 8 months of employment start date',
     probation: '6 months',
     probationConditions: 'Satisfactory monthly reviews and completion of induction/clinical competencies',
     noticePeriodEmployee: '1 week during probation; 4 weeks thereafter in writing',
@@ -52,10 +48,10 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
     mandatoryTrainingPaidBy: 'Employer funded and paid as working time',
     pensionScheme: 'Auto-enrolment workplace pension scheme',
     workLocations: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE and approved care sites',
-    relocationSupport: '',
+    relocationSupport: 'Flights to UK reimbursed up to £800; 1 month temporary accommodation provided.',
     repayableCosts: '',
-    repaymentSchedule: '0–12 months: 100%; 13–24 months: 50%; 25–36 months: 25%; after 36 months: 0%',
-    repaymentMethod: '',
+    repaymentSchedule: '0–12 months: 100%; 13–24 months: 50%; after 24 months: 0%',
+    repaymentMethod: 'Deduction from final salary by mutual agreement or structured monthly payment plan upon voluntary departure.',
   });
 
   useEffect(() => { params.then((p) => setId(p.id)); }, [params]);
@@ -93,7 +89,7 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
   // Live client-side completeness check
   const liveValidation = useMemo(() => {
     if (!application) return { valid: false, errors: [], missingFields: [] };
-    const isInternationalNurse = isNurseRole(application.role_applied) && application.living_in_uk === 'No';
+    const isInternationalNurse = (application.role_applied || '').toLowerCase().includes('nurse') && application.living_in_uk === 'No';
     return validateContractCompleteness(
       application.role_applied,
       {
@@ -129,8 +125,6 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
         nmcStatus: form.nmcStatus,
         registrationDeadline: form.registrationDeadline,
         preRegistrationSalary: form.preRegistrationSalary ? Number(form.preRegistrationSalary) : null,
-        preRegistrationRole: form.preRegistrationRole,
-        registrationTransitionTerms: form.registrationTransitionTerms,
         postRegistrationSalary: form.postRegistrationSalary ? Number(form.postRegistrationSalary) : null,
         relocationSupport: form.relocationSupport,
         repayableCosts: form.repayableCosts,
@@ -258,7 +252,6 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
       <Field label="Employment Type" value={form.employmentType} onChange={(v)=>setField('employmentType',v)} />
       <Field label="Start Date" value={form.startDate} onChange={(v)=>setField('startDate',v)} type="date" />
       <Field label="Continuous Employment Date" value={form.continuousEmploymentDate} onChange={(v)=>setField('continuousEmploymentDate',v)} type="date" />
-      <Field label="Fixed-term End Date (where applicable)" value={form.contractEndDate} onChange={(v)=>setField('contractEndDate',v)} type="date" />
       <Field label="Weekly Contracted Hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
       <Field label="Normal Working Days / Pattern" value={form.normalWorkingDays} onChange={(v)=>setField('normalWorkingDays',v)} />
       <Field label="Shift Pattern" value={form.shiftPattern} onChange={(v)=>setField('shiftPattern',v)} />
@@ -275,9 +268,7 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
       <Field label="Visa Route" value={form.visaRoute} onChange={(v)=>setField('visaRoute',v)} />
       <Field label="Sponsorship Occupation Code (SOC)" value={form.sponsorshipOccupationCode} onChange={(v)=>setField('sponsorshipOccupationCode',v)} />
       <Field label="NMC Status" value={form.nmcStatus} onChange={(v)=>setField('nmcStatus',v)} />
-      <Field label="Registration Deadline Date" value={form.registrationDeadline} onChange={(v)=>setField('registrationDeadline',v)} type="date" />
-      <Field label="Pre-registration Job Title" value={form.preRegistrationRole} onChange={(v)=>setField('preRegistrationRole',v)} />
-      <Field label="Registration Transition Terms" value={form.registrationTransitionTerms} onChange={(v)=>setField('registrationTransitionTerms',v)} multiline />
+      <Field label="Registration Deadline Date" value={form.registrationDeadline} onChange={(v)=>setField('registrationDeadline',v)} />
     </div></section>
 
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Leave, Pension, Notice & Training</h2><div style={grid}>

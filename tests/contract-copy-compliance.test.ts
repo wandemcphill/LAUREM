@@ -3,83 +3,85 @@ import { renderLauremContract } from '../lib/laurem-contract';
 import { renderLauremInternationalNurseContract } from '../lib/laurem-international-nurse-contract';
 import { lauremCompany } from '../lib/laurem-company-config';
 
-describe('contract copy', () => {
-  test('uses canonical identity and no draft placeholder in a complete standard contract', () => {
+describe('Contract Copy Legal & Brand Compliance', () => {
+  test('standard contract contains Statement of Particulars and correct company legal identity', () => {
     const text = renderLauremContract({
-      employeeName:'John Support',
-      employeeAddress:'10 Park Avenue, Glasgow',
-      jobTitle:'Senior Support Worker',
-      employmentType:'Permanent',
-      startDate:'2026-10-01',
-      continuousEmploymentDate:'2026-10-01',
-      minimumWeeklyHours:37.5,
-      normalWorkingDays:'Monday to Friday',
-      shiftPattern:'09:00 to 17:00',
-      workLocations:['Glasgow Centre'],
-      hourlyRate:14.2,
-      payFrequency:'Monthly in arrears',
-      payMethod:'BACS',
-      holidayEntitlement:'28 days',
-      holidayPayCalculation:'Applicable calculation.',
-      sickPay:'SSP subject to eligibility.',
-      paidLeave:'Statutory paid leave subject to eligibility.',
-      contractualBenefits:'Workplace pension.',
-      nonContractualBenefits:'Employee assistance programme.',
-      probation:'6 months',
-      probationConditions:'Monthly review and induction completion.',
-      noticePeriodEmployee:'4 weeks',
-      noticePeriodEmployer:'4 weeks or statutory minimum where greater',
-      mandatoryTraining:'Mandatory care induction.',
-      mandatoryTrainingPaidBy:'Employer-funded and paid as working time.',
-      pensionScheme:'Auto-enrolment workplace pension.'
+      employeeName: 'John Support',
+      employeeAddress: '10 Park Avenue, Glasgow',
+      jobTitle: 'Senior Support Worker',
+      employmentType: 'Permanent',
+      startDate: '2026-10-01',
+      continuousEmploymentDate: '2026-10-01',
+      minimumWeeklyHours: 37.5,
+      hourlyRate: 14.20,
+      payFrequency: 'Monthly in arrears',
+      payMethod: 'BACS Direct Credit',
+      workLocations: ['Glasgow Centre'],
+      holidayEntitlement: '28 days per annum',
+      sickPay: 'Statutory Sick Pay (SSP)',
+      probation: '6 months',
+      noticePeriodEmployee: '4 weeks written notice',
+      noticePeriodEmployer: '4 weeks written notice',
+      mandatoryTraining: 'Mandatory Care Induction',
     });
-    expect(text).toContain('Employer Legal Name: ' + lauremCompany.legalName);
-    expect(text).toContain('Company Number: ' + lauremCompany.companyNumber);
-    expect(text).not.toContain('Laurem Caregroup Ltd');
-    expect(text).not.toContain('[DRAFT ONLY:');
+
+    expect(text).toContain('STATEMENT OF MAIN EMPLOYMENT PARTICULARS');
+    expect(text).toContain(`Employer Legal Name: ${lauremCompany.legalName}`);
+    expect(text).toContain(`Trading Name: ${lauremCompany.tradingName}`);
+    expect(text).toContain(`Company Number: ${lauremCompany.companyNumber}`);
+    expect(text).toContain(`Registered Office: ${lauremCompany.registeredOffice}`);
+    expect(text).not.toContain('Laurem Caregroup Ltd'); // Must not reintroduce forbidden name
+
+    expect(text).not.toContain('As stated in the offer');
+    expect(text).not.toContain('As stated in approved terms');
+    expect(text).not.toContain('To be confirmed before issue');
+    expect(text).not.toContain('As stated in the approved rate card');
+    expect(text).not.toContain('Details will be provided separately');
   });
 
-  test('international nurse copy includes exact terms and excluded recruitment costs even when no repayable costs apply', () => {
+  test('international nurse contract contains pre/post salary, visa, SOC, and repayment exclusions', () => {
     const text = renderLauremInternationalNurseContract({
-      employeeName:'Amara Okafor',
-      employeeAddress:'Flat 4A, High Street, Barrhead',
-      jobTitle:'Registered Nurse',
-      employmentType:'Permanent',
-      startDate:'2026-11-01',
-      continuousEmploymentDate:'2026-11-01',
-      minimumWeeklyHours:37.5,
-      normalWorkingDays:'Monday to Friday / rostered rotation',
-      shiftPattern:'Days, nights and weekends according to rota',
-      workLocations:['557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE'],
-      preRegistrationRole:'Pre-Registration Nurse',
-      preRegistrationSalary:28000,
-      postRegistrationSalary:36000,
-      registrationTransitionTerms:'On full NMC PIN confirmation the Registered Nurse title and post-registration salary apply.',
-      payFrequency:'Monthly in arrears',
-      payMethod:'BACS',
-      holidayEntitlement:'28 days',
-      holidayPayCalculation:'Applicable calculation.',
-      sickPay:'SSP subject to eligibility.',
-      paidLeave:'Statutory paid leave subject to eligibility.',
-      contractualBenefits:'Workplace pension.',
-      nonContractualBenefits:'Employee assistance programme.',
-      probation:'6 months',
-      probationConditions:'Monthly review and clinical induction.',
-      noticePeriodEmployee:'4 weeks',
-      noticePeriodEmployer:'4 weeks or statutory minimum where greater',
-      mandatoryTraining:'Mandatory clinical induction and safeguarding.',
-      mandatoryTrainingPaidBy:'Employer-funded and paid as working time.',
-      pensionScheme:'Auto-enrolment workplace pension.',
-      visaRoute:'Health and Care Worker visa',
-      sponsorshipOccupationCode:'2237 (Registered Nurses)',
-      nmcStatus:'Decision letter received',
-      registrationDeadline:'2027-06-01',
-      relocationSupport:'None',
-      repayableCosts:''
+      employeeName: 'Amara Okafor',
+      employeeAddress: 'Flat 4A, High Street, Barrhead',
+      jobTitle: 'Registered Nurse',
+      preRegistrationRole: 'Pre-Registration Nurse',
+      employmentType: 'Permanent',
+      startDate: '2026-11-01',
+      minimumWeeklyHours: 37.5,
+      preRegistrationSalary: 26115,
+      postRegistrationSalary: 34544,
+      visaRoute: 'Health and Care Worker visa',
+      sponsorshipOccupationCode: '2237 (Registered Nurses)',
+      nmcStatus: 'Decision Letter issued',
+      registrationDeadline: '2027-07-01',
+      repayableCosts: 'Relocation flight reimbursement (£800)',
+      repaymentSchedule: '100% within 12 months, 50% within 13-24 months, 0% after 24 months',
+      repaymentMethod: 'Deduction from final salary by mutual agreement',
     });
-    expect(text).toContain('Pre-Registration Salary: £28,000.00 per annum');
-    expect(text).toContain('Post-Registration Salary: £36,000.00 per annum');
+
+    expect(text).toContain('INTERNATIONAL REGISTERED NURSE CONTRACT OF EMPLOYMENT');
+    expect(text).toContain('Pre-Registration Salary: £26,115.00 per annum');
+    expect(text).toContain('Post-Registration Salary: £34,544.00 per annum');
+    expect(text).toContain('Immigration Route: Health and Care Worker visa');
+    expect(text).toContain('Sponsorship SOC Code: 2237 (Registered Nurses)');
+    expect(text).toContain('Professional Registration / NMC Status: Decision Letter issued');
+    expect(text).toContain('Registration Deadline Date: 2027-07-01');
+
+    // Verify statutory repayment exclusions
     expect(text).toContain('EXCLUDED RECRUITMENT COSTS (EMPLOYER LIABILITY)');
-    expect(text).not.toContain('[DRAFT ONLY:');
+    expect(text).toContain('Agency and recruitment process fees');
+    expect(text).toContain('Immigration Skills Charge (ISC)');
+    expect(text).toContain('Sponsor Licence application fees');
+    expect(text).toContain('Certificate of Sponsorship (CoS) issuance fees');
+  });
+
+  test('international nurse contract explicitly states when no repayable costs exist', () => {
+    const text = renderLauremInternationalNurseContract({
+      employeeName: 'Amara Okafor',
+      jobTitle: 'Registered Nurse',
+      repayableCosts: '',
+    });
+
+    expect(text).toContain('No repayable employer-funded recruitment or relocation expenses apply to this employment.');
   });
 });

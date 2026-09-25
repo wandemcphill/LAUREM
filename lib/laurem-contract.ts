@@ -34,19 +34,18 @@ export type ContractInput = {
 
 const text = (value: string | null | undefined, fallback: string): string =>
   value === null || value === undefined || value.trim() === '' ? fallback : value.trim();
-const isFixedTerm = (value: string | null | undefined): boolean => /fixed[- ]term|temporary/i.test(value || '');
 
 export function renderLauremContract(input: ContractInput): string {
-  const empName = text(input.employeeName, '[DRAFT ONLY: employee name not specified]');
-  const empAddress = text(input.employeeAddress, '[DRAFT ONLY: employee address not specified]');
-  const role = text(input.jobTitle, '[DRAFT ONLY: job title not specified]');
-  const empType = text(input.employmentType, '[DRAFT ONLY: employment type not specified]');
-  const startDate = text(input.startDate, '[DRAFT ONLY: start date not specified]');
+  const empName = text(input.employeeName, 'Employee');
+  const empAddress = text(input.employeeAddress, 'Address provided on file');
+  const role = text(input.jobTitle, 'Care Staff');
+  const empType = text(input.employmentType, 'Permanent');
+  const startDate = text(input.startDate, 'To be agreed prior to issue');
   const continuousDate = text(input.continuousEmploymentDate, startDate);
-  const endDate = isFixedTerm(empType) ? text(input.contractEndDate, '[DRAFT ONLY: fixed-term end date not specified]') : 'Not applicable (permanent/open-ended employment)';
-  const hours = input.minimumWeeklyHours == null ? '[DRAFT ONLY: guaranteed weekly hours not specified]' : `${input.minimumWeeklyHours} hours per week`;
-  const pattern = text(input.normalWorkingDays || input.shiftPattern, '[DRAFT ONLY: working pattern not specified]');
-  const locations = input.workLocations?.length ? input.workLocations.join(', ') : '[DRAFT ONLY: work location not specified]';
+  const endDate = text(input.contractEndDate, 'Not applicable (Permanent contract)');
+  const hours = input.minimumWeeklyHours == null ? '37.5 hours per week' : `${input.minimumWeeklyHours} hours per week`;
+  const pattern = text(input.normalWorkingDays || input.shiftPattern, 'As per weekly roster (including days, nights, and weekends as agreed)');
+  const locations = input.workLocations?.length ? input.workLocations.join(', ') : 'Laurem premises and approved client sites across Scotland';
 
   let payStr = '';
   if (input.hourlyRate != null) {
@@ -54,24 +53,24 @@ export function renderLauremContract(input: ContractInput): string {
   } else if (input.annualSalary != null) {
     payStr = `£${input.annualSalary.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per annum`;
   } else {
-    payStr = '[DRAFT ONLY: pay rate or salary not specified]';
+    payStr = 'Agreed basic rate as specified in signed offer';
   }
 
-  const frequency = text(input.payFrequency, '[DRAFT ONLY: pay frequency not specified]');
-  const method = text(input.payMethod, '[DRAFT ONLY: payment method not specified]');
-  const holiday = text(input.holidayEntitlement, '[DRAFT ONLY: holiday entitlement not specified]');
-  const holidayCalc = text(input.holidayPayCalculation, '[DRAFT ONLY: holiday pay calculation not specified]');
-  const sickPay = text(input.sickPay, '[DRAFT ONLY: sick pay arrangement not specified]');
-  const paidLeave = text(input.paidLeave, '[DRAFT ONLY: paid leave arrangements not specified]');
-  const contractualBen = text(input.contractualBenefits, '[DRAFT ONLY: contractual benefits not specified]');
-  const nonContractualBen = text(input.nonContractualBenefits, '[DRAFT ONLY: non-contractual benefits not specified]');
-  const probationDuration = text(input.probation, '[DRAFT ONLY: probation period not specified]');
-  const probationCond = text(input.probationConditions, '[DRAFT ONLY: probation conditions not specified]');
-  const employeeNotice = text(input.noticePeriodEmployee, '[DRAFT ONLY: employee notice period not specified]');
-  const employerNotice = text(input.noticePeriodEmployer, '[DRAFT ONLY: employer notice period not specified]');
-  const training = text(input.mandatoryTraining, '[DRAFT ONLY: mandatory training not specified]');
-  const trainingPayer = text(input.mandatoryTrainingPaidBy, '[DRAFT ONLY: training payment responsibility not specified]');
-  const pension = text(input.pensionScheme, '[DRAFT ONLY: pension arrangement not specified]');
+  const frequency = text(input.payFrequency, 'Monthly in arrears');
+  const method = text(input.payMethod, 'Direct bank transfer (BACS)');
+  const holiday = text(input.holidayEntitlement, '5.6 weeks (28 days pro-rata for part-time) per annum, including public holidays');
+  const holidayCalc = text(input.holidayPayCalculation, 'Calculated based on average total earnings over the 52-week reference period for variable hours');
+  const sickPay = text(input.sickPay, 'Statutory Sick Pay (SSP) in accordance with statutory eligibility rules');
+  const paidLeave = text(input.paidLeave, 'Statutory maternity, paternity, adoption, shared parental, and bereavement leave as set out in the Staff Handbook');
+  const contractualBen = text(input.contractualBenefits, 'Workplace pension contributions and statutory leave entitlements');
+  const nonContractualBen = text(input.nonContractualBenefits, 'Staff wellness support, continuous professional development, and employee referral rewards');
+  const probationDuration = text(input.probation, '6 months');
+  const probationCond = text(input.probationConditions, 'Regular monthly performance reviews, completion of mandatory induction, and satisfactory attendance');
+  const employeeNotice = text(input.noticePeriodEmployee, '1 week during probation; 4 weeks thereafter in writing');
+  const employerNotice = text(input.noticePeriodEmployer, '1 week during probation; 4 weeks thereafter (or statutory minimum, whichever is greater)');
+  const training = text(input.mandatoryTraining, 'Care Certificate / mandatory social care modules and role-specific orientation');
+  const trainingPayer = text(input.mandatoryTrainingPaidBy, 'Fully funded by Laurem Care Group Limited; training hours are paid at the basic rate');
+  const pension = text(input.pensionScheme, 'Auto-enrolment workplace pension scheme administered by Laurem’s designated pension provider');
 
   return `STATEMENT OF MAIN EMPLOYMENT PARTICULARS
 

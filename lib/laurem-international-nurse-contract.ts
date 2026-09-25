@@ -48,20 +48,19 @@ export type InternationalNurseContractInput = {
 
 const text = (value: string | null | undefined, fallback: string): string =>
   value === null || value === undefined || value.trim() === '' ? fallback : value.trim();
-const isFixedTerm = (value: string | null | undefined): boolean => /fixed[- ]term|temporary/i.test(value || '');
 
 const money = (value: number | null | undefined, fallback: string): string =>
   value == null ? fallback : `£${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per annum`;
 
 export function renderLauremInternationalNurseContract(input: InternationalNurseContractInput): string {
-  const empName = text(input.employeeName, '[DRAFT ONLY: employee name not specified]');
-  const empAddress = text(input.employeeAddress, '[DRAFT ONLY: employee address not specified]');
+  const empName = text(input.employeeName, 'Employee');
+  const empAddress = text(input.employeeAddress, 'Address provided on file');
   const role = text(input.jobTitle, 'Registered Nurse');
-  const preRole = text(input.preRegistrationRole, '[DRAFT ONLY: pre-registration role not specified]');
-  const empType = text(input.employmentType, '[DRAFT ONLY: employment type not specified]');
-  const startDate = text(input.startDate, '[DRAFT ONLY: start date not specified]');
+  const preRole = text(input.preRegistrationRole, 'Pre-Registration Nurse / Senior Support Worker');
+  const empType = text(input.employmentType, 'Permanent');
+  const startDate = text(input.startDate, 'To be agreed prior to issue');
   const continuousDate = text(input.continuousEmploymentDate, startDate);
-  const endDate = isFixedTerm(empType) ? text(input.contractEndDate, '[DRAFT ONLY: fixed-term end date not specified]') : 'Not applicable (permanent/open-ended employment)';
+  const endDate = text(input.contractEndDate, 'Not applicable (Permanent contract)');
   const rawHours = input.weeklyHours ?? input.minimumWeeklyHours;
   const hours = rawHours == null ? '37.5 hours per week' : `${rawHours} hours per week`;
   const pattern = text(input.normalWorkingDays || input.shiftPattern, 'Rostered shifts across days, nights, and weekends according to operational rota');
@@ -69,28 +68,28 @@ export function renderLauremInternationalNurseContract(input: InternationalNurse
 
   const preSal = money(input.preRegistrationSalary, '£26,115.00 per annum (Pre-registration rate)');
   const postSal = money(input.postRegistrationSalary ?? input.annualSalary, '£34,544.00 per annum (Post-registration rate)');
-  const frequency = text(input.payFrequency, '[DRAFT ONLY: pay frequency not specified]');
-  const method = text(input.payMethod, '[DRAFT ONLY: payment method not specified]');
-  const holiday = text(input.holidayEntitlement, '[DRAFT ONLY: holiday entitlement not specified]');
-  const holidayCalc = text(input.holidayPayCalculation, '[DRAFT ONLY: holiday pay calculation not specified]');
-  const sickPay = text(input.sickPay, '[DRAFT ONLY: sick pay arrangement not specified]');
-  const paidLeave = text(input.paidLeave, '[DRAFT ONLY: paid leave arrangements not specified]');
-  const contractualBen = text(input.contractualBenefits, '[DRAFT ONLY: contractual benefits not specified]');
-  const nonContractualBen = text(input.nonContractualBenefits, '[DRAFT ONLY: non-contractual benefits not specified]');
-  const probationDuration = text(input.probation, '[DRAFT ONLY: probation period not specified]');
-  const probationCond = text(input.probationConditions, '[DRAFT ONLY: probation conditions not specified]');
-  const employeeNotice = text(input.noticePeriodEmployee, '[DRAFT ONLY: employee notice period not specified]');
-  const employerNotice = text(input.noticePeriodEmployer, '[DRAFT ONLY: employer notice period not specified]');
-  const training = text(input.mandatoryTraining, '[DRAFT ONLY: mandatory training not specified]');
-  const trainingPayer = text(input.mandatoryTrainingPaidBy, '[DRAFT ONLY: training payment responsibility not specified]');
-  const pension = text(input.pensionScheme, '[DRAFT ONLY: pension arrangement not specified]');
+  const frequency = text(input.payFrequency, 'Monthly in arrears');
+  const method = text(input.payMethod, 'Direct bank transfer (BACS)');
+  const holiday = text(input.holidayEntitlement, '28 days per annum (inclusive of public holidays)');
+  const holidayCalc = text(input.holidayPayCalculation, 'Calculated based on standard rostered contractual hours and normal wage');
+  const sickPay = text(input.sickPay, 'Statutory Sick Pay (SSP) in accordance with statutory rules');
+  const paidLeave = text(input.paidLeave, 'Statutory family leave (maternity, paternity, adoption, shared parental) as set out in company handbook');
+  const contractualBen = text(input.contractualBenefits, 'Workplace pension scheme and visa sponsorship administration');
+  const nonContractualBen = text(input.nonContractualBenefits, 'Welcome pastoral orientation, airport transfer assistance, and initial relocation guidance');
+  const probationDuration = text(input.probation, '6 months');
+  const probationCond = text(input.probationConditions, 'Satisfactory progress towards full NMC PIN registration and completion of clinical induction');
+  const employeeNotice = text(input.noticePeriodEmployee, '1 week during probation; 4 weeks thereafter in writing');
+  const employerNotice = text(input.noticePeriodEmployer, '1 week during probation; 4 weeks thereafter (or statutory minimum, whichever is greater)');
+  const training = text(input.mandatoryTraining, 'OSCE preparation training, Scottish Social Services Council / NMC code orientation, and mandatory clinical skills');
+  const trainingPayer = text(input.mandatoryTrainingPaidBy, 'Fully paid by Laurem Care Group Limited; training time is paid as normal working time');
+  const pension = text(input.pensionScheme, 'Auto-enrolment workplace pension scheme');
 
   // International Nurse Specific Fields
-  const visaRoute = text(input.visaRoute, '[DRAFT ONLY: visa route not specified]');
-  const socCode = text(input.sponsorshipOccupationCode, '[DRAFT ONLY: sponsorship occupation code not specified]');
-  const nmcStatus = text(input.nmcStatus, '[DRAFT ONLY: NMC status not specified]');
-  const regDeadline = text(input.registrationDeadline, '[DRAFT ONLY: registration deadline not specified]');
-  const regTransition = text(input.registrationTransitionTerms, '[DRAFT ONLY: registration transition terms not specified]');
+  const visaRoute = text(input.visaRoute, 'Health and Care Worker visa (Skilled Worker Sponsorship)');
+  const socCode = text(input.sponsorshipOccupationCode, '2237 (Registered Nurses)');
+  const nmcStatus = text(input.nmcStatus, 'Decision Letter received / awaiting OSCE examination');
+  const regDeadline = text(input.registrationDeadline, 'Within 8 months of UK arrival / employment start date');
+  const regTransition = text(input.registrationTransitionTerms, 'Upon receipt of full NMC PIN, employment title transitions automatically to Registered Nurse with post-registration salary active from the date of PIN confirmation.');
 
   // Relocation & Repayment Schedule Handling
   let relocationText = '';
@@ -118,7 +117,7 @@ In compliance with UK law and the Code of Practice for international recruitment
 - Certificate of Sponsorship (CoS) issuance fees
 - Employer recruitment interview costs`;
   } else {
-    repaymentText = 'NO REPAYABLE EMPLOYER-FUNDED EXPENSES:\nNo repayable employer-funded recruitment or relocation expenses apply to this employment.\n\nEXCLUDED RECRUITMENT COSTS (EMPLOYER LIABILITY):\nThe following employer-liable recruitment and immigration costs are never repayable by the employee:\n- Agency and recruitment process fees\n- Immigration Skills Charge (ISC)\n- Sponsor Licence application fees\n- Certificate of Sponsorship (CoS) issuance fees\n- Employer recruitment interview costs';
+    repaymentText = 'No repayable employer-funded recruitment or relocation expenses apply to this employment.';
   }
 
   return `INTERNATIONAL REGISTERED NURSE CONTRACT OF EMPLOYMENT

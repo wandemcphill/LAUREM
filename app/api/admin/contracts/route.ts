@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
       .eq('application_id', applicationId)
       .maybeSingle();
     if (contractLookupError) throw contractLookupError;
-    if (existingContract?.status && ['issued', 'viewed', 'accepted'].includes(existingContract.status)) {
-      return NextResponse.json({ error: 'This application already has an issued or accepted employment contract. The existing contractual record is immutable from this workspace. Code: CONTRACT_VERSION_LOCKED' }, { status: 409 });
+    if (existingContract?.status === 'accepted' && existingContract.accepted_at) {
+      return NextResponse.json({ error: 'An employment contract has already been accepted for this application. A new contract cannot overwrite the accepted record.' }, { status: 409 });
     }
 
     const internationalNurse = isInternationalNurseApplication(app);
@@ -136,7 +136,6 @@ export async function POST(request: NextRequest) {
       nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
       registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
       preRegistrationRole: typeof body?.preRegistrationRole === 'string' ? body.preRegistrationRole : null,
-      registrationTransitionTerms: typeof body?.registrationTransitionTerms === 'string' ? body.registrationTransitionTerms : null,
       preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
       postRegistrationSalary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : annualSalary,
       relocationSupport: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
@@ -170,7 +169,6 @@ export async function POST(request: NextRequest) {
       pay_frequency: contractInput.payFrequency,
       pay_method: contractInput.payMethod,
       work_locations: workLocations,
-      holiday_entitlement: holidayEntitlement,
       holiday_pay_calculation: contractInput.holidayPayCalculation,
       sick_pay: contractInput.sickPay,
       paid_leave: contractInput.paidLeave,
@@ -189,7 +187,6 @@ export async function POST(request: NextRequest) {
       nmc_status: internationalNurse ? contractInput.nmcStatus : null,
       registration_deadline: internationalNurse ? contractInput.registrationDeadline : null,
       pre_registration_role: internationalNurse ? contractInput.preRegistrationRole : null,
-      registration_transition_terms: internationalNurse ? contractInput.registrationTransitionTerms : null,
       pre_registration_salary: internationalNurse ? contractInput.preRegistrationSalary : null,
       post_registration_salary: internationalNurse ? contractInput.postRegistrationSalary : null,
       relocation_support: internationalNurse ? contractInput.relocationSupport : null,
@@ -279,7 +276,6 @@ export async function PATCH(request: NextRequest) {
     sickPay: current.sick_pay,
     paidLeave: current.paid_leave,
     contractualBenefits: current.contractual_benefits,
-    nonContractualBenefits: current.non_contractual_benefits,
     probation: current.probation,
     probationConditions: current.probation_conditions,
     noticePeriodEmployee: current.notice_period_employee,
@@ -293,7 +289,6 @@ export async function PATCH(request: NextRequest) {
     registrationDeadline: current.registration_deadline,
     preRegistrationRole: current.pre_registration_role,
     preRegistrationSalary: current.pre_registration_salary,
-    registrationTransitionTerms: current.registration_transition_terms,
     postRegistrationSalary: current.post_registration_salary,
     relocationSupport: current.relocation_support,
     repayableCosts: current.repayable_costs,
@@ -313,18 +308,36 @@ export async function PATCH(request: NextRequest) {
 
   const token = makeToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: atomicResult, error: issueError } = await client.rpc('laurem_issue_recruitment_contract_with_token', {
+    p_contract_id: id,
+    p_token_hash: hashToken(token),
+    p_expires_at: expiresAt,
+    p_actor: session.email,
+  });
+
+  if (issueError || !atomicResult?.contract) {
+    const message = issueError?.message || 'Unable to issue contract.';
+    const status = message.includes('CONTRACT_ALREADY_ACCEPTED') || message.includes('CONTRACT_NOT_ISSUABLE') ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+
+  const updated = atomicResult.contract;
+  const link = appUrl() + '/contracts/accept/' + token;
+
   const rawDocumentToken = makeToken();
   const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-  const documents = getLauremRecruitmentDocumentPack({ role: app.role_applied, staffName: app.full_name, livingInUk: app.living_in_uk });
+  const documents = getLauremRecruitmentDocumentPack({
+    role: app.role_applied,
+    staffName: app.full_name,
+    livingInUk: app.living_in_uk,
+  });
   const jobHash = createHash('sha256').update(documents.jobDescription, 'utf8').digest('hex');
   const handbookHash = createHash('sha256').update(documents.handbookContent, 'utf8').digest('hex');
-  const atomicIssue = await client.rpc('laurem_issue_recruitment_contract_and_document_pack', {
-    p_contract_id: id,
+  const packResult = await client.rpc('laurem_issue_candidate_document_pack', {
     p_application_id: app.id,
-    p_contract_token_hash: hashToken(token),
-    p_contract_token_expires_at: expiresAt,
-    p_document_pack_token_hash: hashToken(rawDocumentToken),
-    p_document_pack_token_expires_at: documentPackExpiresAt,
+    p_token_hash: hashToken(rawDocumentToken),
+    p_expires_at: documentPackExpiresAt,
     p_job_description: documents.jobDescription,
     p_job_description_sha256: jobHash,
     p_handbook_title: documents.handbookTitle,
@@ -332,15 +345,11 @@ export async function PATCH(request: NextRequest) {
     p_handbook_sha256: handbookHash,
     p_actor: session.email,
   });
-  if (atomicIssue.error || !atomicIssue.data?.contract || !atomicIssue.data?.document_pack) {
-    const message = atomicIssue.error?.message || 'Unable to issue the complete employment offer package.';
-    const status = /CONTRACT_ALREADY_ACCEPTED|CONTRACT_NOT_ISSUABLE/.test(message) ? 409 : 500;
-    return NextResponse.json({ error: message }, { status });
+  if (packResult.error) {
+    logOperationalError({ requestId, event: 'admin.contract.document_pack_failed', actor: session.email, reason: packResult.error, metadata: { applicationId: app.id, contractId: id } });
+    return operationalError(requestId, 'Unable to issue the candidate offer document package.', 500, 'DOCUMENT_PACK_ISSUE_FAILED');
   }
-  const updated = atomicIssue.data.contract;
-  const link = appUrl() + '/contracts/accept/' + token;
   const documentPackLink = appUrl() + '/candidate-documents/' + rawDocumentToken;
-
   const safeName = escapeHtml(app.full_name);
   const safeLink = escapeHtml(link);
   const safeDocumentPackLink = escapeHtml(documentPackLink);

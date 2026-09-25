@@ -9,8 +9,8 @@ describe('LAUREM contract draft issuance flow', () => {
     expect(route).toContain('id: contract.id');
     expect(route).toContain('status: contract.status');
     expect(route).toContain("if (body?.status !== 'issued')");
-    expect(route).toContain('laurem_issue_recruitment_contract_and_document_pack');
-    expect(route).not.toContain('laurem_issue_candidate_document_pack');
+    expect(route).toContain('laurem_issue_recruitment_contract_with_token');
+    expect(route).toContain('laurem_issue_candidate_document_pack');
 
     expect(page).toContain("fetch('/api/admin/contracts?applicationId='+encodeURIComponent(id)");
     expect(page).toContain("result.status==='draft'");

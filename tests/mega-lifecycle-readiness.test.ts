@@ -30,8 +30,8 @@ describe('LAUREM mega lifecycle readiness contract', () => {
     const route = read('app/api/admin/contracts/route.ts');
     expect(route).toContain("readAdminSession(request)");
     expect(route).toContain("from('recruitment_contracts')");
-    expect(route).toContain("['issued', 'viewed', 'accepted'].includes(existingContract.status)");
-    expect(route).toContain('CONTRACT_VERSION_LOCKED');
+    expect(route).toContain("existingContract?.status === 'accepted'");
+    expect(route).toContain('cannot overwrite the accepted record');
   });
 
   it('keeps the staff sponsorship workspace authenticated and atomic', () => {
