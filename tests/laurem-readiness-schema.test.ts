@@ -27,6 +27,6 @@ describe('LAUREM readiness schema alignment', () => {
     const candidateRoute = readFileSync(resolve(process.cwd(), 'app/api/candidate-documents/route.ts'), 'utf8');
     expect(candidateRoute).not.toContain('start_date,nmc_number,application_data,status');
     expect(candidateRoute).not.toContain('application.nmc_number');
-    expect(candidateRoute).toContain("application.application_data->>'nmc_number'");
+    expect(candidateRoute).toContain("typeof applicationData.nmc_number === 'string'");
   });
 });
