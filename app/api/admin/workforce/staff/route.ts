@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return NextResponse.json({
-    staff: filteredStaff,
+    staff: enrichedStaff,
     pagination: {
       total,
       page,
