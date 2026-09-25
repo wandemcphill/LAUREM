@@ -21,4 +21,12 @@ describe('LAUREM readiness schema alignment', () => {
     expect(source).toContain("review.status === 'approved' ? 'completed' : review.status === 'waived' ? 'waived' : 'pending'");
     expect(source).toContain('Evidence review ${override.reviewId} is authoritative for this readiness item.');
   });
+
+
+  it('keeps candidate document post-sign onboarding lookups aligned with the LAUREM application schema', () => {
+    const candidateRoute = readFileSync(resolve(process.cwd(), 'app/api/candidate-documents/route.ts'), 'utf8');
+    expect(candidateRoute).not.toContain('start_date,nmc_number,application_data,status');
+    expect(candidateRoute).not.toContain('application.nmc_number');
+    expect(candidateRoute).toContain("application.application_data->>'nmc_number'");
+  });
 });
