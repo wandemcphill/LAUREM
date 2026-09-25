@@ -199,8 +199,8 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || 'Unable to issue the staff activation link.');
-      setNotice(`Staff activation link issued for ${data?.staff.full_name || 'the staff member'}.`);
       await load();
+      setNotice(`Staff activation link issued for ${data?.staff.full_name || 'the staff member'}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to issue the staff activation link.');
     } finally {
@@ -214,6 +214,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
     if (!reason.trim()) return;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       const response = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}`, {
         method: 'PATCH',
