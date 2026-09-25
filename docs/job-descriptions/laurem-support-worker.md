@@ -1,13 +1,13 @@
-# LAUREM CAREGROUP LTD
+# LAUREM CARE GROUP LIMITED
 
 ## Job Description
 
 **Job title:** {{JOB_TITLE}}  
 **Employee:** {{EMPLOYEE_NAME}}  
-**Employer:** Laurem Caregroup Ltd  
+**Employer:** Laurem Care Group Limited
 **Employment status:** As stated in the employment contract and approved offer  
 **Reports to:** Designated Laurem manager and/or assignment lead  
-**Document owner:** Laurem Caregroup Ltd
+**Document owner:** Laurem Care Group Limited
 
 ---
 
@@ -63,7 +63,7 @@ The employee must attend scheduled duties punctually, follow applicable absence 
 ## 6. Document control and acknowledgement
 
 **Issued by:** {{ISSUER_NAME}}, {{ISSUER_TITLE}}  
-**For:** Laurem Caregroup Ltd
+**For:** Laurem Care Group Limited
 
 I confirm that I have received and read this Job Description and understand the responsibilities and limits of my role.
 

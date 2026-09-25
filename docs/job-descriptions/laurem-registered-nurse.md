@@ -1,13 +1,13 @@
-# LAUREM CAREGROUP LTD
+# LAUREM CARE GROUP LIMITED
 
 ## Job Description
 
 **Job title:** {{JOB_TITLE}}  
 **Employee:** {{EMPLOYEE_NAME}}  
-**Employer:** Laurem Caregroup Ltd  
+**Employer:** Laurem Care Group Limited
 **Employment status:** As stated in the employment contract and approved offer  
 **Reports to:** Designated Laurem manager and/or clinical or assignment lead  
-**Document owner:** Laurem Caregroup Ltd
+**Document owner:** Laurem Care Group Limited
 
 ---
 
@@ -71,7 +71,7 @@ Clinical and professional concerns must be raised promptly through the appropria
 This Job Description should be read alongside the employment contract, Staff Handbook, clinical procedures, care plans and assignment instructions.
 
 **Issued by:** {{ISSUER_NAME}}, {{ISSUER_TITLE}}  
-**For:** Laurem Caregroup Ltd
+**For:** Laurem Care Group Limited
 
 I confirm that I have received and read this Job Description and understand my responsibility to work within my professional competence, contract, authorised duties and applicable requirements.
 
