@@ -68,7 +68,7 @@ async function loadPack(token: string) {
 async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicationId: string) {
   const { data: application, error } = await client
     .from('recruitment_applications')
-    .select('id,full_name,email,role_applied,living_in_uk,start_date,nmc_number,application_data,status')
+    .select('id,full_name,email,role_applied,living_in_uk,start_date,application_data,status')
     .eq('id', applicationId)
     .maybeSingle();
   if (error) throw error;
@@ -96,7 +96,7 @@ async function prepareOnboardingIfReady(client: ReturnType<typeof db>, applicati
     : {};
   const nmcNumber = typeof applicationData.nmc_number === 'string'
     ? applicationData.nmc_number
-    : application.nmc_number || null;
+    : null;
 
   const result = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
     p_application_id: applicationId,
