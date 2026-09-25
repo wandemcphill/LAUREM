@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   calculateDateCategory,
   evaluateNurseRegistration,
@@ -9,6 +11,11 @@ import {
   normalizeRightToWorkPathway,
   StaffProfileRow,
 } from '../lib/laurem-hr-workforce';
+const staffDirectoryRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/route.ts'), 'utf8');
+const staffRecordRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/route.ts'), 'utf8');
+const hrActionRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/hr-action/route.ts'), 'utf8');
+const hrMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260926000000_laurem_hr_workforce_administration.sql'), 'utf8');
+
 import {
   LAUREM_STAFF_EMPLOYMENT_STATUSES,
   LAUREM_STAFF_EMPLOYMENT_TRANSITIONS,
@@ -159,5 +166,38 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(isLauremStaffEmploymentTransitionAllowed('leaver', 'active')).toBe(false);
     expect(isLauremStaffEmploymentTransitionAllowed('pending', 'suspended')).toBe(false);
     expect(isLauremStaffEmploymentTransitionAllowed('pending', 'leaver')).toBe(false);
+  });
+});
+
+
+describe('HR / Workforce Administration integration guards', () => {
+  it('filters computed compliance state before paginating the directory', () => {
+    expect(staffDirectoryRoute).toContain('const hasComplianceFilter');
+    expect(staffDirectoryRoute).toContain('const filteredCandidates = hasComplianceFilter');
+    expect(staffDirectoryRoute).toContain('filteredCandidates.slice(offset, offset + limit)');
+    expect(staffDirectoryRoute).toContain('const total = hasComplianceFilter ? filteredCandidates.length');
+  });
+
+  it('uses authoritative application and visa records for employment pathway', () => {
+    expect(staffRecordRoute).toContain("select('application_data, requires_sponsorship, role_applied')");
+    expect(staffRecordRoute).toContain("from('staff_visa_cases')");
+    expect(staffRecordRoute).not.toContain("select('pathway, payload')");
+    expect(staffRecordRoute).toContain('International Sponsorship');
+    expect(staffRecordRoute).toContain('Visa Switch');
+  });
+
+  it('routes HR data mutations through atomic database procedures', () => {
+    expect(hrActionRoute).toContain("rpc('laurem_hr_update_staff_profile'");
+    expect(staffRecordRoute).toContain("rpc('laurem_change_staff_employment_status'");
+    expect(hrMigration).toContain('create or replace function public.laurem_hr_update_staff_profile');
+    expect(hrMigration).toContain('create or replace function public.laurem_change_staff_employment_status');
+    expect(hrMigration).toContain('perform public.laurem_record_audit_event(');
+  });
+
+  it('stores an explicit Right-to-Work pathway and never infers it from job title', () => {
+    expect(hrMigration).toContain('right_to_work_pathway');
+    expect(staffDirectoryRoute).toContain('right_to_work_pathway');
+    expect(hrActionRoute).toContain('rightToWorkPathway');
+    expect(staffRecordRoute).not.toContain("job_title.toLowerCase().includes('sponsor')");
   });
 });
