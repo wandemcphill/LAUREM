@@ -231,11 +231,13 @@ export async function POST(request: NextRequest) {
     const result = Array.isArray(response.data) ? response.data[0] : response.data;
     let onboardingLink: string | null = null;
     let waitingForReadiness = false;
+    let waitingForContract = false;
     if (result?.pack_status === 'completed') {
       const loaded = await loadPack(token);
       const onboarding = await prepareOnboardingIfReady(loaded.client, loaded.application.id);
       onboardingLink = onboarding?.onboardingLink || null;
       waitingForReadiness = Boolean(onboarding?.waitingForReadiness);
+      waitingForContract = Boolean(onboarding?.waitingForContract || loaded.contract?.status !== 'accepted');
     }
 
     return NextResponse.json({
@@ -243,7 +245,7 @@ export async function POST(request: NextRequest) {
       packStatus: result?.pack_status || 'pending',
       onboardingLink,
       waitingForReadiness,
-      waitingForContract: Boolean((result?.pack_status === 'completed' && loaded.contract?.status !== 'accepted')),
+      waitingForContract,
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : 'DOCUMENT_SIGN_FAILED';
