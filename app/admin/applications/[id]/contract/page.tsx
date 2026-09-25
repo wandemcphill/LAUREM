@@ -26,16 +26,18 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
     weeklyHours: String(contractConfig.defaultWeeklyHours),
     normalWorkingDays: 'Monday to Friday / Rostered shift rotation',
     shiftPattern: 'Standard operational rota',
-    annualSalary: ''
+    annualSalary: '',
     hourlyRate: '',
     payFrequency: 'Monthly in arrears',
     payMethod: 'Direct bank transfer (BACS)',
-    postRegistrationSalary: ''
-    preRegistrationSalary: ''
+    postRegistrationSalary: '',
+    preRegistrationSalary: '',
+    preRegistrationRole: '',
+    registrationTransitionTerms: '',
     visaRoute: contractConfig.defaultVisaRoute,
     sponsorshipOccupationCode: contractConfig.defaultOccupationCode,
     nmcStatus: 'Working towards full NMC registration',
-    registrationDeadline: ''
+    registrationDeadline: '',
     probation: '6 months',
     probationConditions: 'Satisfactory monthly reviews and completion of induction/clinical competencies',
     noticePeriodEmployee: '1 week during probation; 4 weeks thereafter in writing',
@@ -50,11 +52,10 @@ export default function ContractWorkspacePage({ params }: { params: Promise<{ id
     mandatoryTrainingPaidBy: 'Employer funded and paid as working time',
     pensionScheme: 'Auto-enrolment workplace pension scheme',
     workLocations: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE and approved care sites',
-    relocationSupport: ''
+    relocationSupport: '',
     repayableCosts: '',
     repaymentSchedule: '0–12 months: 100%; 13–24 months: 50%; 25–36 months: 25%; after 36 months: 0%',
     repaymentMethod: '',
-    repaymentMethod: 'Deduction from final salary by mutual agreement or structured monthly payment plan upon voluntary departure.',
   });
 
   useEffect(() => { params.then((p) => setId(p.id)); }, [params]);
