@@ -5,6 +5,8 @@ import { db } from '@/lib/db';
 import { buildOnboardingTasks, inferLauremOnboardingAudience } from '@/lib/laurem-onboarding';
 import { renderLauremJobDescription } from '@/lib/laurem-job-description';
 import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
+import { hashActivationToken, makeActivationToken } from '@/lib/laurem-staff-auth';
+import { sendLauremStaffActivation } from '@/lib/laurem-staff-email';
 import { LauremLifecycleError, validateLauremStaffTransition, type LauremLifecycleErrorCode } from '@/lib/laurem-lifecycle';
 import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
@@ -43,83 +45,114 @@ export async function POST(request: NextRequest) {
         ? 'Sponsored Healthcare Assistant Onboarding Programme'
         : 'Laurem Staff Onboarding Programme';
 
-    const preparedResult = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
-      p_application_id: id,
-      p_actor: session.email,
-      p_audience: audience,
-      p_package_title: packageTitle,
-      p_tasks: tasks,
-      p_location: null,
-      p_nmc_number: typeof applicationData.nmc_number === 'string'
-        ? applicationData.nmc_number
-        : (typeof application.nmc_number === 'string' ? application.nmc_number : null),
-      p_dbs_verified: Boolean(applicationData.dbs_verified),
-      p_access_token_hash: null,
-      p_access_token_expires_at: null,
-    });
-    if (preparedResult.error) throw preparedResult.error;
-    const prepared = Array.isArray(preparedResult.data) ? preparedResult.data[0] : preparedResult.data;
-    if (!prepared?.staff_id) throw new Error('Unable to prepare the workforce identity for hire.');
-
-    const { data: staff, error: staffError } = await client.from('staff_profiles')
-      .select('*')
-      .eq('id', prepared.staff_id)
-      .single();
-    if (staffError || !staff) throw staffError || new Error('Staff profile not found after hire preparation.');
-
-    const jobDescription = renderLauremJobDescription(
-      staff.job_title || application.role_applied || 'Care Worker',
-      staff.full_name,
-    );
-    const jobHash = createHash('sha256').update(jobDescription, 'utf8').digest('hex');
-
-    const packageResult = await client.rpc('laurem_issue_staff_employment_document_package', {
-      p_staff_id: staff.id,
-      p_application_id: id,
-      p_job_title: staff.job_title || application.role_applied || 'Care Worker',
-      p_job_description: jobDescription,
-      p_job_description_sha256: jobHash,
-      p_actor: session.email,
-    });
-    if (packageResult.error) throw packageResult.error;
-    if (!packageResult.data) throw new Error('Employment document package issuance returned no result.');
-
-    if (application.status !== 'Hired') {
-      const signedDocumentResult = await client.rpc('laurem_attach_signed_candidate_documents_to_staff', {
-        p_staff_id: staff.id,
-        p_application_id: id,
-        p_actor: session.email,
-      });
-      if (signedDocumentResult.error) throw signedDocumentResult.error;
-      if (!signedDocumentResult.data) throw new Error('Signed candidate employment documents could not be attached to the staff record.');
-    }
-
     let transitioned = application;
-    if (application.status !== 'Hired') {
-      const transitionResult = await client.rpc('laurem_transition_application_status', {
-        p_application_id: id,
-        p_to_status: 'Hired',
-        p_actor: session.email,
-        p_note: 'Employment document package issued and staff portal activation prepared.',
-        p_override: false,
-        p_override_reason: null,
-      });
-      if (transitionResult.error || !transitionResult.data) throw transitionResult.error || new Error('Unable to move application to Hired.');
-      transitioned = transitionResult.data;
-    }
-
+    let staff: any = null;
     let activation: { status: string; deliveryId?: string | null; error?: string } | null = null;
-    if (staff.activated_at) {
-      activation = { status: 'already_activated', deliveryId: null };
-    } else if (!staff.activation_token_hash) {
-      const portal = await provisionLauremStaffPortal(id);
-      activation = {
-        status: portal.activation.status,
-        deliveryId: portal.activation.deliveryId || null,
-        ...(portal.activation.status === 'failed' ? { error: portal.activation.error } : {}),
-      };
+
+    if (application.status === 'Onboarding') {
+      const rawActivationToken = makeActivationToken();
+      const activationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const preparedResult = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
+        p_application_id: id,
+        p_actor: session.email,
+        p_audience: audience,
+        p_package_title: packageTitle,
+        p_tasks: tasks,
+        p_location: null,
+        p_nmc_number: typeof applicationData.nmc_number === 'string'
+          ? applicationData.nmc_number
+          : (typeof application.nmc_number === 'string' ? application.nmc_number : null),
+        p_dbs_verified: Boolean(applicationData.dbs_verified),
+        p_access_token_hash: null,
+        p_access_token_expires_at: null,
+      });
+      if (preparedResult.error) throw preparedResult.error;
+      const prepared = Array.isArray(preparedResult.data) ? preparedResult.data[0] : preparedResult.data;
+      if (!prepared?.staff_id) throw new Error('Unable to prepare the workforce identity for hire.');
+
+      const { data: preparedStaff, error: staffError } = await client.from('staff_profiles')
+        .select('*')
+        .eq('id', prepared.staff_id)
+        .single();
+      if (staffError || !preparedStaff) throw staffError || new Error('Staff profile not found after hire preparation.');
+
+      const jobDescription = renderLauremJobDescription(
+        preparedStaff.job_title || application.role_applied || 'Care Worker',
+        preparedStaff.full_name,
+      );
+      const jobHash = createHash('sha256').update(jobDescription, 'utf8').digest('hex');
+
+      const atomicHire = await client.rpc('laurem_hire_application_atomic', {
+        p_application_id: id,
+        p_actor: session.email,
+        p_job_title: preparedStaff.job_title || application.role_applied || 'Care Worker',
+        p_job_description: jobDescription,
+        p_job_description_sha256: jobHash,
+        p_activation_token_hash: hashActivationToken(rawActivationToken),
+        p_activation_expires_at: activationExpiresAt,
+      });
+      if (atomicHire.error) throw atomicHire.error;
+      if (!atomicHire.data?.ok) throw new Error('Atomic hire workflow returned no successful result.');
+
+      transitioned = atomicHire.data.application;
+      const { data: hiredStaff, error: hiredStaffError } = await client.from('staff_profiles')
+        .select('*')
+        .eq('id', preparedStaff.id)
+        .single();
+      if (hiredStaffError || !hiredStaff) throw hiredStaffError || new Error('Staff profile not found after atomic hire.');
+      staff = hiredStaff;
+
+      try {
+        const activationEmail = await sendLauremStaffActivation(client, staff, rawActivationToken);
+        activation = {
+          status: activationEmail.status,
+          deliveryId: activationEmail.deliveryId || null,
+          ...(activationEmail.status === 'failed' ? { error: activationEmail.error } : {}),
+        };
+        if (activationEmail.status === 'failed') {
+          logOperationalError({
+            requestId,
+            event: 'admin.application.hire_activation_delivery_failed',
+            actor: session.email,
+            reason: activationEmail.error || 'Activation email delivery failed.',
+            metadata: { applicationId: id, staffId: staff.id },
+          });
+        }
+      } catch (emailError) {
+        activation = {
+          status: 'failed',
+          deliveryId: null,
+          error: emailError instanceof Error ? emailError.message : String(emailError),
+        };
+        logOperationalError({
+          requestId,
+          event: 'admin.application.hire_activation_delivery_failed',
+          actor: session.email,
+          reason: emailError,
+          metadata: { applicationId: id, staffId: staff.id },
+        });
+      }
     } else {
-      activation = { status: 'activation_already_issued', deliveryId: null };
+      const { data: existingStaff, error: staffError } = await client.from('staff_profiles')
+        .select('*')
+        .eq('application_id', id)
+        .single();
+      if (staffError || !existingStaff) throw staffError || new Error('Staff profile not found for Hired application.');
+      staff = existingStaff;
+
+      if (staff.activated_at) {
+        activation = { status: 'already_activated', deliveryId: null };
+      } else if (!staff.activation_token_hash) {
+        const portal = await provisionLauremStaffPortal(id, session.email);
+        activation = {
+          status: portal.activation.status,
+          deliveryId: portal.activation.deliveryId || null,
+          ...(portal.activation.status === 'failed' ? { error: portal.activation.error } : {}),
+        };
+      } else {
+        activation = { status: 'activation_already_issued', deliveryId: null };
+      }
     }
 
     const { data: currentDocs, error: docsError } = await client.from('staff_documents')
@@ -127,7 +160,15 @@ export async function POST(request: NextRequest) {
       .eq('staff_id', staff.id)
       .eq('status', 'issued')
       .order('issued_at', { ascending: true });
-    if (docsError) throw docsError;
+    if (docsError) {
+      logOperationalError({
+        requestId,
+        event: 'admin.application.hire_document_read_failed',
+        actor: session.email,
+        reason: docsError,
+        metadata: { applicationId: id, staffId: staff.id },
+      });
+    }
 
     return withRequestId(NextResponse.json({
       application: transitioned,
