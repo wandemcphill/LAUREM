@@ -106,11 +106,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (['suspended', 'leaver'].includes(nextStatus) && !note) return NextResponse.json({ error: 'A reason is required for suspension or leaver status.' }, { status: 400 });
 
   const client = db();
-  const { data: current, error: currentError } = await client.from('staff_profiles').select('id,employment_status,full_name,session_version').eq('id', staffId).maybeSingle();
+  const { data: current, error: currentError } = await client.from('staff_profiles').select('id,application_id,employment_status,activated_at,password_hash,full_name,session_version').eq('id', staffId).maybeSingle();
   if (currentError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
   if (current.employment_status === nextStatus) return NextResponse.json({ error: 'Staff member is already in that status.' }, { status: 400 });
   if (!transitions[current.employment_status]?.includes(nextStatus)) return NextResponse.json({ error: `Transition from ${current.employment_status} to ${nextStatus} is not allowed.` }, { status: 409 });
+
+  if (
+    nextStatus === 'active'
+    && current.employment_status !== 'active'
+    && (!current.activated_at || !current.password_hash)
+  ) {
+    return NextResponse.json({
+      error: 'Staff accounts become active through the one-time staff portal activation flow. Complete portal activation instead of manually marking this staff record active.',
+    }, { status: 409 });
+  }
 
   const patch: Record<string, unknown> = { employment_status: nextStatus, end_date: nextStatus === 'leaver' ? endDate : null, updated_at: new Date().toISOString() };
   if (typeof current.session_version === 'number') patch.session_version = current.session_version + 1;
