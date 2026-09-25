@@ -19,6 +19,24 @@ create index if not exists laurem_staff_profiles_search_idx on public.laurem_sta
 
 create index if not exists laurem_staff_profiles_rtw_pathway_idx on public.laurem_staff_profiles(right_to_work_pathway);
 
+-- Backfill the authoritative pathway from existing recruitment/visa records.
+-- Unknown remains explicit when the source record does not establish a pathway.
+update public.laurem_staff_profiles s
+set right_to_work_pathway = case
+  when exists (
+    select 1
+    from public.laurem_staff_visa_cases v
+    where v.staff_id = s.id
+      and v.pathway in ('visa_switch', 'international_sponsorship')
+      and v.status not in ('declined', 'withdrawn')
+  ) then 'sponsorship'
+  when lower(coalesce(a.application_data->>'pathway', '')) = 'uk' then 'uk'
+  when lower(coalesce(a.application_data->>'pathway', '')) = 'international' then 'overseas'
+  else 'unknown'
+end
+from public.laurem_recruitment_applications a
+where s.application_id = a.id;
+
 -- Atomic HR profile mutation: update the authoritative field set and its canonical audit record
 -- in the same database transaction.
 create or replace function public.laurem_hr_update_staff_profile(
