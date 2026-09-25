@@ -37,25 +37,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (body?.startDate && typeof body.startDate === 'string') patch.start_date = body.startDate.trim();
     if (body?.endDate !== undefined) patch.end_date = typeof body.endDate === 'string' ? body.endDate.trim() || null : null;
 
-    const { data: updated, error: updateError } = await client.from('staff_profiles')
-      .update(patch)
-      .eq('id', staffId)
-      .select('id, employee_number, full_name, job_title, location, manager_id, start_date, end_date, updated_at')
-      .single();
+    const changes: Record<string, unknown> = {};
+    if (patch.job_title !== undefined) changes.job_title = patch.job_title;
+    if (patch.location !== undefined) changes.location = patch.location;
+    if (patch.manager_id !== undefined) changes.manager_id = patch.manager_id;
+    if (patch.start_date !== undefined) changes.start_date = patch.start_date;
+    if (patch.end_date !== undefined) changes.end_date = patch.end_date;
 
-    if (updateError) return NextResponse.json({ error: 'Failed to update staff details.' }, { status: 500 });
-
-    await recordHrPrivilegedAction({
-      staffId,
-      action: `hr.${action}`,
-      actor: session.email,
-      previousState: { job_title: staff.job_title, location: staff.location, manager_id: staff.manager_id },
-      newState: updated,
-      reason,
-      applicationId: staff.application_id,
+    const { data: updated, error: updateError } = await client.rpc('laurem_hr_update_staff_profile', {
+      p_staff_id: staffId,
+      p_action: `hr.${action}`,
+      p_actor: session.email,
+      p_reason: reason || null,
+      p_changes: changes,
     });
 
-    return NextResponse.json({ success: true, staff: updated });
+    if (updateError || !updated) {
+      return NextResponse.json({ error: updateError?.message || 'Failed to update staff details.' }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, staff: {
+      id: updated.id,
+      employee_number: updated.employee_number,
+      full_name: updated.full_name,
+      job_title: updated.job_title,
+      location: updated.location,
+      manager_id: updated.manager_id,
+      start_date: updated.start_date,
+      end_date: updated.end_date,
+      updated_at: updated.updated_at,
+    } });
   }
 
   if (action === 'update_compliance') {
@@ -74,24 +85,35 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (body?.nmcStatus !== undefined) patch.nmc_status = typeof body.nmcStatus === 'string' ? body.nmcStatus.trim() || null : null;
     if (body?.nmcExpiryDate !== undefined) patch.nmc_expiry_date = typeof body.nmcExpiryDate === 'string' ? body.nmcExpiryDate.trim() || null : null;
 
-    const { data: updated, error: updateError } = await client.from('staff_profiles')
-      .update(patch)
-      .eq('id', staffId)
-      .select('id, right_to_work_verified, right_to_work_expiry_date, dbs_verified, dbs_pvg_status, nmc_number, nmc_status, nmc_expiry_date, updated_at')
-      .single();
+    if (body?.rightToWorkPathway !== undefined) patch.right_to_work_pathway = typeof body.rightToWorkPathway === 'string' ? body.rightToWorkPathway.trim().toLowerCase() || null : null;
 
-    if (updateError) return NextResponse.json({ error: 'Failed to update compliance details.' }, { status: 500 });
-
-    await recordHrPrivilegedAction({
-      staffId,
-      action: 'hr.update_compliance',
-      actor: session.email,
-      newState: updated,
-      reason,
-      applicationId: staff.application_id,
+    const { data: updated, error: updateError } = await client.rpc('laurem_hr_update_staff_profile', {
+      p_staff_id: staffId,
+      p_action: 'hr.update_compliance',
+      p_actor: session.email,
+      p_reason: reason || null,
+      p_changes: patch,
     });
 
-    return NextResponse.json({ success: true, compliance: updated });
+    if (updateError || !updated) return NextResponse.json({ error: updateError?.message || 'Failed to update compliance details.' }, { status: 400 });
+
+    return NextResponse.json({
+      success: true,
+      compliance: {
+        id: updated.id,
+        right_to_work_pathway: updated.right_to_work_pathway,
+        right_to_work_verified: updated.right_to_work_verified,
+        right_to_work_expiry_date: updated.right_to_work_expiry_date,
+        dbs_verified: updated.dbs_verified,
+        dbs_pvg_status: updated.dbs_pvg_status,
+        dbs_pvg_check_date: updated.dbs_pvg_check_date,
+        dbs_pvg_expiry_date: updated.dbs_pvg_expiry_date,
+        nmc_number: updated.nmc_number,
+        nmc_status: updated.nmc_status,
+        nmc_expiry_date: updated.nmc_expiry_date,
+        updated_at: updated.updated_at,
+      },
+    });
   }
 
   if (action === 'update_emergency_contact') {
@@ -99,29 +121,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
     const relationship = typeof body?.relationship === 'string' ? body.relationship.trim() : '';
 
-    const { data: updated, error: updateError } = await client.from('staff_profiles')
-      .update({
+    const { data: updated, error: updateError } = await client.rpc('laurem_hr_update_staff_profile', {
+      p_staff_id: staffId,
+      p_action: 'hr.update_emergency_contact',
+      p_actor: session.email,
+      p_reason: reason || null,
+      p_changes: {
         emergency_contact_name: name || null,
         emergency_contact_phone: phone || null,
         emergency_contact_relationship: relationship || null,
-        updated_at: now,
-      })
-      .eq('id', staffId)
-      .select('id, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship')
-      .single();
-
-    if (updateError) return NextResponse.json({ error: 'Failed to update emergency contact details.' }, { status: 500 });
-
-    await recordHrPrivilegedAction({
-      staffId,
-      action: 'hr.update_emergency_contact',
-      actor: session.email,
-      newState: updated,
-      reason,
-      applicationId: staff.application_id,
+      },
     });
 
-    return NextResponse.json({ success: true, emergencyContact: updated });
+    if (updateError || !updated) return NextResponse.json({ error: updateError?.message || 'Failed to update emergency contact details.' }, { status: 400 });
+
+    return NextResponse.json({
+      success: true,
+      emergencyContact: {
+        id: updated.id,
+        emergency_contact_name: updated.emergency_contact_name,
+        emergency_contact_phone: updated.emergency_contact_phone,
+        emergency_contact_relationship: updated.emergency_contact_relationship,
+      },
+    });
   }
 
   if (action === 'issue_document') {
