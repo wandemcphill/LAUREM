@@ -117,6 +117,12 @@ describe('HR / Workforce Administration Domain Tests', () => {
     const dbs = evaluateDbsPvg(staff, fakeNow);
     expect(dbs.verified).toBe(true);
     expect(dbs.statusCategory).toBe('Expiring Soon');
+
+    const expiredByRecordedStatus = evaluateDbsPvg({ ...staff, dbs_pvg_status: 'expired', dbs_pvg_expiry_date: '2027-10-10' }, fakeNow);
+    expect(expiredByRecordedStatus.statusCategory).toBe('Expired');
+
+    const underReview = evaluateDbsPvg({ ...staff, dbs_pvg_status: 'under_review', dbs_pvg_expiry_date: '2027-10-10' }, fakeNow);
+    expect(underReview.statusCategory).toBe('Under Review');
   });
 
   it('builds comprehensive compliance snapshot and detects attention items', () => {
