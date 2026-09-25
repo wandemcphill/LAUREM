@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
       nmc_number,
       nmc_status,
       nmc_expiry_date,
-      right_to_work_pathway,
       right_to_work_verified,
       right_to_work_expiry_date,
       right_to_work_notes,

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const { data: participants } = await client.from('staff_message_participants').select('staff_id').eq('conversation_id', conversation.id);
     const ids = (participants || []).map((p: any) => p.staff_id);
     const [{ data: staff }, { data: mailboxes }, { data: latest }] = await Promise.all([
-      ids.length ? client.from('staff_profiles').select('id,full_name,laurem_id,employee_number,job_title,employment_status').in('id', ids) : Promise.resolve({ data: [] }),
+      ids.length ? client.from('staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').in('id', ids) : Promise.resolve({ data: [] }),
       ids.length ? client.from('staff_internal_mailboxes').select('staff_id,handle,namespace').in('staff_id', ids) : Promise.resolve({ data: [] }),
       client.from('staff_messages').select('id,body,sender_staff_id,sender_admin_email,created_at').eq('conversation_id', conversation.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
         return { ...person, address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null };
       }),
       latest,
-      unreadByAdmin: Boolean(latest && latest.sender_staff_id && !latest.sender_admin_email),
     });
   }
   return NextResponse.json({ conversations: output });

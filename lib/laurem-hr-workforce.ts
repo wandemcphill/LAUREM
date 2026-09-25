@@ -4,7 +4,7 @@ export type ComplianceStateCategory = 'Current' | 'Expiring Soon' | 'Expired' | 
 
 export type NurseRegistrationState = 'fully_registered' | 'registration_in_progress' | 'verification_pending' | 'restricted_not_cleared' | 'not_applicable';
 
-export type RightToWorkPathway = 'uk' | 'overseas' | 'sponsorship' | 'unknown';
+export type RightToWorkPathway = 'uk' | 'overseas' | 'sponsorship';
 
 export type RightToWorkEvaluation = {
   pathway: RightToWorkPathway;
@@ -56,7 +56,6 @@ export type StaffProfileRow = {
   end_date?: string | null;
   location?: string | null;
   manager_id?: string | null;
-  right_to_work_pathway?: RightToWorkPathway | null;
   nmc_number?: string | null;
   nmc_status?: NurseRegistrationState | null;
   nmc_expiry_date?: string | null;
@@ -77,12 +76,8 @@ export type StaffProfileRow = {
 
 export function isNurseRole(jobTitle: string | null | undefined): boolean {
   if (!jobTitle) return false;
-  return /\bnurse\b|\brn\b|\brgn\b/i.test(jobTitle);
-}
-
-export function normalizeRightToWorkPathway(value: string | null | undefined): RightToWorkPathway {
-  const normalized = value?.trim().toLowerCase();
-  return normalized === 'uk' || normalized === 'overseas' || normalized === 'sponsorship' ? normalized : 'unknown';
+  const lower = jobTitle.toLowerCase();
+  return lower.includes('nurse') || lower.includes('registered nurse') || lower.includes('rn') || lower.includes('nmc');
 }
 
 export function calculateDateCategory(dateStr: string | null | undefined, now: Date = new Date()): ComplianceStateCategory {
@@ -164,21 +159,10 @@ export function evaluateRightToWork(
   pathwayOverride?: RightToWorkPathway,
   now: Date = new Date(),
 ): RightToWorkEvaluation {
-  const pathway: RightToWorkPathway = pathwayOverride ?? normalizeRightToWorkPathway(staff.right_to_work_pathway);
+  const pathway: RightToWorkPathway = pathwayOverride || (staff.job_title.toLowerCase().includes('sponsor') ? 'sponsorship' : 'uk');
   const verified = Boolean(staff.right_to_work_verified);
   const expiryDate = staff.right_to_work_expiry_date || null;
   const notes = staff.right_to_work_notes || null;
-
-  if (pathway === 'unknown') {
-    return {
-      pathway,
-      verified,
-      statusCategory: 'Under Review',
-      expiryDate,
-      notes,
-      detail: 'Right to work pathway has not been recorded authoritatively.',
-    };
-  }
 
   if (!verified) {
     return {
@@ -187,7 +171,7 @@ export function evaluateRightToWork(
       statusCategory: 'Under Review',
       expiryDate,
       notes,
-      detail: 'Right to work evidence is outstanding or under review.',
+      detail: 'Right to work evidence received/pending review.',
     };
   }
 
@@ -219,37 +203,6 @@ export function evaluateDbsPvg(staff: StaffProfileRow, now: Date = new Date()): 
   const verified = Boolean(staff.dbs_verified);
   const checkDate = staff.dbs_pvg_check_date || null;
   const expiryDate = staff.dbs_pvg_expiry_date || null;
-  const recordedStatus = staff.dbs_pvg_status?.trim().toLowerCase() || '';
-
-  if (recordedStatus === 'not_applicable') {
-    return {
-      verified: true,
-      statusCategory: 'Current',
-      checkDate,
-      expiryDate,
-      detail: 'DBS/PVG check is recorded as not applicable for this staff record.',
-    };
-  }
-
-  if (recordedStatus === 'expired') {
-    return {
-      verified,
-      statusCategory: 'Expired',
-      checkDate,
-      expiryDate,
-      detail: 'DBS/PVG check has been marked expired.',
-    };
-  }
-
-  if (recordedStatus === 'pending' || recordedStatus === 'under_review') {
-    return {
-      verified,
-      statusCategory: 'Under Review',
-      checkDate,
-      expiryDate,
-      detail: 'DBS/PVG check is pending or under administrative review.',
-    };
-  }
 
   if (!verified) {
     return {
@@ -257,7 +210,7 @@ export function evaluateDbsPvg(staff: StaffProfileRow, now: Date = new Date()): 
       statusCategory: 'Missing',
       checkDate,
       expiryDate,
-      detail: 'DBS/PVG background check is outstanding or evidence is missing.',
+      detail: 'DBS/PVG background check is outstanding or under review.',
     };
   }
 

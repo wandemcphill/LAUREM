@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
+import { recordLauremAuditEvent } from '@/lib/laurem-audit';
+import { LAUREM_STAFF_EMPLOYMENT_TRANSITIONS, isLauremStaffEmploymentStatus, isLauremStaffEmploymentTransitionAllowed } from '@/lib/laurem-lifecycle-policy';
 import { buildStaffComplianceSnapshot } from '@/lib/laurem-hr-workforce';
-import { isLauremStaffEmploymentStatus } from '@/lib/laurem-lifecycle-policy';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
@@ -44,7 +45,6 @@ export async function GET(request: NextRequest) {
       nmc_number,
       nmc_status,
       nmc_expiry_date,
-      right_to_work_pathway,
       right_to_work_verified,
       right_to_work_expiry_date,
       right_to_work_notes,
@@ -81,9 +81,7 @@ export async function GET(request: NextRequest) {
     query = query.or(`full_name.ilike.%${q}%,employee_number.ilike.%${q}%,laurem_id.ilike.%${q}%,email.ilike.%${q}%`);
   }
 
-  const hasComplianceFilter = ['Current', 'Expiring Soon', 'Expired', 'Missing', 'Under Review'].includes(complianceState || '');
-  query = query.order('full_name', { ascending: true });
-  if (!hasComplianceFilter) query = query.range(offset, offset + limit - 1);
+  query = query.order('full_name', { ascending: true }).range(offset, offset + limit - 1);
 
   const { data: rawStaff, count, error } = await query;
   if (error) {
@@ -92,22 +90,8 @@ export async function GET(request: NextRequest) {
 
   const staffList = rawStaff || [];
 
-  // When filtering by computed compliance, the filter must run before pagination.
-  const allEnrichedCandidateRows = staffList.map((item) => ({
-    ...item,
-    compliance: buildStaffComplianceSnapshot(item),
-  }));
-
-  const filteredCandidates = hasComplianceFilter
-    ? allEnrichedCandidateRows.filter((s) => s.compliance.overallStatus === complianceState)
-    : allEnrichedCandidateRows;
-
-  const pageRows = hasComplianceFilter
-    ? filteredCandidates.slice(offset, offset + limit)
-    : filteredCandidates;
-
   // Fetch managers mapping to populate manager names
-  const managerIds = Array.from(new Set(pageRows.map((s) => s.manager_id).filter(Boolean))) as string[];
+  const managerIds = Array.from(new Set(staffList.map((s) => s.manager_id).filter(Boolean))) as string[];
   let managerMap: Record<string, { id: string; full_name: string; job_title: string }> = {};
   if (managerIds.length > 0) {
     const { data: managers } = await client.from('staff_profiles')
@@ -118,16 +102,28 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const enrichedStaff = pageRows.map((item) => ({
-    ...item,
-    manager: item.manager_id ? managerMap[item.manager_id] || null : null,
-  }));
+  // Calculate compliance snapshots
+  const enrichedStaff = staffList.map((item) => {
+    const compliance = buildStaffComplianceSnapshot(item);
+    const manager = item.manager_id ? managerMap[item.manager_id] || null : null;
+    return {
+      ...item,
+      manager,
+      compliance,
+    };
+  });
 
-  const total = hasComplianceFilter ? filteredCandidates.length : (count ?? enrichedStaff.length);
+  // Filter in memory for complianceState if specified
+  let filteredStaff = enrichedStaff;
+  if (complianceState && ['Current', 'Expiring Soon', 'Expired', 'Missing', 'Under Review'].includes(complianceState)) {
+    filteredStaff = enrichedStaff.filter((s) => s.compliance.overallStatus === complianceState);
+  }
+
+  const total = count ?? filteredStaff.length;
   const totalPages = Math.ceil(total / limit) || 1;
 
   return NextResponse.json({
-    staff: enrichedStaff,
+    staff: filteredStaff,
     pagination: {
       total,
       page,
@@ -159,24 +155,66 @@ export async function PATCH(request: NextRequest) {
   const client = db();
   const { data: current, error: currentError } = await client
     .from('staff_profiles')
-    .select('id,application_id,employment_status,full_name')
+    .select('id,application_id,employment_status,full_name,session_version,activated_at,password_hash')
     .eq('id', id)
     .maybeSingle();
   if (currentError) return NextResponse.json({ error: 'Unable to load staff record.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Staff member not found.' }, { status: 404 });
+  if (current.employment_status === nextStatus) return NextResponse.json({ error: 'Staff member is already in that status.' }, { status: 400 });
 
-  const { data, error } = await client.rpc('laurem_change_staff_employment_status', {
-    p_staff_id: id,
-    p_next_status: nextStatus,
-    p_actor: session.email,
-    p_reason: reason,
-    p_end_date: endDate,
-  });
-  if (error || !data) {
-    const message = error?.message || 'Unable to update staff status.';
-    const status = /ACTIVATION_REQUIRED|TRANSITION_NOT_ALLOWED|ALREADY_IN_STATUS|END_DATE_REQUIRED/i.test(message) ? 409 : 400;
-    return NextResponse.json({ error: message }, { status });
+  if (
+    !isLauremStaffEmploymentStatus(current.employment_status)
+    || !LAUREM_STAFF_EMPLOYMENT_TRANSITIONS[current.employment_status].includes(nextStatus)
+    || !isLauremStaffEmploymentTransitionAllowed(current.employment_status, nextStatus)
+  ) {
+    return NextResponse.json({ error: `Transition from ${current.employment_status} to ${nextStatus} is not allowed.` }, { status: 409 });
   }
+
+  if (current.employment_status === 'pending' && nextStatus === 'active') {
+    if (!current.activated_at || !current.password_hash) {
+      return NextResponse.json({
+        error: 'Pending staff must complete the one-time Staff Portal activation before employment can become active.',
+        code: 'STAFF_ACTIVATION_REQUIRED',
+      }, { status: 409 });
+    }
+  }
+
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    employment_status: nextStatus,
+    end_date: nextStatus === 'leaver' ? endDate : null,
+    updated_at: now,
+  };
+  if (typeof current.session_version === 'number') patch.session_version = current.session_version + 1;
+
+  const { data, error } = await client.from('staff_profiles').update(patch).eq('id', id)
+    .select('id,employee_number,full_name,email,job_title,employment_status,start_date,end_date,location,activated_at,updated_at').single();
+  if (error) return NextResponse.json({ error: 'Unable to update staff status.' }, { status: 500 });
+
+  await client.from('staff_portal_sessions').update({ revoked_at: now }).eq('staff_id', id).is('revoked_at', null);
+  await client.from('staff_password_reset_tokens').update({ consumed_at: now }).eq('staff_id', id).is('consumed_at', null);
+
+  await client.from('workforce_audit_events').insert({
+    staff_id: id,
+    event_type: 'staff.status_changed',
+    actor: session.email,
+    details: { from: current.employment_status, to: nextStatus, endDate, reason },
+  });
+
+  await recordLauremAuditEvent({
+    lifecycleArea: 'staff_account',
+    entityType: 'staff_profile',
+    entityId: id,
+    staffId: id,
+    applicationId: current.application_id,
+    actorType: 'admin',
+    actor: session.email,
+    action: 'employment_status_changed',
+    previousState: current.employment_status,
+    newState: nextStatus,
+    reason,
+    metadata: { endDate },
+  });
 
   const statusLabel = nextStatus.replaceAll('_', ' ');
   await createLauremStaffNotification(client, {

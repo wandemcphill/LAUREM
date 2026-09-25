@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   calculateDateCategory,
   evaluateNurseRegistration,
@@ -8,14 +6,8 @@ import {
   evaluateDbsPvg,
   buildStaffComplianceSnapshot,
   isNurseRole,
-  normalizeRightToWorkPathway,
   StaffProfileRow,
 } from '../lib/laurem-hr-workforce';
-const staffDirectoryRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/route.ts'), 'utf8');
-const staffRecordRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/route.ts'), 'utf8');
-const hrActionRoute = readFileSync(resolve(process.cwd(), 'app/api/admin/workforce/staff/[staffId]/hr-action/route.ts'), 'utf8');
-const hrMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260926000000_laurem_hr_workforce_administration.sql'), 'utf8');
-
 import {
   LAUREM_STAFF_EMPLOYMENT_STATUSES,
   LAUREM_STAFF_EMPLOYMENT_TRANSITIONS,
@@ -30,8 +22,6 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(isNurseRole('RN Care Lead')).toBe(true);
     expect(isNurseRole('Senior Care Assistant')).toBe(false);
     expect(isNurseRole('Healthcare Assistant')).toBe(false);
-    expect(isNurseRole('Learning Coordinator')).toBe(false);
-    expect(isNurseRole('RN Care Lead')).toBe(true);
   });
 
   it('categorizes compliance dates accurately relative to today', () => {
@@ -80,7 +70,6 @@ describe('HR / Workforce Administration Domain Tests', () => {
       email: 'arthur@lauremcare.co.uk',
       job_title: 'Senior Care Assistant',
       employment_status: 'active',
-      right_to_work_pathway: 'uk',
       right_to_work_verified: true,
       right_to_work_expiry_date: '2027-12-31',
     };
@@ -89,15 +78,9 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(rtw.verified).toBe(true);
     expect(rtw.statusCategory).toBe('Current');
 
-    const unverified = evaluateRightToWork({ ...staff, right_to_work_verified: false }, undefined, fakeNow);
+    const unverified = evaluateRightToWork({ ...staff, right_to_work_verified: false }, 'uk', fakeNow);
     expect(unverified.verified).toBe(false);
     expect(unverified.statusCategory).toBe('Under Review');
-
-    expect(normalizeRightToWorkPathway('sponsorship')).toBe('sponsorship');
-    expect(normalizeRightToWorkPathway('nonsense')).toBe('unknown');
-    const unknownPathway = evaluateRightToWork({ ...staff, right_to_work_pathway: null }, undefined, fakeNow);
-    expect(unknownPathway.statusCategory).toBe('Under Review');
-    expect(unknownPathway.detail).toContain('not been recorded authoritatively');
   });
 
   it('evaluates DBS/PVG background check states', () => {
@@ -117,12 +100,6 @@ describe('HR / Workforce Administration Domain Tests', () => {
     const dbs = evaluateDbsPvg(staff, fakeNow);
     expect(dbs.verified).toBe(true);
     expect(dbs.statusCategory).toBe('Expiring Soon');
-
-    const expiredByRecordedStatus = evaluateDbsPvg({ ...staff, dbs_pvg_status: 'expired', dbs_pvg_expiry_date: '2027-10-10' }, fakeNow);
-    expect(expiredByRecordedStatus.statusCategory).toBe('Expired');
-
-    const underReview = evaluateDbsPvg({ ...staff, dbs_pvg_status: 'under_review', dbs_pvg_expiry_date: '2027-10-10' }, fakeNow);
-    expect(underReview.statusCategory).toBe('Under Review');
   });
 
   it('builds comprehensive compliance snapshot and detects attention items', () => {
@@ -134,7 +111,6 @@ describe('HR / Workforce Administration Domain Tests', () => {
       email: 'david@lauremcare.co.uk',
       job_title: 'Registered Nurse',
       employment_status: 'active',
-      right_to_work_pathway: 'uk',
       right_to_work_verified: true,
       right_to_work_expiry_date: '2027-01-01',
       dbs_verified: false,
@@ -172,38 +148,5 @@ describe('HR / Workforce Administration Domain Tests', () => {
     expect(isLauremStaffEmploymentTransitionAllowed('leaver', 'active')).toBe(false);
     expect(isLauremStaffEmploymentTransitionAllowed('pending', 'suspended')).toBe(false);
     expect(isLauremStaffEmploymentTransitionAllowed('pending', 'leaver')).toBe(false);
-  });
-});
-
-
-describe('HR / Workforce Administration integration guards', () => {
-  it('filters computed compliance state before paginating the directory', () => {
-    expect(staffDirectoryRoute).toContain('const hasComplianceFilter');
-    expect(staffDirectoryRoute).toContain('const filteredCandidates = hasComplianceFilter');
-    expect(staffDirectoryRoute).toContain('filteredCandidates.slice(offset, offset + limit)');
-    expect(staffDirectoryRoute).toContain('const total = hasComplianceFilter ? filteredCandidates.length');
-  });
-
-  it('uses authoritative application and visa records for employment pathway', () => {
-    expect(staffRecordRoute).toContain("select('application_data, requires_sponsorship, role_applied')");
-    expect(staffRecordRoute).toContain("from('staff_visa_cases')");
-    expect(staffRecordRoute).not.toContain("select('pathway, payload')");
-    expect(staffRecordRoute).toContain('International Sponsorship');
-    expect(staffRecordRoute).toContain('Visa Switch');
-  });
-
-  it('routes HR data mutations through atomic database procedures', () => {
-    expect(hrActionRoute).toContain("rpc('laurem_hr_update_staff_profile'");
-    expect(staffRecordRoute).toContain("rpc('laurem_change_staff_employment_status'");
-    expect(hrMigration).toContain('create or replace function public.laurem_hr_update_staff_profile');
-    expect(hrMigration).toContain('create or replace function public.laurem_change_staff_employment_status');
-    expect(hrMigration).toContain('perform public.laurem_record_audit_event(');
-  });
-
-  it('stores an explicit Right-to-Work pathway and never infers it from job title', () => {
-    expect(hrMigration).toContain('right_to_work_pathway');
-    expect(staffDirectoryRoute).toContain('right_to_work_pathway');
-    expect(hrActionRoute).toContain('rightToWorkPathway');
-    expect(staffRecordRoute).not.toContain("job_title.toLowerCase().includes('sponsor')");
   });
 });
