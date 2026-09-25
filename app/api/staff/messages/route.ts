@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
   const to = typeof body?.to === 'string' ? body.to.trim() : '';
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
   if (!to || !message || message.length > 10000) return NextResponse.json({ error: 'A LAUREM address and message are required.' }, { status: 400 });
+
   const idempotencyKey = readLauremIdempotencyKey(req);
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    if (error.code === '23505') {
+    if (error?.code === '23505') {
       const { data: retry } = await client.from('staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)

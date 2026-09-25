@@ -47,6 +47,7 @@ export async function POST(req: NextRequest, context: Context) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
   if (!message || message.length > 10000) return NextResponse.json({ error: 'A message is required.' }, { status: 400 });
+
   const idempotencyKey = readLauremIdempotencyKey(req);
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, context: Context) {
   if (!limiter?.allowed) return NextResponse.json({ error: 'Messaging rate limit reached. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 300) } });
 
   const { data: duplicate } = await client.from('staff_messages')
-    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
+    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at')
     .eq('sender_staff_id', session.staff_id)
     .eq('idempotency_key', idempotencyKey)
     .maybeSingle();
@@ -76,10 +77,13 @@ export async function POST(req: NextRequest, context: Context) {
     return NextResponse.json({ message: duplicate }, { status: 200 });
   }
 
-  const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
-    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key').single();
+  const { data: created, error } = await client.from('staff_messages')
+    .insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
+    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
+    .single();
+
   if (error) {
-    if (error.code === '23505') {
+    if (error?.code === '23505') {
       const { data: retry } = await client.from('staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)
@@ -94,6 +98,7 @@ export async function POST(req: NextRequest, context: Context) {
     }
     return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
   }
+
   if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
