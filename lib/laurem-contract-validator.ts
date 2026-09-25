@@ -131,7 +131,7 @@ export function validateInternationalNurseContractCompleteness(input: Internatio
   if (!isBlank(input.repayableCosts)) {
     check(input.repaymentSchedule, 'repaymentSchedule', 'NURSE_REPAYMENT_SCHEDULE_REQUIRED', 'A repayment schedule is required when repayable costs are included.');
     check(input.repaymentMethod, 'repaymentMethod', 'NURSE_REPAYMENT_METHOD_REQUIRED', 'An auditable repayment method is required when repayable costs are included.');
-    if (/agency\s*(fee|fees)|recruitment\s*(fee|fees)|immigration\s*skills\s*charge|sponsor\s*licen[cs]e\s*(fee|fees)|certificate\s*of\s*sponsorship|\bcos\b.*\bfee|interview\s*(cost|costs|fee|fees)/i.test(input.repayableCosts)) {
+    if (/agency\s*(fee|fees)|recruitment\s*(fee|fees)|immigration\s*skills\s*charge|sponsor\s*licen[cs]e\s*(fee|fees)|certificate\s*of\s*sponsorship|\bcos\b.*\bfee|interview\s*(cost|costs|fee|fees)/i.test(input.repayableCosts || '')) {
       addMissing(errors, missingFields, 'repayableCosts', 'NURSE_PROHIBITED_REPAYABLE_COST', 'Employer-liable recruitment costs must not be included as employee-repayable expenses.');
     }
   }

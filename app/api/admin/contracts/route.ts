@@ -189,7 +189,6 @@ export async function POST(request: NextRequest) {
       nmc_status: internationalNurse ? contractInput.nmcStatus : null,
       registration_deadline: internationalNurse ? contractInput.registrationDeadline : null,
       pre_registration_role: internationalNurse ? contractInput.preRegistrationRole : null,
-      pre_registration_role: internationalNurse ? contractInput.preRegistrationRole : null,
       registration_transition_terms: internationalNurse ? contractInput.registrationTransitionTerms : null,
       pre_registration_salary: internationalNurse ? contractInput.preRegistrationSalary : null,
       post_registration_salary: internationalNurse ? contractInput.postRegistrationSalary : null,
