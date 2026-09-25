@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 describe('LAUREM hired employment package and activation', () => {
-  it('issues the employment package and activation from the Hired workflow', () => {
+  it('routes Onboarding → Hired through the atomic portal provisioning boundary', () => {
     const source = readFileSync('app/api/admin/applications/hire/route.ts', 'utf8');
-    expect(source).toContain("p_to_status: 'Hired'");
-    expect(source).toContain('laurem_issue_staff_employment_document_package');
-    expect(source).toContain('provisionLauremStaffPortal');
+    expect(source).toContain("client.rpc('laurem_hire_application_atomic'");
+    expect(source).toContain('makeActivationToken');
+    expect(source).toContain('hashActivationToken(rawActivationToken)');
+    expect(source).toContain('sendLauremStaffActivation');
+    expect(source).toContain('provisionLauremStaffPortal(id, session.email)');
+    expect(source).not.toContain("p_to_status: 'Hired'");
   });
 
   it('redirects reused activation links to staff login', () => {
@@ -34,5 +37,17 @@ describe('LAUREM hired employment package and activation', () => {
     expect(sql).toContain("status='accepted'");
     expect(sql).toContain('revoke all on function public.laurem_issue_staff_employment_document_package');
     expect(sql).toContain('grant execute on function public.laurem_issue_staff_employment_document_package');
+  });
+
+  it('enforces atomic hire rollback and prevents invalid manual activation', () => {
+    const atomic = readFileSync('supabase/migrations/20260925120000_atomic_hire_portal_provisioning.sql', 'utf8');
+    const workforce = readFileSync('app/api/admin/workforce/staff/[staffId]/route.ts', 'utf8');
+
+    expect(atomic).toContain('laurem_hire_application_atomic');
+    expect(atomic).toContain('laurem_staff_activation_status_guard');
+    expect(atomic).toContain('laurem_staff_internal_mailboxes_handle_namespace_key');
+    expect(atomic).toContain("p_to_status := 'Hired'");
+    expect(atomic).toContain('STAFF_PORTAL_STATE_BLOCKED');
+    expect(workforce).toContain('Staff accounts become active through the one-time staff portal activation flow');
   });
 });
