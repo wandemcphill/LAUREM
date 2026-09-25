@@ -27,6 +27,7 @@ type Staff = {
   nmc_number: string | null;
   nmc_status: string | null;
   nmc_expiry_date: string | null;
+  right_to_work_pathway: 'uk' | 'overseas' | 'sponsorship' | 'unknown' | null;
   right_to_work_verified: boolean;
   right_to_work_expiry_date: string | null;
   right_to_work_notes: string | null;
@@ -124,6 +125,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
   const [editJobTitle, setEditJobTitle] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editManagerId, setEditManagerId] = useState('');
+  const [editRtwPathway, setEditRtwPathway] = useState<'uk' | 'overseas' | 'sponsorship' | 'unknown'>('unknown');
 
   const [showIssueDoc, setShowIssueDoc] = useState(false);
   const [docTitle, setDocTitle] = useState('');
@@ -145,6 +147,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       setEditJobTitle(body.staff.job_title || '');
       setEditLocation(body.staff.location || '');
       setEditManagerId(body.staff.manager_id || '');
+      setEditRtwPathway(body.staff.right_to_work_pathway || 'unknown');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load staff record.');
     }
@@ -385,7 +388,8 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
           <article className="card" style={{ padding: 20 }}>
             <h2 style={{ marginTop: 0 }}>Compliance Verification Summary</h2>
             <div style={{ display: 'grid', gap: 12 }}>
-              <Check label="Right to Work Verified" value={c.rightToWork.verified} detail={c.rightToWork.detail} />
+              <Check label="Right to Work Pathway" value={c.rightToWork.pathway !== 'unknown'} detail={c.rightToWork.pathway === 'unknown' ? 'Pathway is not recorded authoritatively.' : `Recorded pathway: ${c.rightToWork.pathway}`} />
+              <Check label="Right to Work Verified" value={c.rightToWork.verified && c.rightToWork.pathway !== 'unknown'} detail={c.rightToWork.detail} />
               <Check label="DBS/PVG Check Verified" value={c.dbsPvg.verified} detail={c.dbsPvg.detail} />
               {c.nmcRegistration.isNurse && (
                 <Check label="NMC Nurse Registration" value={c.nmcRegistration.registrationState === 'fully_registered'} detail={`${c.nmcRegistration.detail} (PIN: ${c.nmcRegistration.nmcNumber || 'N/A'})`} />
@@ -400,6 +404,22 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
                 </ul>
               </div>
             )}
+
+            <div className="card" style={{ padding: 18 }}>
+              <h3 style={{ marginTop: 0 }}>Authoritative Right-to-Work Record</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) auto', gap: 10, alignItems: 'end' }}>
+                <label style={{ fontSize: 13, fontWeight: 700 }}>
+                  Pathway
+                  <select value={editRtwPathway} onChange={(e) => setEditRtwPathway(e.target.value as typeof editRtwPathway)} style={{ display: 'block', width: '100%', marginTop: 4, padding: 9, border: '1px solid var(--line)', borderRadius: 6 }}>
+                    <option value="unknown">Not recorded</option>
+                    <option value="uk">UK / unrestricted</option>
+                    <option value="overseas">Overseas</option>
+                    <option value="sponsorship">Sponsorship</option>
+                  </select>
+                </label>
+                <button disabled={busy} onClick={() => void performHrAction('update_compliance', { rightToWorkPathway: editRtwPathway })} style={buttonPrimary}>Save Pathway</button>
+              </div>
+            </div>
           </article>
         </section>
       )}
