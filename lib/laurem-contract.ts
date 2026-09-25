@@ -1,30 +1,191 @@
-import { lauremEmploymentContract } from '@/lib/laurem-contract-config';
+import { lauremCompany } from '@/lib/laurem-company-config';
 
 export type ContractInput = {
   employeeName: string;
   employeeAddress?: string | null;
   jobTitle: string;
+  employmentType?: string | null;
   startDate?: string | null;
+  continuousEmploymentDate?: string | null;
   contractEndDate?: string | null;
   minimumWeeklyHours?: number | null;
-  hourlyRate?: number | null;
+  normalWorkingDays?: string | null;
+  shiftPattern?: string | null;
   workLocations?: string[];
-  clientOrAssignmentDetails?: string | null;
+  hourlyRate?: number | null;
+  annualSalary?: number | null;
+  payFrequency?: string | null;
+  payMethod?: string | null;
+  holidayEntitlement?: string | null;
+  holidayPayCalculation?: string | null;
+  sickPay?: string | null;
+  paidLeave?: string | null;
+  contractualBenefits?: string | null;
+  nonContractualBenefits?: string | null;
+  probation?: string | null;
+  probationConditions?: string | null;
   noticePeriodEmployee?: string | null;
   noticePeriodEmployer?: string | null;
-  holidayEntitlement?: string | null;
+  mandatoryTraining?: string | null;
+  mandatoryTrainingPaidBy?: string | null;
+  clientOrAssignmentDetails?: string | null;
   pensionScheme?: string | null;
 };
 
-const value = (input: string | number | null | undefined, fallback = 'As stated in the agreed employment arrangements'): string =>
-  input === null || input === undefined || input === '' ? fallback : String(input);
+const text = (value: string | null | undefined, fallback: string): string =>
+  value === null || value === undefined || value.trim() === '' ? fallback : value.trim();
+const isFixedTerm = (value: string | null | undefined): boolean => /fixed[- ]term|temporary/i.test(value || '');
 
 export function renderLauremContract(input: ContractInput): string {
-  const locations = input.workLocations?.length ? input.workLocations.join(', ') : 'As assigned by Laurem Caregroup Ltd';
-  const startDate = value(input.startDate, 'To be confirmed before issue');
-  const endDate = value(input.contractEndDate, 'Not fixed unless stated in the offer');
-  const hours = input.minimumWeeklyHours == null ? 'As stated in the offer' : `${input.minimumWeeklyHours} hours per week`;
-  const rate = input.hourlyRate == null ? 'As stated in the approved rate card' : `£${input.hourlyRate.toFixed(2)} per hour`;
+  const empName = text(input.employeeName, '[DRAFT ONLY: employee name not specified]');
+  const empAddress = text(input.employeeAddress, '[DRAFT ONLY: employee address not specified]');
+  const role = text(input.jobTitle, '[DRAFT ONLY: job title not specified]');
+  const empType = text(input.employmentType, '[DRAFT ONLY: employment type not specified]');
+  const startDate = text(input.startDate, '[DRAFT ONLY: start date not specified]');
+  const continuousDate = text(input.continuousEmploymentDate, startDate);
+  const endDate = isFixedTerm(empType) ? text(input.contractEndDate, '[DRAFT ONLY: fixed-term end date not specified]') : 'Not applicable (permanent/open-ended employment)';
+  const hours = input.minimumWeeklyHours == null ? '[DRAFT ONLY: guaranteed weekly hours not specified]' : `${input.minimumWeeklyHours} hours per week`;
+  const pattern = text(input.normalWorkingDays || input.shiftPattern, '[DRAFT ONLY: working pattern not specified]');
+  const locations = input.workLocations?.length ? input.workLocations.join(', ') : '[DRAFT ONLY: work location not specified]';
 
-  return `CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)\n\nEmployer: ${lauremEmploymentContract.employerName}\nEmployee: ${input.employeeName}\n\n1. COMMENCEMENT OF EMPLOYMENT\nEmployment begins on ${startDate}. Continuous service is calculated from the commencement date stated in this contract. The contract end date, where applicable, is ${endDate}.\n\n2. JOB TITLE AND DESCRIPTION OF WORK\nYour job title is ${input.jobTitle}. You will undertake duties within your competence and as reasonably directed by Laurem Caregroup Ltd. Work may be provided at Laurem locations or at client locations as part of an assignment.\n\n3. DURATION\nThis agreement continues subject to the termination provisions in this contract and any fixed end date expressly stated above.\n\n4. DAYS AND HOURS OF WORK\nYour guaranteed minimum hours are ${hours}. Working patterns may include different days, shifts and locations according to operational requirements and your agreed availability.\n\n5. PLACE OF WORK\nYour principal work locations are ${locations}. Your duties may require attendance at client homes, premises or other approved locations.\n\n6. EMPLOYEE OBLIGATIONS\nYou must comply with reasonable instructions, safeguarding requirements, health and safety procedures, confidentiality requirements, professional standards applicable to your role, right-to-work requirements and all mandatory checks and training.\n\n7. RATES OF PAY\nYour basic rate is ${rate}, subject to lawful deductions. Approved expenses will be reimbursed in accordance with Laurem policies and any assignment-specific arrangements.\n\n8. HOLIDAYS\nAnnual leave will be provided in accordance with statutory requirements and Laurem's holiday procedures. ${value(input.holidayEntitlement, 'The applicable statutory/pro-rated entitlement will be calculated for your employment')}.\n\n9. ABSENCE AND ILLNESS\nYou must notify Laurem as soon as reasonably practicable when you cannot attend scheduled work and follow the sickness and absence procedure.\n\n10. SICK PAY\nStatutory sick pay and any contractual sick pay entitlement will apply where the relevant eligibility conditions are met.\n\n11. PENSION\nLaurem will comply with applicable workplace pension duties. ${value(input.pensionScheme, 'Details of the applicable pension arrangement will be provided separately')}.\n\n12. TERMINATION AND SUSPENSION\nNotice requirements will be ${value(input.noticePeriodEmployee, 'as stated in the approved terms')}. The employer notice period is ${value(input.noticePeriodEmployer, 'as stated in the approved terms')}. Laurem may suspend duties where reasonably necessary and may terminate employment in accordance with this contract and applicable law.\n\n13. INTELLECTUAL PROPERTY RIGHTS\nWork product created in the course of your employment for Laurem or its clients belongs to Laurem or the relevant rights holder to the extent permitted by law.\n\n14. COLLECTIVE AGREEMENT\nNo collective agreement directly affects this contract unless expressly notified to you.\n\n15. CONFIDENTIALITY\nYou must protect confidential information belonging to Laurem, its clients, service users, colleagues and business partners during and after employment.\n\n16. TRAINING\nYou must maintain the skills required for your role and complete mandatory training and reasonable work-related training identified by Laurem.\n\n17. HEALTH AND SAFETY\nYou must take reasonable steps to protect your own health and safety and that of service users, colleagues and other persons affected by your work.\n\n18. STAFF HANDBOOK\nYou must comply with applicable Laurem policies and the Staff Handbook. Unless expressly stated otherwise, the Staff Handbook does not form part of the contractual terms.\n\n19. PERSONAL DETAILS AND VETTING\nYou must keep personal details current and cooperate with right-to-work, DBS/PVG, safeguarding, professional registration and other lawful vetting processes applicable to your role.\n\n20. USE OF INFORMATION ABOUT YOU\nLaurem may process personal data for employment, payroll, workforce management, safeguarding, legal compliance and related legitimate purposes in accordance with its privacy documentation.\n\n21. RESTRICTIVE COVENANTS\nAny reasonable post-termination restrictions expressly included in the approved contract will apply to the extent permitted by law.\n\n22. INSURANCE, IDENTITY CARD AND UNIFORM\nWhere required for your role, you must maintain appropriate insurance and carry/use Laurem identification and uniform in accordance with company policy.\n\n23. DISCIPLINARY AND GRIEVANCE PROCEDURE\nYou must follow Laurem's disciplinary and grievance procedures as communicated to you.\n\n24. CHANGES IN TERMS AND CONDITIONS\nLaurem may make reasonable changes to policies and operational arrangements. Material contractual changes will be communicated in accordance with applicable requirements.\n\n25. MISCELLANEOUS\nThis contract together with expressly incorporated documents constitutes the employment agreement between Laurem Caregroup Ltd and you.\n\nAssignment information: ${value(input.clientOrAssignmentDetails, 'Assignments will be notified separately through the Laurem workforce platform.')}.\n\nEMPLOYER AUTHORITY\nFor and on behalf of Laurem Caregroup Ltd\nName: Dezou Maurice\nTitle: Manager\n\nEMPLOYEE ACCEPTANCE\nI confirm that I have read and understood this contract and agree to its terms.\n\nEmployee name: ${input.employeeName}\nEmployee address: ${value(input.employeeAddress, 'To be completed') }\nEmployee acceptance: To be completed electronically\nDate accepted: To be recorded by the Laurem platform\n`;
+  let payStr = '';
+  if (input.hourlyRate != null) {
+    payStr = `£${input.hourlyRate.toFixed(2)} per hour`;
+  } else if (input.annualSalary != null) {
+    payStr = `£${input.annualSalary.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per annum`;
+  } else {
+    payStr = '[DRAFT ONLY: pay rate or salary not specified]';
+  }
+
+  const frequency = text(input.payFrequency, '[DRAFT ONLY: pay frequency not specified]');
+  const method = text(input.payMethod, '[DRAFT ONLY: payment method not specified]');
+  const holiday = text(input.holidayEntitlement, '[DRAFT ONLY: holiday entitlement not specified]');
+  const holidayCalc = text(input.holidayPayCalculation, '[DRAFT ONLY: holiday pay calculation not specified]');
+  const sickPay = text(input.sickPay, '[DRAFT ONLY: sick pay arrangement not specified]');
+  const paidLeave = text(input.paidLeave, '[DRAFT ONLY: paid leave arrangements not specified]');
+  const contractualBen = text(input.contractualBenefits, '[DRAFT ONLY: contractual benefits not specified]');
+  const nonContractualBen = text(input.nonContractualBenefits, '[DRAFT ONLY: non-contractual benefits not specified]');
+  const probationDuration = text(input.probation, '[DRAFT ONLY: probation period not specified]');
+  const probationCond = text(input.probationConditions, '[DRAFT ONLY: probation conditions not specified]');
+  const employeeNotice = text(input.noticePeriodEmployee, '[DRAFT ONLY: employee notice period not specified]');
+  const employerNotice = text(input.noticePeriodEmployer, '[DRAFT ONLY: employer notice period not specified]');
+  const training = text(input.mandatoryTraining, '[DRAFT ONLY: mandatory training not specified]');
+  const trainingPayer = text(input.mandatoryTrainingPaidBy, '[DRAFT ONLY: training payment responsibility not specified]');
+  const pension = text(input.pensionScheme, '[DRAFT ONLY: pension arrangement not specified]');
+
+  return `STATEMENT OF MAIN EMPLOYMENT PARTICULARS
+
+Employer Legal Name: ${lauremCompany.legalName}
+Trading Name: ${lauremCompany.tradingName}
+Company Number: ${lauremCompany.companyNumber} (${lauremCompany.registration})
+Registered Office: ${lauremCompany.registeredOffice}
+Employee Name: ${empName}
+Employee Address: ${empAddress}
+Job Title: ${role}
+Employment Type: ${empType}
+Start Date: ${startDate}
+Continuous Employment Date: ${continuousDate}
+Fixed-Term End Date: ${endDate}
+Guaranteed Minimum Weekly Hours: ${hours}
+Normal Working Days / Pattern: ${pattern}
+Work Locations: ${locations}
+Pay Rate / Salary: ${payStr}
+Pay Frequency: ${frequency}
+Payment Method: ${method}
+Holiday Entitlement: ${holiday}
+Holiday Pay Calculation: ${holidayCalc}
+Sick Pay: ${sickPay}
+Other Paid Leave: ${paidLeave}
+Contractual Benefits: ${contractualBen}
+Non-Contractual Benefits: ${nonContractualBen}
+Probationary Period: ${probationDuration}
+Notice Period (Employee): ${employeeNotice}
+Notice Period (Employer): ${employerNotice}
+Mandatory Training: ${training} (${trainingPayer})
+
+1. COMMENCEMENT AND CONTINUOUS EMPLOYMENT
+Your employment with ${lauremCompany.legalName} (trading as ${lauremCompany.tradingName}) begins on ${startDate}. Your period of continuous employment for statutory rights begins on ${continuousDate}. No employment with a previous employer counts toward your continuous service unless explicitly stated in a signed variation.
+
+2. JOB TITLE AND DUTIES
+You are employed as ${role}. You will perform duties in accordance with your competence, professional standards, and instructions from management. You may be assigned to support individual service users at client premises or Laurem care locations as part of Laurem's care operations.
+
+3. EMPLOYMENT TYPE AND DURATION
+This contract represents a ${empType} employment agreement. Where employment is for a fixed term, it will terminate on ${endDate} unless extended in writing by ${lauremCompany.legalName}.
+
+4. HOURS AND WORKING PATTERN
+Your guaranteed minimum hours are ${hours}. Your normal working pattern is ${pattern}. Shifts will be scheduled on weekly or monthly rosters. Laurem will provide reasonable notice of roster changes. You may be requested to work additional hours or overtime by mutual agreement, paid at your standard rate unless an enhanced rate is specified in writing.
+
+5. PLACE OF WORK
+Your primary work locations are ${locations}. You may be required to travel between assigned care locations. Laurem will reimburse reasonable travel expenses incurred during work assignments in accordance with company policy.
+
+6. PAY AND PAYMENT ARRANGEMENTS
+Your pay rate is ${payStr}. Pay is processed ${frequency} via ${method} into your nominated UK bank account, subject to PAYE income tax, National Insurance, and statutory deductions. Itemised pay statements will be provided on or before each pay date.
+
+7. HOLIDAY AND HOLIDAY PAY
+Your annual leave entitlement is ${holiday}. The holiday year runs from 1 January to 31 December. ${holidayCalc}. Holiday must be requested and approved in advance via Laurem's workforce system. On termination, accrued unused holiday will be paid, and excess leave taken beyond accrual will be deducted from final pay where lawfully permitted.
+
+8. SICKNESS AND SICK PAY
+If you are unable to attend work due to sickness or injury, you must notify Laurem at least 2 hours before your shift start time in accordance with the Sickness Absence Policy. ${sickPay}. Full details of notification requirements and SSP rules are accessible in the Laurem Staff Handbook.
+
+9. OTHER STATUTORY AND CONTRACTUAL LEAVE
+You are entitled to statutory family leave (maternity, paternity, adoption, shared parental, bereavement, and carer's leave) subject to statutory eligibility. ${paidLeave}.
+
+10. PENSION
+${pension}. Laurem will automatically enrol eligible employees into the workplace pension scheme in compliance with UK auto-enrolment legislation.
+
+11. PROBATION
+Your employment is subject to a probationary period of ${probationDuration}. ${probationCond}. During probation, employment may be terminated by either party giving ${employeeNotice} notice. Laurem reserves the right to extend probation where necessary to evaluate performance or attendance.
+
+12. MANDATORY TRAINING
+You must complete all required training: ${training}. ${trainingPayer}. Time spent attending mandatory training directed by Laurem is treated as working time and paid at your normal basic rate. No deductions will be made for mandatory training costs unless a separate, lawful repayment agreement has been executed.
+
+13. SAFEGUARDING
+You must strictly comply with Scottish and UK safeguarding legislation, adult and child protection policies, and duty of candour rules. You must immediately report any safeguarding concerns, allegations, or incidents to Laurem's designated safeguarding lead.
+
+14. HEALTH AND SAFETY
+You must take reasonable care for your own health and safety and that of service users, colleagues, and members of the public. You must adhere to Laurem's Health and Safety Policy, infection control protocols, and risk assessments.
+
+15. CONFIDENTIALITY AND DATA PROTECTION
+You will have access to sensitive personal data and confidential care records. You must maintain strict confidentiality regarding service users, business operations, and staff records both during and after your employment. Personal data is processed in accordance with Laurem's Data Protection Policy and UK GDPR.
+
+16. INTELLECTUAL PROPERTY
+Any care plans, documentation, software, or intellectual property created by you in the course of your employment belong exclusively to ${lauremCompany.legalName}.
+
+17. POLICIES AND STAFF HANDBOOK
+You are required to comply with all company policies set out in the Laurem Staff Handbook. The handbook contains operational procedures and is available on the employee portal. Staff policies are non-contractual and may be updated from time to time, except where explicitly stated to be contractual terms.
+
+18. VETTING AND RIGHT TO WORK
+Your employment is conditional upon maintaining a valid Disclosure Scotland / PVG scheme membership, satisfactory references, and continuous lawful Right to Work in the UK. You must inform Laurem immediately of any police cautions, convictions, or changes in your immigration status.
+
+19. DISCIPLINARY AND GRIEVANCE PROCEDURES
+Laurem's Disciplinary and Grievance Procedures are set out in the Staff Handbook. These procedures do not form part of your contractual terms. If you wish to lodge a grievance or appeal a disciplinary decision, you should submit it in writing to management.
+
+20. NOTICE AND TERMINATION
+Following successful completion of probation, notice required to terminate employment is ${employeeNotice} by the employee, and ${employerNotice} by the employer. Laurem reserves the right to make a payment in lieu of notice (PILON) or place you on garden leave during your notice period. Laurem may terminate employment without notice in cases of gross misconduct.
+
+21. COLLECTIVE AGREEMENTS
+There are no collective agreements directly affecting your employment terms.
+
+22. BENEFITS
+Your entitlement to contractual and non-contractual benefits is set out above. Non-contractual benefits may be modified or withdrawn by Laurem at its discretion.
+
+23. CHANGES TO CONTRACTUAL TERMS
+Material changes to contractual terms will only be made following consultation and written agreement signed by an authorised manager of ${lauremCompany.legalName}.
+
+24. FINAL PROVISIONS AND DOCUMENT PRIORITY
+This contract, along with any signed written variations, constitutes the entire employment agreement between you and ${lauremCompany.legalName}. In the event of any inconsistency, the signed contract takes precedence over informal representations, policies, or operational guidelines.
+
+EMPLOYER AUTHORITY
+For and on behalf of ${lauremCompany.legalName}
+Name: ${lauremCompany.documentIssuer.name}
+Title: ${lauremCompany.documentIssuer.title}
+
+EMPLOYEE ACCEPTANCE
+I confirm that I have read, understood, and accept this contract of employment and the Statement of Main Employment Particulars.
+
+Employee Name: ${empName}
+Employee Address: ${empAddress}
+Employee Acceptance: To be completed electronically
+Date Accepted: Recorded by the Laurem platform
+`;
 }

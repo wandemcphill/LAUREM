@@ -4,52 +4,250 @@ export type InternationalNurseContractInput = {
   employeeName: string;
   employeeAddress?: string | null;
   jobTitle?: string | null;
+  employmentType?: string | null;
   startDate?: string | null;
+  continuousEmploymentDate?: string | null;
   contractEndDate?: string | null;
-  annualSalary?: number | null;
+  minimumWeeklyHours?: number | null;
   weeklyHours?: number | null;
+  normalWorkingDays?: string | null;
+  shiftPattern?: string | null;
   workLocations?: string[];
+  hourlyRate?: number | null;
+  annualSalary?: number | null;
+  payFrequency?: string | null;
+  payMethod?: string | null;
+  holidayEntitlement?: string | null;
+  holidayPayCalculation?: string | null;
+  sickPay?: string | null;
+  paidLeave?: string | null;
+  contractualBenefits?: string | null;
+  nonContractualBenefits?: string | null;
   probation?: string | null;
+  probationConditions?: string | null;
   noticePeriodEmployee?: string | null;
   noticePeriodEmployer?: string | null;
-  holidayEntitlement?: string | null;
+  mandatoryTraining?: string | null;
+  mandatoryTrainingPaidBy?: string | null;
   pensionScheme?: string | null;
+  // International Nurse Specific
   visaRoute?: string | null;
   sponsorshipOccupationCode?: string | null;
   nmcStatus?: string | null;
   registrationDeadline?: string | null;
+  preRegistrationRole?: string | null;
   preRegistrationSalary?: number | null;
   postRegistrationSalary?: number | null;
+  registrationTransitionTerms?: string | null;
   relocationSupport?: string | null;
-  repaymentSchedule?: string | null;
   repayableCosts?: string | null;
+  repaymentSchedule?: string | null;
+  repaymentMethod?: string | null;
   assignmentDetails?: string | null;
 };
 
 const text = (value: string | null | undefined, fallback: string): string =>
   value === null || value === undefined || value.trim() === '' ? fallback : value.trim();
+const isFixedTerm = (value: string | null | undefined): boolean => /fixed[- ]term|temporary/i.test(value || '');
 
 const money = (value: number | null | undefined, fallback: string): string =>
   value == null ? fallback : `£${value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per annum`;
 
 export function renderLauremInternationalNurseContract(input: InternationalNurseContractInput): string {
+  const empName = text(input.employeeName, '[DRAFT ONLY: employee name not specified]');
+  const empAddress = text(input.employeeAddress, '[DRAFT ONLY: employee address not specified]');
   const role = text(input.jobTitle, 'Registered Nurse');
-  const locations = input.workLocations?.length ? input.workLocations.join(', ') : 'Laurem Caregroup Ltd locations and approved client locations in Scotland';
-  const weeklyHours = input.weeklyHours == null ? '37.5' : String(input.weeklyHours);
-  const postRegistrationSalary = money(input.postRegistrationSalary ?? input.annualSalary, 'the salary stated in the signed offer and Certificate of Sponsorship, subject to applicable law');
-  const preRegistrationSalary = money(input.preRegistrationSalary, 'the salary confirmed in the signed offer for the period before full NMC registration');
-  const registrationWindow = text(input.registrationDeadline, 'within the period required by the applicable immigration rules and NMC registration arrangements');
-  const nmcStatus = text(input.nmcStatus, 'working towards full registration with the Nursing and Midwifery Council (NMC)');
-  const visaRoute = text(input.visaRoute, 'Health and Care Worker visa / other lawful sponsored work route applicable to the role');
-  const soc = text(input.sponsorshipOccupationCode, 'the SOC 2020 nursing occupation code applicable to the sponsored role');
-  const holiday = text(input.holidayEntitlement, 'the statutory minimum entitlement, as supplemented by any more favourable Laurem contractual entitlement');
-  const pension = text(input.pensionScheme, 'the workplace pension scheme applicable to eligible employees');
-  const probation = text(input.probation, '6 months');
-  const employeeNotice = text(input.noticePeriodEmployee, '1 week during probation and 4 weeks thereafter, unless the written offer states a longer period');
-  const employerNotice = text(input.noticePeriodEmployer, '1 week during probation and 4 weeks thereafter, or the statutory minimum where greater');
-  const relocation = text(input.relocationSupport, 'Any relocation assistance provided by Laurem will be itemised in the offer or relocation schedule. No support is implied unless expressly recorded.');
-  const repayment = text(input.repaymentSchedule, 'Any lawful repayment arrangement must be transparent, proportionate, time-limited and flexible, with an itemised schedule supplied before acceptance.');
-  const costs = text(input.repayableCosts, 'Only genuine, evidenced and auditable expenses paid by Laurem on the employee’s behalf may be considered for repayment where legally permitted. Employer-liable recruitment costs are excluded.');
+  const preRole = text(input.preRegistrationRole, '[DRAFT ONLY: pre-registration role not specified]');
+  const empType = text(input.employmentType, '[DRAFT ONLY: employment type not specified]');
+  const startDate = text(input.startDate, '[DRAFT ONLY: start date not specified]');
+  const continuousDate = text(input.continuousEmploymentDate, startDate);
+  const endDate = isFixedTerm(empType) ? text(input.contractEndDate, '[DRAFT ONLY: fixed-term end date not specified]') : 'Not applicable (permanent/open-ended employment)';
+  const rawHours = input.weeklyHours ?? input.minimumWeeklyHours;
+  const hours = rawHours == null ? '37.5 hours per week' : `${rawHours} hours per week`;
+  const pattern = text(input.normalWorkingDays || input.shiftPattern, 'Rostered shifts across days, nights, and weekends according to operational rota');
+  const locations = input.workLocations?.length ? input.workLocations.join(', ') : 'Laurem Care Group premises and approved care sites in Scotland';
 
-  return `${lauremCompany.legalName}\n\nINTERNATIONAL REGISTERED NURSE\nCONTRACT OF EMPLOYMENT\n\nEmployer: ${lauremCompany.legalName}\nEmployee: ${input.employeeName}\nJob title: ${role}\nPrincipal locations: ${locations}\nCommencement date: ${text(input.startDate, 'To be confirmed in the signed offer')}\nContract end date: ${text(input.contractEndDate, 'Open-ended unless a fixed term is expressly stated')}\n\n1. COMMENCEMENT, STATUS AND CONTINUOUS EMPLOYMENT\nEmployment begins on the commencement date stated above, subject to the employee satisfying all lawful pre-employment conditions, including identity, right to work, safeguarding, occupational health, references and any role-specific checks. Continuous service is calculated from the recognised employment commencement date.\n\n2. APPOINTMENT AND DUTIES\nThe employee is appointed as ${role}. The employee will perform nursing duties appropriate to the role, competence, training, experience and professional registration status, and will comply with reasonable instructions, care plans, policies, safeguarding requirements and client assignment arrangements. No duty will require the employee to work outside their lawful scope of practice or competence.\n\n3. INTERNATIONAL RECRUITMENT AND IMMIGRATION STATUS\nThe employee is being recruited internationally. The intended immigration route is ${visaRoute}. The sponsored occupation is ${soc}. Laurem will issue sponsorship documentation only where it is legally authorised to do so and where all sponsorship requirements are met. Immigration permission is a legal matter for the employee and the relevant UK authorities. The employee must maintain lawful immigration status and promptly provide evidence of any change affecting the right to work.\n\n4. PROFESSIONAL REGISTRATION AND NMC\nThe employee confirms that their professional registration journey is: ${nmcStatus}. The employee must complete all applicable NMC requirements and maintain registration necessary to perform the role. Where the employee starts work before full NMC registration under a lawful supervised/practice arrangement, duties, supervision and pay will be limited to the lawful conditions of that arrangement. Full registration is expected ${registrationWindow}. Failure to obtain or maintain the required registration may result in changes to duties, suspension, or termination where lawful and after applicable procedures are followed.\n\n5. WORKING HOURS\nThe normal contractual hours are ${weeklyHours} hours per week, ordinarily rostered across days, nights, weekends and public holidays according to operational requirements and applicable rest and working-time protections. Overtime and additional shifts are subject to availability and authorisation and are not guaranteed unless expressly agreed.\n\n6. PLACE OF WORK AND RELOCATION\nThe employee may be required to work at Laurem premises and approved client locations within Scotland. Reasonable travel between assignments may be required. The employee acknowledges that international relocation is part of the recruitment arrangement and agrees to keep Laurem informed of any change of address or contact details.\n\n7. REMUNERATION\nSubject to the applicable immigration rules, the signed offer and the employee’s registration status, the post-registration salary is ${postRegistrationSalary}. Where a lawful pre-registration period applies, the salary is ${preRegistrationSalary}. Pay is made through payroll at the intervals stated in the offer and is subject to PAYE, National Insurance and other lawful deductions. Salary will not be reduced below any statutory or immigration minimum that applies to the sponsored role.\n\n8. PAY PROGRESSION AND REVIEW\nAny pay progression, annual review, recruitment and retention premium, overtime rate, shift allowance or other enhancement applies only where expressly stated in the offer, policy or approved pay arrangement. Reference points such as NHS Scotland Agenda for Change rates are not incorporated into this contract unless Laurem expressly states that they apply to the employee’s role.\n\n9. ANNUAL LEAVE AND PUBLIC HOLIDAYS\nAnnual leave entitlement is ${holiday}. Leave must be requested and approved through Laurem’s workforce procedures. Public holidays are handled in accordance with the employee’s working pattern and applicable contractual/statutory arrangements.\n\n10. SICKNESS, ABSENCE AND OTHER FAMILY LEAVE\nThe employee must follow Laurem’s absence notification procedure. Statutory and contractual sick pay, maternity, paternity, adoption, shared parental and other statutory leave will apply where the employee meets the relevant eligibility requirements.\n\n11. PENSION\n${pension}. Laurem will comply with applicable auto-enrolment and workplace pension obligations.\n\n12. PROBATION\nThe probationary period is ${probation}. During probation the employee’s performance, conduct, attendance, professional standards, registration progress and suitability for the role may be reviewed.\n\n13. MANDATORY TRAINING, INDUCTION AND PROFESSIONAL DEVELOPMENT\nLaurem will provide or arrange role-appropriate induction and mandatory training. The employee must complete required training within the specified times and maintain competence. Training obligations do not permit the employee to practise beyond their competence or lawful registration status.\n\n14. SAFEGUARDING, PROFESSIONAL STANDARDS AND HEALTH AND SAFETY\nThe employee must comply with safeguarding law and policy, professional standards, infection prevention requirements, medication safety procedures, incident reporting, confidentiality, health and safety rules and all reasonable instructions. Serious concerns must be reported promptly through the appropriate escalation route.\n\n15. REFERENCES, VETTING AND RIGHT TO WORK\nEmployment remains conditional on satisfactory references, identity verification, right-to-work checks, disclosure and barring / protection of vulnerable groups checks where applicable, NMC verification, health screening and any other lawful checks relevant to the role. The employee must notify Laurem immediately of circumstances that could affect eligibility for employment or sponsorship.\n\n16. IMMIGRATION COMPLIANCE AND SPONSORSHIP COOPERATION\nThe employee must provide accurate information and cooperate with lawful sponsor compliance procedures. The employee must not undertake work that breaches immigration conditions. Laurem may take action where sponsorship or right-to-work requirements cease to be satisfied, subject to applicable law and fair process.\n\n17. RECRUITMENT FEES AND ETHICAL INTERNATIONAL RECRUITMENT\nThe employee is not required to pay Laurem a recruitment fee for obtaining employment. Laurem will not seek to recover costs that the employer is legally responsible for as part of recruitment or sponsorship. The parties acknowledge the importance of transparent, ethical international recruitment.\n\n18. RELOCATION SUPPORT\n${relocation}\n\n19. REPAYMENT OF SPECIFIC EMPLOYER-FUNDED EXPENSES\n${costs} ${repayment} Any repayment must be calculated and administered consistently with applicable law and the relevant international recruitment code of practice. No interest will be charged on a repayment amount merely because it is being repaid. Any decision to seek repayment will take relevant individual circumstances into account.\n\n20. CONFIDENTIALITY AND DATA PROTECTION\nThe employee must protect confidential information concerning service users, clients, colleagues, Laurem and its business partners. Personal data will be processed for employment, safeguarding, payroll, workforce management, immigration compliance, professional registration, legal obligations and related legitimate purposes in accordance with applicable data protection law and Laurem’s privacy information.\n\n21. INTELLECTUAL PROPERTY\nAny intellectual property created by the employee in the course of employment for Laurem belongs to Laurem to the extent permitted by law, subject to the employee’s statutory and professional rights.\n\n22. DISCIPLINARY AND GRIEVANCE PROCEDURES\nThe employee must follow Laurem’s disciplinary and grievance procedures. The procedures may be amended from time to time to reflect law and operational requirements, but contractual rights will not be removed without lawful process.\n\n23. TERMINATION AND NOTICE\nThe employee’s notice period is ${employeeNotice}. The employer’s notice period is ${employerNotice}, subject to any longer statutory or contractual period that applies. Employment may be terminated for lawful reasons following the applicable process. Gross misconduct may justify summary dismissal where lawful.\n\n24. PROFESSIONAL REGISTRATION, FITNESS TO PRACTISE AND SPONSORSHIP TERMINATION\nIf the employee loses required professional registration, becomes subject to a restriction that prevents the employee from performing the role, or loses lawful permission to work, Laurem may redeploy, suspend or terminate employment where permitted by law and following the appropriate process.\n\n25. INSURANCE, UNIFORM AND IDENTIFICATION\nThe employee must use required identification, uniform and equipment and follow Laurem’s procedures for professional indemnity and employer-provided insurance.\n\n26. POLICIES AND STAFF HANDBOOK\nThe employee must comply with Laurem policies and the Staff Handbook as amended from time to time. Unless expressly stated, policy documents are non-contractual.\n\n27. CHANGES TO TERMS\nAny material contractual change will be made in accordance with applicable law and communicated in writing. Laurem will not substitute a materially different contract after recruitment without the employee’s informed agreement and any required signed consent.\n\n28. ENTIRE AGREEMENT AND DOCUMENT PRIORITY\nThis contract should be read with the signed offer letter, job description, applicable policy documents and any lawful sponsorship documentation. Where a document purports to change a contractual term, the most recent signed contractual document takes priority to the extent permitted by law.\n\n29. EMPLOYEE DECLARATION\nI confirm that I have received the exact terms of the role before accepting employment, that I have had a reasonable opportunity to ask questions, and that I have not been pressured or coerced into signing this contract. I confirm that the information I have supplied for recruitment, professional registration, immigration and right-to-work purposes is accurate to the best of my knowledge.\n\nEmployer representative\nFor and on behalf of Laurem Caregroup Ltd\nName: Dezou Maurice\nTitle: Manager\n\nEmployee name: ${input.employeeName}\nEmployee address: ${text(input.employeeAddress, 'To be completed before issue')}\nEmployee acceptance: To be completed electronically\nDate accepted: To be recorded by the Laurem platform\n\nEmployer representative: ______________________________\nDate: ______________________________\n`;
+  const preSal = money(input.preRegistrationSalary, '£26,115.00 per annum (Pre-registration rate)');
+  const postSal = money(input.postRegistrationSalary ?? input.annualSalary, '£34,544.00 per annum (Post-registration rate)');
+  const frequency = text(input.payFrequency, '[DRAFT ONLY: pay frequency not specified]');
+  const method = text(input.payMethod, '[DRAFT ONLY: payment method not specified]');
+  const holiday = text(input.holidayEntitlement, '[DRAFT ONLY: holiday entitlement not specified]');
+  const holidayCalc = text(input.holidayPayCalculation, '[DRAFT ONLY: holiday pay calculation not specified]');
+  const sickPay = text(input.sickPay, '[DRAFT ONLY: sick pay arrangement not specified]');
+  const paidLeave = text(input.paidLeave, '[DRAFT ONLY: paid leave arrangements not specified]');
+  const contractualBen = text(input.contractualBenefits, '[DRAFT ONLY: contractual benefits not specified]');
+  const nonContractualBen = text(input.nonContractualBenefits, '[DRAFT ONLY: non-contractual benefits not specified]');
+  const probationDuration = text(input.probation, '[DRAFT ONLY: probation period not specified]');
+  const probationCond = text(input.probationConditions, '[DRAFT ONLY: probation conditions not specified]');
+  const employeeNotice = text(input.noticePeriodEmployee, '[DRAFT ONLY: employee notice period not specified]');
+  const employerNotice = text(input.noticePeriodEmployer, '[DRAFT ONLY: employer notice period not specified]');
+  const training = text(input.mandatoryTraining, '[DRAFT ONLY: mandatory training not specified]');
+  const trainingPayer = text(input.mandatoryTrainingPaidBy, '[DRAFT ONLY: training payment responsibility not specified]');
+  const pension = text(input.pensionScheme, '[DRAFT ONLY: pension arrangement not specified]');
+
+  // International Nurse Specific Fields
+  const visaRoute = text(input.visaRoute, '[DRAFT ONLY: visa route not specified]');
+  const socCode = text(input.sponsorshipOccupationCode, '[DRAFT ONLY: sponsorship occupation code not specified]');
+  const nmcStatus = text(input.nmcStatus, '[DRAFT ONLY: NMC status not specified]');
+  const regDeadline = text(input.registrationDeadline, '[DRAFT ONLY: registration deadline not specified]');
+  const regTransition = text(input.registrationTransitionTerms, '[DRAFT ONLY: registration transition terms not specified]');
+
+  // Relocation & Repayment Schedule Handling
+  let relocationText = '';
+  if (input.relocationSupport && input.relocationSupport.trim() !== '') {
+    relocationText = input.relocationSupport.trim();
+  } else {
+    relocationText = 'No employer-provided relocation financial support is applicable to this appointment.';
+  }
+
+  let repaymentText = '';
+  if (input.repayableCosts && input.repayableCosts.trim() !== '') {
+    const schedule = text(input.repaymentSchedule, 'Tapered repayment schedule: 100% within 0-12 months, 50% within 13-24 months, 0% after 24 months.');
+    const repMethod = text(input.repaymentMethod, 'Deduction from final salary by mutual agreement or structured monthly payment plan upon voluntary departure.');
+    repaymentText = `REPAYABLE EXPENSES SCHEDULE:
+Repayable Expenses: ${input.repayableCosts.trim()}
+Repayment Schedule / Tapering: ${schedule}
+Repayment Method: ${repMethod}
+Lawful Basis: Voluntary repayment agreement for personal relocations expenses paid by employer on candidate's behalf. No interest charged.
+
+EXCLUDED RECRUITMENT COSTS (EMPLOYER LIABILITY):
+In compliance with UK law and the Code of Practice for international recruitment, the following employer-liable costs are strictly excluded from repayment and will never be recovered from the employee:
+- Agency and recruitment process fees
+- Immigration Skills Charge (ISC)
+- Sponsor Licence application fees
+- Certificate of Sponsorship (CoS) issuance fees
+- Employer recruitment interview costs`;
+  } else {
+    repaymentText = 'NO REPAYABLE EMPLOYER-FUNDED EXPENSES:\nNo repayable employer-funded recruitment or relocation expenses apply to this employment.\n\nEXCLUDED RECRUITMENT COSTS (EMPLOYER LIABILITY):\nThe following employer-liable recruitment and immigration costs are never repayable by the employee:\n- Agency and recruitment process fees\n- Immigration Skills Charge (ISC)\n- Sponsor Licence application fees\n- Certificate of Sponsorship (CoS) issuance fees\n- Employer recruitment interview costs';
+  }
+
+  return `INTERNATIONAL REGISTERED NURSE CONTRACT OF EMPLOYMENT
+
+STATEMENT OF MAIN EMPLOYMENT PARTICULARS
+
+Employer Legal Name: ${lauremCompany.legalName}
+Trading Name: ${lauremCompany.tradingName}
+Company Number: ${lauremCompany.companyNumber} (${lauremCompany.registration})
+Registered Office: ${lauremCompany.registeredOffice}
+Employee Name: ${empName}
+Employee Address: ${empAddress}
+Pre-Registration Job Title: ${preRole}
+Post-Registration Job Title: ${role}
+Employment Type: ${empType}
+Start Date: ${startDate}
+Continuous Employment Date: ${continuousDate}
+Fixed-Term End Date: ${endDate}
+Guaranteed Minimum Weekly Hours: ${hours}
+Normal Working Days / Pattern: ${pattern}
+Work Locations: ${locations}
+Pre-Registration Salary: ${preSal}
+Post-Registration Salary: ${postSal}
+Pay Frequency: ${frequency}
+Payment Method: ${method}
+Holiday Entitlement: ${holiday}
+Holiday Pay Calculation: ${holidayCalc}
+Sick Pay: ${sickPay}
+Other Paid Leave: ${paidLeave}
+Contractual Benefits: ${contractualBen}
+Non-Contractual Benefits: ${nonContractualBen}
+Probationary Period: ${probationDuration}
+Notice Period (Employee): ${employeeNotice}
+Notice Period (Employer): ${employerNotice}
+Mandatory Training: ${training} (${trainingPayer})
+
+INTERNATIONAL RECRUITMENT & SPONSORSHIP PARTICULARS
+Immigration Route: ${visaRoute}
+Sponsorship SOC Code: ${socCode}
+Professional Registration / NMC Status: ${nmcStatus}
+Registration Deadline Date: ${regDeadline}
+Relocation Support Provided: ${relocationText}
+
+1. COMMENCEMENT AND CONTINUOUS EMPLOYMENT
+Your employment with ${lauremCompany.legalName} begins on ${startDate}. Your period of continuous employment begins on ${continuousDate}. No prior employment with any third party counts towards continuous service.
+
+2. APPOINTMENT, SCOPE OF PRACTICE AND DUTIES
+Prior to full NMC PIN registration, you are appointed as ${preRole}. You will carry out duties under the supervision of a Registered Nurse in accordance with NMC pre-registration guidance. Upon obtaining your full NMC PIN registration, your role automatically transitions to ${role}.
+
+3. INTERNATIONAL RECRUITMENT AND IMMIGRATION SPONSORSHIP
+Your employment is sponsored under the UK Home Office ${visaRoute} under SOC Code ${socCode}. You must maintain lawful immigration status and comply with all conditions of your visa. Laurem will fulfill all sponsor duties under UK immigration rules. Sponsorship documentation (CoS) does not override or amend this signed employment contract.
+
+4. NMC REGISTRATION SCHEDULE & TRANSITION
+Current Registration Status: ${nmcStatus}.
+Expected PIN Registration Deadline: ${regDeadline}.
+${regTransition}
+If full NMC PIN registration is not obtained by the deadline date despite support, Laurem will review your circumstances and may offer redeployment to a suitable care role or consider termination in accordance with fair procedure.
+
+5. HOURS AND WORKING PATTERN
+Your guaranteed minimum hours are ${hours}. Your normal working pattern is ${pattern}. Overtime or additional shifts are voluntary and subject to working time regulations.
+
+6. PLACE OF WORK AND RELOCATION
+Your principal work locations are ${locations}. ${relocationText}
+
+7. REMUNERATION AND PAY PROGRESSION
+During the pre-registration phase, your salary is ${preSal}. Following successful confirmation of full NMC PIN registration, your salary increases to ${postSal}. Pay is disbursed ${frequency} via ${method}. Salary will not be reduced below statutory or Home Office minimum threshold requirements.
+
+8. REPAYMENT OF SPECIFIC EXPENSES
+${repaymentText}
+
+9. HOLIDAY AND HOLIDAY PAY
+Your annual leave entitlement is ${holiday}. ${holidayCalc}. Leave must be requested via Laurem's workforce management system.
+
+10. SICKNESS AND SICK PAY
+You must report absence in accordance with company procedure. ${sickPay}.
+
+11. PENSION
+${pension}. Laurem complies with all UK auto-enrolment workplace pension statutory obligations.
+
+12. PROBATION
+Your probationary period is ${probationDuration}. ${probationCond}. Notice during probation is ${employeeNotice}.
+
+13. MANDATORY TRAINING
+Required training: ${training}. ${trainingPayer}.
+
+14. SAFEGUARDING AND DUTY OF CANDOUR
+You must adhere to all safeguarding legislation, infection control policies, and professional duty of candour rules.
+
+15. HEALTH AND SAFETY
+You must comply with all workplace health, safety, and infection control requirements.
+
+16. CONFIDENTIALITY AND DATA PROTECTION
+Confidential information regarding care users, staff, and operations must be protected in accordance with UK GDPR and Laurem privacy policies.
+
+17. INTELLECTUAL PROPERTY
+Intellectual property created in the course of employment belongs to ${lauremCompany.legalName}.
+
+18. POLICIES AND STAFF HANDBOOK
+Company policies in the Staff Handbook are non-contractual operational guidelines unless explicitly stated otherwise.
+
+19. VETTING AND RIGHT TO WORK
+Continued employment is conditional upon PVG scheme membership, valid Right to Work, and satisfactory references.
+
+20. DISCIPLINARY AND GRIEVANCE
+Disciplinary and grievance procedures are detailed in the Staff Handbook.
+
+21. NOTICE AND TERMINATION
+Following probation, required notice is ${employeeNotice} by the employee, and ${employerNotice} by the employer.
+
+22. COLLECTIVE AGREEMENTS
+No collective agreements apply to this employment.
+
+23. CHANGES TO CONTRACTUAL TERMS
+Material contractual variations require written consent signed by an authorised Laurem manager.
+
+24. FINAL PROVISIONS AND DOCUMENT PRIORITY
+This contract, together with any signed schedule, constitutes the entire agreement. Document priority hierarchy: (1) Signed Contract, (2) Signed Variations, (3) Signed Schedules, (4) Non-contractual policies.
+
+EMPLOYER AUTHORITY
+For and on behalf of ${lauremCompany.legalName}
+Name: ${lauremCompany.documentIssuer.name}
+Title: ${lauremCompany.documentIssuer.title}
+
+EMPLOYEE ACCEPTANCE
+I confirm that I have received, read, understood, and accept these candidate-specific employment terms.
+
+Employee Name: ${empName}
+Employee Address: ${empAddress}
+Employee Acceptance: To be completed electronically
+Date Accepted: Recorded by the Laurem platform
+`;
 }
