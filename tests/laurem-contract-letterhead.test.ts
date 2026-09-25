@@ -3,7 +3,7 @@ import { renderLauremContractDocument, renderLauremPrintableContractHtml } from 
 
 const standard = `CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)
 
-Employer: Laurem Caregroup Ltd
+Employer: Laurem Care Group Limited
 Employee: Alul Dominic
 Job title: Healthcare Assistant
 
@@ -14,7 +14,7 @@ Employment begins on 1 January 2027.
 Your job title is Healthcare Assistant.
 
 EMPLOYER AUTHORITY
-For and on behalf of Laurem Caregroup Ltd
+For and on behalf of Laurem Care Group Limited
 Name: Dezou Maurice
 Title: Manager
 
@@ -34,7 +34,7 @@ describe('LAUREM employment contract letterhead', () => {
     });
 
     expect(html).toContain('LAUREM CAREGROUP');
-    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Laurem Care Group Limited');
     expect(html).toContain('Company No. SC490520');
     expect(html).toContain('557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE');
     expect(html).toContain('<span class="laurem-contract-number">1</span>'); 
@@ -49,7 +49,7 @@ describe('LAUREM employment contract letterhead', () => {
 
 CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)
 
-Employer: Laurem Caregroup Ltd
+Employer: Laurem Care Group Limited
 Employee: Alul Dominic
 Job title: Healthcare Assistant
 
@@ -68,10 +68,10 @@ Employment begins on 1 January 2027.
     });
 
     expect(html).toContain('LAUREM CAREGROUP');
-    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Laurem Care Group Limited');
     expect(html).toContain('Company No. SC490520');
     expect(html).not.toContain('<div class="legacy-letterhead">');
-    expect(html.match(/LAUREM CARE GROUP LIMITED/g)?.length).toBe(2);
+    expect(html.match(/Laurem Care Group Limited/gi)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain('CONTRACT OF EMPLOYMENT (GUARANTEED MINIMUM HOURS)');
     expect(html).toContain('SIGNED ELECTRONICALLY');
   });

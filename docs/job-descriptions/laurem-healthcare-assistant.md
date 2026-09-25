@@ -1,13 +1,13 @@
-# LAUREM CAREGROUP LTD
+# LAUREM CARE GROUP LIMITED
 
 ## Job Description
 
 **Job title:** {{JOB_TITLE}}  
 **Employee:** {{EMPLOYEE_NAME}}  
-**Employer:** Laurem Caregroup Ltd  
+**Employer:** Laurem Care Group Limited
 **Employment status:** As stated in the employment contract and approved offer  
 **Reports to:** Designated Laurem manager and/or shift or assignment lead  
-**Document owner:** Laurem Caregroup Ltd
+**Document owner:** Laurem Care Group Limited
 
 ---
 
@@ -133,7 +133,7 @@ Any material change to contractual terms will be managed separately in accordanc
 This Job Description is issued for **{{EMPLOYEE_NAME}}** in relation to the role of **{{JOB_TITLE}}**.
 
 **Issued by:** {{ISSUER_NAME}}, {{ISSUER_TITLE}}  
-**For:** Laurem Caregroup Ltd
+**For:** Laurem Care Group Limited
 
 This document should be retained with the employee's employment records and read alongside the employment contract and Staff Handbook.
 

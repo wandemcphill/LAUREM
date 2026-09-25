@@ -15,7 +15,7 @@ export const lauremCompany = {
   documentIssuer: {
     name: 'Dezou Maurice',
     title: 'Manager',
-    employer: 'Laurem Caregroup Ltd',
+    employer: 'Laurem Care Group Limited',
   },
   portalNotifications: {
     internalRecipient: 'info@lauremcare.com',

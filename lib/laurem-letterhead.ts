@@ -1,12 +1,14 @@
+import { lauremCompany } from '@/lib/laurem-company-config';
+
 export const LAUREM_LETTERHEAD = {
-  legalName: 'LAUREM CARE GROUP LIMITED',
-  tradingName: 'LAUREM CAREGROUP',
+  legalName: lauremCompany.legalName,
+  tradingName: lauremCompany.tradingName,
   strapline: 'Care & Support Services',
-  companyNumber: 'SC490520',
-  registration: 'Registered in Scotland',
-  registeredOffice: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE',
-  email: 'recruitment@lauremcare.com',
-  website: 'lauremcare.com',
+  companyNumber: lauremCompany.companyNumber,
+  registration: lauremCompany.registration,
+  registeredOffice: lauremCompany.registeredOffice,
+  email: lauremCompany.publicEmails.recruitment,
+  website: lauremCompany.website.replace(/^https?:\/\//, ''),
 } as const;
 
 function escapeHtml(value: string): string {
@@ -33,7 +35,7 @@ export function renderLauremLetterhead(input?: {
         '<div class="laurem-letterhead-brand">' +
           '<span class="laurem-letterhead-mark" aria-hidden="true">LC</span>' +
           '<div>' +
-            '<div class="laurem-letterhead-wordmark">LAUREM CAREGROUP</div>' +
+            '<div class="laurem-letterhead-wordmark">' + escapeHtml(LAUREM_LETTERHEAD.tradingName.toUpperCase()) + '</div>' +
             '<div class="laurem-letterhead-strapline">' + escapeHtml(LAUREM_LETTERHEAD.strapline) + '</div>' +
           '</div>' +
         '</div>' +

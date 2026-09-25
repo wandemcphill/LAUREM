@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { renderLauremDocumentBody, renderLauremPrintableHtml } from '@/lib/laurem-document-renderer';
 
 const sample = [
-  '# LAUREM CAREGROUP LTD',
+  '# LAUREM CARE GROUP LIMITED',
   '',
   '## Job Description',
   '',
   '**Job title:** Healthcare Assistant',
   '**Employee:** Alul Dominic',
-  '**Employer:** Laurem Caregroup Ltd',
+  '**Employer:** Laurem Care Group Limited',
   '---',
   '',
   '## 1. Job purpose',
@@ -35,7 +35,7 @@ describe('LAUREM branded employment documents', () => {
 
     expect(html).toContain('class="laurem-letterhead"');
     expect(html).toContain('LAUREM CARE');
-    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Laurem Care Group Limited');
     expect(html).toContain('Company No. SC490520');
     expect(html).toContain('557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE');
     expect(html).not.toContain('<img');
@@ -69,7 +69,7 @@ describe('LAUREM branded employment documents', () => {
     });
 
     expect(html).toContain('<!doctype html>');
-    expect(html).toContain('LAUREM CARE GROUP LIMITED');
+    expect(html).toContain('Laurem Care Group Limited');
     expect(html).toContain('Company No. SC490520');
     expect(html).toContain('<strong>Signed</strong>');
     expect(html).not.toContain('<img');

@@ -1,18 +1,18 @@
-# LAUREM CAREGROUP LTD
+# LAUREM CARE GROUP LIMITED
 
 ## Staff Handbook
 
-**Document title:** Laurem Caregroup Ltd Staff Handbook  
-**Audience:** Employees and workers engaged by Laurem Caregroup Ltd  
+**Document title:** Laurem Care Group Limited Staff Handbook
+**Audience:** Employees and workers engaged by Laurem Care Group Limited
 **Applies from:** Date of issue shown in your staff portal  
-**Document owner:** Laurem Caregroup Ltd  
+**Document owner:** Laurem Care Group Limited
 **Related documents:** Employment contract, job description, safeguarding procedures, health and safety requirements, mandatory training, workforce procedures and other applicable company policies
 
 ---
 
 ## 1. Welcome to Laurem Caregroup
 
-Welcome to Laurem Caregroup Ltd.
+Welcome to Laurem Care Group Limited.
 
 This Staff Handbook provides a clear framework for the standards of conduct, care, safety, confidentiality and professionalism expected during your employment or engagement with Laurem.
 
@@ -441,7 +441,7 @@ Where a specific policy or legal requirement applies, that more specific require
 
 ## 27. Acknowledgement
 
-I confirm that I have received and read the Laurem Caregroup Ltd Staff Handbook.
+I confirm that I have received and read the Laurem Care Group Limited Staff Handbook.
 
 I understand that the handbook should be read alongside my employment contract, job description, applicable Laurem procedures, safeguarding requirements, mandatory training and any professional, regulatory or immigration requirements applicable to my role.
 

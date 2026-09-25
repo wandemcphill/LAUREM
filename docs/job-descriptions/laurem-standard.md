@@ -1,19 +1,19 @@
-# LAUREM CAREGROUP LTD
+# LAUREM CARE GROUP LIMITED
 
 ## Job Description
 
 **Job title:** {{JOB_TITLE}}  
 **Employee:** {{EMPLOYEE_NAME}}  
-**Employer:** Laurem Caregroup Ltd  
+**Employer:** Laurem Care Group Limited
 **Employment status:** As stated in the employment contract and approved offer  
 **Reports to:** Designated Laurem manager and/or assignment lead  
-**Document owner:** Laurem Caregroup Ltd
+**Document owner:** Laurem Care Group Limited
 
 ---
 
 ## 1. Job purpose
 
-The postholder contributes to the safe, respectful and professional delivery of services on behalf of Laurem Caregroup Ltd. Duties must be performed in accordance with the employment contract, job description, applicable procedures, training, competence and lawful instructions.
+The postholder contributes to the safe, respectful and professional delivery of services on behalf of Laurem Care Group Limited. Duties must be performed in accordance with the employment contract, job description, applicable procedures, training, competence and lawful instructions.
 
 ---
 
@@ -61,7 +61,7 @@ The employee must attend scheduled duties punctually, follow applicable rota, ab
 ## 6. Document control and acknowledgement
 
 **Issued by:** {{ISSUER_NAME}}, {{ISSUER_TITLE}}  
-**For:** Laurem Caregroup Ltd
+**For:** Laurem Care Group Limited
 
 I confirm that I have received and read this Job Description and understand that I must work within my contract, training, competence, authorised duties and applicable Laurem procedures.
 
