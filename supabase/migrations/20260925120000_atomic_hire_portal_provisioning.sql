@@ -201,12 +201,13 @@ begin
     end;
 
     mailbox_base := regexp_replace(
-      regexp_replace(
-        regexp_replace(lower(trim(coalesce(staff_row.full_name,'staff'))), '[^a-z0-9]+', '.', 'g'),
-        '\\.{2,}', '.', 'g'
-      ),
-      '^\\.+|\\.+$', '', 'g'
+      lower(trim(coalesce(staff_row.full_name,'staff'))),
+      '[^a-z0-9]+',
+      '.',
+      'g'
     );
+    mailbox_base := regexp_replace(mailbox_base, '[.]+', '.', 'g');
+    mailbox_base := btrim(mailbox_base, '.');
 
     if nullif(mailbox_base,'') is null then
       mailbox_base := 'staff';
@@ -234,6 +235,8 @@ begin
     end if;
   end if;
 
+  had_activation_token := staff_row.activation_token_hash is not null;
+
   update public.laurem_staff_profiles
      set portal_handle = mailbox_row.handle,
          department_namespace = mailbox_row.namespace,
@@ -259,7 +262,7 @@ begin
       'expires_at', p_activation_expires_at,
       'atomic_hire', true,
       'application_status_before', app_row.status,
-      'reissued', staff_row.activation_token_hash is not null
+      'reissued', had_activation_token
     )
   );
 
