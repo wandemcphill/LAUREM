@@ -29,12 +29,13 @@ describe('Mega-Build 21 staff account lifecycle', () => {
 
   it('prevents admin promotion of a never-activated pending account', () => {
     const route = readFileSync('app/api/admin/workforce/staff/route.ts', 'utf8');
-    expect(route).toContain('STAFF_ACTIVATION_REQUIRED');
-    expect(route).toContain('current.activated_at');
-    expect(route).toContain('current.password_hash');
-    expect(route).toContain('staff_portal_sessions');
-    expect(route).toContain('staff_password_reset_tokens');
-    expect(route).toContain("employment_status_changed");
+    const sql = readFileSync('supabase/migrations/20260926000000_laurem_hr_workforce_administration.sql', 'utf8');
+    expect(route).toContain('ACTIVATION_REQUIRED');
+    expect(sql).toContain('v_old.activated_at');
+    expect(sql).toContain('v_old.password_hash');
+    expect(sql).toContain('laurem_staff_portal_sessions');
+    expect(sql).toContain('laurem_staff_password_reset_tokens');
+    expect(sql).toContain("employment_status_changed");
   });
 
   it('provides a controlled activation recovery path with a mandatory reason', () => {

@@ -6,6 +6,7 @@ import { hashToken, makeToken } from '@/lib/token';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { renderLauremContract } from '@/lib/laurem-contract';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
+import { validateContractCompleteness } from '@/lib/laurem-contract-validator';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       ? body.workLocations.filter((v): v is string => typeof v === 'string').map((v) => v.trim()).filter(Boolean)
       : [];
 
-    const weeklyHours = typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5;
+    const weeklyHours = typeof body?.weeklyHours === 'number' ? body.weeklyHours : (typeof body?.minimumWeeklyHours === 'number' ? body.minimumWeeklyHours : 37.5);
     const annualSalary = typeof body?.annualSalary === 'number' ? body.annualSalary : null;
     const hourlyRate = typeof body?.hourlyRate === 'number' ? body.hourlyRate : null;
     const contractEndDate = typeof body?.contractEndDate === 'string' ? body.contractEndDate : null;
@@ -99,46 +100,55 @@ export async function POST(request: NextRequest) {
     const holidayEntitlement = typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null;
     const pensionScheme = typeof body?.pensionScheme === 'string' ? body.pensionScheme : null;
 
+    const contractInput = {
+      employeeName: app.full_name,
+      employeeAddress: app.address,
+      jobTitle: role,
+      employmentType: typeof body?.employmentType === 'string' ? body.employmentType : 'Permanent',
+      startDate: app.start_date,
+      continuousEmploymentDate: typeof body?.continuousEmploymentDate === 'string' ? body.continuousEmploymentDate : app.start_date,
+      contractEndDate,
+      minimumWeeklyHours: weeklyHours,
+      weeklyHours,
+      normalWorkingDays: typeof body?.normalWorkingDays === 'string' ? body.normalWorkingDays : null,
+      shiftPattern: typeof body?.shiftPattern === 'string' ? body.shiftPattern : null,
+      workLocations,
+      hourlyRate,
+      annualSalary,
+      payFrequency: typeof body?.payFrequency === 'string' ? body.payFrequency : null,
+      payMethod: typeof body?.payMethod === 'string' ? body.payMethod : null,
+      holidayEntitlement,
+      holidayPayCalculation: typeof body?.holidayPayCalculation === 'string' ? body.holidayPayCalculation : null,
+      sickPay: typeof body?.sickPay === 'string' ? body.sickPay : null,
+      paidLeave: typeof body?.paidLeave === 'string' ? body.paidLeave : null,
+      contractualBenefits: typeof body?.contractualBenefits === 'string' ? body.contractualBenefits : null,
+      nonContractualBenefits: typeof body?.nonContractualBenefits === 'string' ? body.nonContractualBenefits : null,
+      probation: typeof body?.probation === 'string' ? body.probation : null,
+      probationConditions: typeof body?.probationConditions === 'string' ? body.probationConditions : null,
+      noticePeriodEmployee,
+      noticePeriodEmployer,
+      mandatoryTraining: typeof body?.mandatoryTraining === 'string' ? body.mandatoryTraining : null,
+      mandatoryTrainingPaidBy: typeof body?.mandatoryTrainingPaidBy === 'string' ? body.mandatoryTrainingPaidBy : null,
+      pensionScheme,
+      clientOrAssignmentDetails: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
+      visaRoute: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
+      sponsorshipOccupationCode: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
+      nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
+      registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
+      preRegistrationRole: typeof body?.preRegistrationRole === 'string' ? body.preRegistrationRole : null,
+      preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
+      postRegistrationSalary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : annualSalary,
+      relocationSupport: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
+      repayableCosts: typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
+      repaymentSchedule: typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
+      repaymentMethod: typeof body?.repaymentMethod === 'string' ? body.repaymentMethod : null,
+    };
+
+    const completeness = validateContractCompleteness(role, contractInput, internationalNurse ? 'international' : 'uk');
+
     const contractContent = internationalNurse
-      ? renderLauremInternationalNurseContract({
-          employeeName: app.full_name,
-          employeeAddress: app.address,
-          jobTitle: role,
-          startDate: app.start_date,
-          contractEndDate,
-          annualSalary,
-          weeklyHours,
-          workLocations,
-          probation: typeof body?.probation === 'string' ? body.probation : null,
-          noticePeriodEmployee,
-          noticePeriodEmployer,
-          holidayEntitlement,
-          pensionScheme,
-          visaRoute: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-          sponsorshipOccupationCode: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
-          nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
-          registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
-          preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
-          postRegistrationSalary: typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : annualSalary,
-          relocationSupport: typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
-          repayableCosts: typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
-          repaymentSchedule: typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
-        })
-      : renderLauremContract({
-          employeeName: app.full_name,
-          employeeAddress: app.address,
-          jobTitle: role,
-          startDate: app.start_date,
-          contractEndDate,
-          minimumWeeklyHours: weeklyHours,
-          hourlyRate,
-          workLocations,
-          clientOrAssignmentDetails: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
-          noticePeriodEmployee,
-          noticePeriodEmployer,
-          holidayEntitlement,
-          pensionScheme,
-        });
+      ? renderLauremInternationalNurseContract(contractInput)
+      : renderLauremContract(contractInput);
 
     const nextVersion = Number(existingContract?.version || 0) + 1;
     const payload = {
@@ -146,29 +156,43 @@ export async function POST(request: NextRequest) {
       version: nextVersion,
       contract_type: internationalNurse ? 'international_nurse' : 'standard',
       job_title: role,
+      employment_type: contractInput.employmentType,
       start_date: app.start_date,
+      continuous_employment_date: contractInput.continuousEmploymentDate,
       contract_end_date: contractEndDate,
       minimum_weekly_hours: weeklyHours,
       weekly_hours: weeklyHours,
+      normal_working_days: contractInput.normalWorkingDays,
+      shift_pattern: contractInput.shiftPattern,
       hourly_rate: hourlyRate,
       annual_salary: annualSalary,
+      pay_frequency: contractInput.payFrequency,
+      pay_method: contractInput.payMethod,
       work_locations: workLocations,
-      client_or_assignment_details: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
+      holiday_pay_calculation: contractInput.holidayPayCalculation,
+      sick_pay: contractInput.sickPay,
+      paid_leave: contractInput.paidLeave,
+      contractual_benefits: contractInput.contractualBenefits,
+      non_contractual_benefits: contractInput.nonContractualBenefits,
+      probation: contractInput.probation,
+      probation_conditions: contractInput.probationConditions,
       notice_period_employee: noticePeriodEmployee,
       notice_period_employer: noticePeriodEmployer,
-      holiday_entitlement: holidayEntitlement,
+      mandatory_training: contractInput.mandatoryTraining,
+      mandatory_training_paid_by: contractInput.mandatoryTrainingPaidBy,
+      client_or_assignment_details: contractInput.clientOrAssignmentDetails,
       pension_scheme: pensionScheme,
-      visa_route: internationalNurse && typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-      sponsorship_occupation_code: internationalNurse && typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
-      nmc_status: internationalNurse && typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
-      registration_deadline: internationalNurse && typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
-      pre_registration_salary: internationalNurse && typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
-      post_registration_salary: internationalNurse
-        ? (typeof body?.postRegistrationSalary === 'number' ? body.postRegistrationSalary : annualSalary)
-        : null,
-      relocation_support: internationalNurse && typeof body?.relocationSupport === 'string' ? body.relocationSupport : null,
-      repayable_costs: internationalNurse && typeof body?.repayableCosts === 'string' ? body.repayableCosts : null,
-      repayment_schedule: internationalNurse && typeof body?.repaymentSchedule === 'string' ? body.repaymentSchedule : null,
+      visa_route: internationalNurse ? contractInput.visaRoute : null,
+      sponsorship_occupation_code: internationalNurse ? contractInput.sponsorshipOccupationCode : null,
+      nmc_status: internationalNurse ? contractInput.nmcStatus : null,
+      registration_deadline: internationalNurse ? contractInput.registrationDeadline : null,
+      pre_registration_role: internationalNurse ? contractInput.preRegistrationRole : null,
+      pre_registration_salary: internationalNurse ? contractInput.preRegistrationSalary : null,
+      post_registration_salary: internationalNurse ? contractInput.postRegistrationSalary : null,
+      relocation_support: internationalNurse ? contractInput.relocationSupport : null,
+      repayable_costs: internationalNurse ? contractInput.repayableCosts : null,
+      repayment_schedule: internationalNurse ? contractInput.repaymentSchedule : null,
+      repayment_method: internationalNurse ? contractInput.repaymentMethod : null,
       contract_source: internationalNurse
         ? 'Laurem international nurse contract template informed by current UK and Scottish guidance'
         : 'Laurem standard employment contract template',
@@ -190,6 +214,7 @@ export async function POST(request: NextRequest) {
         id: contract.id,
         status: contract.status,
         contractType: contract.contract_type,
+        completeness,
         contract,
       }, { status: 201 }),
       requestId,
@@ -214,7 +239,7 @@ export async function PATCH(request: NextRequest) {
   const client = db();
   const { data: current, error: readError } = await client
     .from('recruitment_contracts')
-    .select('id,application_id,status,accepted_at,job_title,contract_type')
+    .select('*')
     .eq('id', id)
     .maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load contract.' }, { status: 500 });
@@ -224,11 +249,62 @@ export async function PATCH(request: NextRequest) {
 
   const { data: app, error: appError } = await client
     .from('recruitment_applications')
-    .select('id,full_name,email,role_applied,living_in_uk')
+    .select('id,full_name,email,role_applied,living_in_uk,address,start_date')
     .eq('id', current.application_id)
     .maybeSingle();
   if (appError) return NextResponse.json({ error: 'Unable to load contract application.' }, { status: 500 });
   if (!app || !normalizeLauremRole(app.role_applied || '')) return NextResponse.json({ error: 'Contract is not eligible for issue.' }, { status: 409 });
+
+  // central contract completeness validation before issuing
+  const contractInput = {
+    employeeName: app.full_name,
+    employeeAddress: app.address,
+    jobTitle: current.job_title || app.role_applied,
+    employmentType: current.employment_type || 'Permanent',
+    startDate: current.start_date || app.start_date,
+    continuousEmploymentDate: current.continuous_employment_date || current.start_date || app.start_date,
+    minimumWeeklyHours: current.minimum_weekly_hours ?? current.weekly_hours,
+    normalWorkingDays: current.normal_working_days,
+    shiftPattern: current.shift_pattern,
+    workLocations: current.work_locations || [],
+    hourlyRate: current.hourly_rate,
+    annualSalary: current.annual_salary,
+    payFrequency: current.pay_frequency,
+    payMethod: current.pay_method,
+    holidayEntitlement: current.holiday_entitlement,
+    holidayPayCalculation: current.holiday_pay_calculation,
+    sickPay: current.sick_pay,
+    paidLeave: current.paid_leave,
+    contractualBenefits: current.contractual_benefits,
+    probation: current.probation,
+    probationConditions: current.probation_conditions,
+    noticePeriodEmployee: current.notice_period_employee,
+    noticePeriodEmployer: current.notice_period_employer,
+    mandatoryTraining: current.mandatory_training,
+    mandatoryTrainingPaidBy: current.mandatory_training_paid_by,
+    pensionScheme: current.pension_scheme,
+    visaRoute: current.visa_route,
+    sponsorshipOccupationCode: current.sponsorship_occupation_code,
+    nmcStatus: current.nmc_status,
+    registrationDeadline: current.registration_deadline,
+    preRegistrationRole: current.pre_registration_role,
+    preRegistrationSalary: current.pre_registration_salary,
+    postRegistrationSalary: current.post_registration_salary,
+    relocationSupport: current.relocation_support,
+    repayableCosts: current.repayable_costs,
+    repaymentSchedule: current.repayment_schedule,
+    repaymentMethod: current.repayment_method,
+  };
+
+  const validation = validateContractCompleteness(app.role_applied, contractInput, current.contract_type === 'international_nurse' ? 'international' : 'uk');
+  if (!validation.valid) {
+    return NextResponse.json({
+      error: 'Cannot issue contract: material employment particulars are missing.',
+      code: 'CONTRACT_INCOMPLETE',
+      validationErrors: validation.errors,
+      missingFields: validation.missingFields,
+    }, { status: 422 });
+  }
 
   const token = makeToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -249,8 +325,6 @@ export async function PATCH(request: NextRequest) {
   const updated = atomicResult.contract;
   const link = appUrl() + '/contracts/accept/' + token;
 
-  // Issue the candidate's complete offer document pack at the same handoff.
-  // Contract acceptance remains separate, and the Job Description + Handbook are each signed once.
   const rawDocumentToken = makeToken();
   const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const documents = getLauremRecruitmentDocumentPack({

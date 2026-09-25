@@ -63,8 +63,8 @@ describe('LAUREM staff employment documents', () => {
     expect(company).toContain("name: 'Dezou Maurice'");
     expect(company).toContain("title: 'Manager'");
     const contract = readFileSync('lib/laurem-contract.ts', 'utf8');
-    expect(contract).toContain('Name: Dezou Maurice');
+    expect(contract).toContain('lauremCompany.documentIssuer.name');
     const nurse = readFileSync('lib/laurem-international-nurse-contract.ts', 'utf8');
-    expect(nurse).toContain('Name: Dezou Maurice');
+    expect(nurse).toContain('lauremCompany.documentIssuer.name');
   });
 });

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    if (error.code === '23505') {
+    if (error?.code === '23505') {
       const { data: retry } = await client.from('staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)

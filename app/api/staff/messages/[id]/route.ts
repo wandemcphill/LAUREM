@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, context: Context) {
   const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key').single();
   if (error) {
-    if (error.code === '23505') {
+    if (error?.code === '23505') {
       const { data: retry } = await client.from('staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)

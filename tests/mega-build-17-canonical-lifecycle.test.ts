@@ -45,6 +45,6 @@ describe('LAUREM canonical lifecycle policy', () => {
     expect(hire).toContain('validateLauremStaffTransition');
     expect(provision).toContain("laurem_evaluate_staff_lifecycle");
     expect(activationMigration).toContain("'portal_activate'");
-    expect(staffAdmin).toContain('LAUREM_STAFF_EMPLOYMENT_TRANSITIONS');
+    expect(staffAdmin).toContain('isLauremStaffEmploymentStatus');
   });
 });
