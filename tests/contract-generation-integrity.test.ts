@@ -6,8 +6,8 @@ describe('contract generation integrity', () => {
   const route = readFileSync(resolve(process.cwd(), 'app/api/admin/contracts/route.ts'), 'utf8');
 
   it('refuses to overwrite an already accepted employment contract', () => {
-    expect(route).toContain("existingContract?.status === 'accepted' && existingContract.accepted_at");
-    expect(route).toContain("A new contract cannot overwrite the accepted record.");
+    expect(route).toContain("['issued', 'viewed', 'accepted'].includes(existingContract.status)");
+    expect(route).toContain("CONTRACT_VERSION_LOCKED");
   });
 
   it('increments the contract version instead of resetting every regeneration to version 1', () => {

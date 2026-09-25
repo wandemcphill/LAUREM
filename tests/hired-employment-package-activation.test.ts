@@ -48,6 +48,8 @@ describe('LAUREM hired employment package and activation', () => {
     expect(atomic).toContain('laurem_staff_internal_mailboxes_handle_namespace_key');
     expect(atomic).toContain("    'Hired',\n    p_actor,");
     expect(atomic).toContain('STAFF_PORTAL_STATE_BLOCKED');
-    expect(workforce).toContain('Staff accounts become active through the one-time staff portal activation flow');
+    expect(workforce).toContain("client.rpc('laurem_change_staff_employment_status'");
+    expect(workforce).toContain('p_next_status: nextStatus');
+    expect(workforce).toContain('p_reason: note');
   });
 });

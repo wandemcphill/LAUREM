@@ -30,7 +30,7 @@ describe('LAUREM end-to-end candidate journey', () => {
     const documentApi = await read('app/api/candidate-documents/route.ts');
     const migration = await read('supabase/migrations/20260921200000_candidate_document_pack.sql');
     const offerPackageMigration = await read('supabase/migrations/20260922120000_offer_document_pack_at_issue.sql');
-    expect(contractAdminApi).toContain('laurem_issue_candidate_document_pack');
+    expect(contractAdminApi).toContain('laurem_issue_recruitment_contract_and_document_pack');
     expect(contractAdminApi).toContain('documentPackLink');
     expect(contractAdminApi).toContain('Your LAUREM employment offer package is ready');
     expect(acceptanceApi).toContain("eq('status', 'pending')");
