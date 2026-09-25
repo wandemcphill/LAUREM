@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       payrollResult,
     ] = await Promise.all([
       client.from('staff_profiles')
-        .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at')
+        .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
         .eq('id', session.staff_id)
         .maybeSingle(),
       client.from('staff_assignments')
@@ -169,14 +169,14 @@ export async function GET(request: NextRequest) {
 
       for (const conversation of conversations || []) {
         const [{ data: latest }, { data: participants }] = await Promise.all([
-          client.from('laurem_staff_messages')
+          client.from('staff_messages')
             .select('body,sender_staff_id,sender_admin_email,created_at')
             .eq('conversation_id', conversation.id)
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-          client.from('laurem_staff_message_participants')
+          client.from('staff_message_participants')
             .select('staff_id,last_read_at')
             .eq('conversation_id', conversation.id),
         ]);

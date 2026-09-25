@@ -7,7 +7,7 @@ type Staff = { laurem_id:string|null; employee_number:string; full_name:string; 
 type Shift = { id:string; client_name:string|null; location:string; scheduled_start:string; scheduled_end:string; status:string; notes:string|null };
 type Timesheet = { id:string; assignment_id:string|null; work_date:string; clock_in:string|null; clock_out:string|null; total_hours:number|null; status:string; notes:string|null };
 type LeaveRequest = { id:string; leave_type:string; start_date:string; end_date:string; total_days:number; reason:string|null; status:string; review_note:string|null };
-type MessageSummary = { id:string; subject:string|null; updated_at:string|null; latest_message?:{body:string|null;created_at:string|null;sender_name:string|null} };
+type MessageSummary = { id:string; updated_at:string|null; latest?:{body:string|null;created_at:string|null;sender_staff_id:string|null;sender_admin_email:string|null}; unread?:boolean; other?:{name:string;jobTitle:string} };
 type OnboardingTask = { id:string; title:string; required:boolean; status:string; acknowledgement_required:boolean; acknowledged_at:string|null };
 type Onboarding = { title:string; status:string; tasks:OnboardingTask[] };
 type NotificationSummary = { id:string; title:string; body:string; read_at:string|null; action_url:string|null; created_at:string };
@@ -101,7 +101,7 @@ export default function StaffPortalHome() {
     submitted:timesheets.filter(t=>t.status==='submitted').length,
     approvedHours:timesheets.filter(t=>['approved','paid'].includes(t.status)).reduce((sum,t)=>sum+(Number(t.total_hours)||0),0),
     pendingLeave:leave.filter(r=>r.status==='pending').length,
-    unreadMessages:messages.filter(m=>Boolean(m.latest_message?.created_at)).length,
+    unreadMessages:messages.filter(m=>Boolean(m.unread)).length,
     unreadNotifications:notifications.filter(n=>!n.read_at).length,
     openPayroll:payroll.filter(p=>!['paid','void'].includes(p.status)).length,
   }),[shifts,timesheets,leave,messages,notifications,payroll]);

@@ -29,7 +29,7 @@ export default function AdminMessagesPage() {
     const message = draft.trim();
     if (!message || !active) return;
     const response = await fetch(`/api/admin/messages/${active}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message }),
+      method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ message }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { setError(data.error || 'Unable to send message.'); return; }
@@ -50,7 +50,7 @@ export default function AdminMessagesPage() {
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search staff, LAUREM ID or handle" style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 12 }} />
             {visible.map((row) => (
               <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}>
-                <strong>{row.participants.map((p: any) => p.full_name).join(' ↔ ')}</strong>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:8 }}><strong>{row.participants.map((p: any) => p.full_name).join(' ↔ ')}</strong>{row.unreadByAdmin&&<span style={{ fontSize:10, fontWeight:900, color:'#b42318' }}>NEW</span>}</div>
                 <div style={{ fontSize: 12, color: '#627d98' }}>{row.participants.map((p: any) => p.address).filter(Boolean).join(' · ')}</div>
                 <div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div>
               </button>

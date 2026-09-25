@@ -33,7 +33,7 @@ export default function StaffMessagesPage() {
     event.preventDefault();
     const message = draft.trim();
     if (!to.trim() || !message) return;
-    const response = await fetch('/api/staff/messages', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ to, message }) });
+    const response = await fetch('/api/staff/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ to, message }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { setError(data.error || 'Unable to send.'); return; }
     setTo(''); setDraft(''); await load(); await openConversation(data.conversation.id);
@@ -42,7 +42,7 @@ export default function StaffMessagesPage() {
   async function reply(event: React.FormEvent) {
     event.preventDefault();
     if (!active || !draft.trim()) return;
-    const response = await fetch(`/api/staff/messages/${active}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: draft.trim() }) });
+    const response = await fetch(`/api/staff/messages/${active}`, { method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ message: draft.trim() }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { setError(data.error || 'Unable to send.'); return; }
     setMessages((current) => [...current, data.message]); setDraft(''); await load();
@@ -64,7 +64,7 @@ export default function StaffMessagesPage() {
               <button style={{ width: '100%', marginTop: 8, padding: 10, border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>Start message</button>
             </form>
             <hr style={{ border: 0, borderTop: '1px solid #edf2f7', margin: '16px 0' }} />
-            {rows.map((row) => <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}><strong>{row.other?.full_name || row.other?.display || 'LAUREM Admin / HR'}</strong><div style={{ fontSize: 12, color: '#627d98' }}>{row.other?.address || ''}</div><div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div></button>)}
+            {rows.map((row) => <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}><div style={{ display:'flex', justifyContent:'space-between', gap:8 }}><strong>{row.other?.full_name || row.other?.display || 'LAUREM Admin / HR'}</strong>{row.unread&&<span style={{ fontSize:10, fontWeight:900, color:'#b42318' }}>NEW</span>}</div><div style={{ fontSize: 12, color: '#627d98' }}>{row.other?.address || ''}</div><div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div></button>)}
           </aside>
           <section style={{ display: 'flex', flexDirection: 'column' }}>
             {!active ? <div style={{ margin: 'auto', color: '#627d98' }}>Select a conversation or use a known LAUREM handle.</div> : <>
