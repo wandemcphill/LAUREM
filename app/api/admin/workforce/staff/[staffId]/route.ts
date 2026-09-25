@@ -51,6 +51,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       profile_photo_path,
       profile_photo_updated_at,
       activated_at,
+      activation_expires_at,
+      activation_used_at,
       created_at,
       updated_at
     `)
@@ -207,7 +209,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     p_end_date: endDate,
   });
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Unable to update staff status.' }, { status: 409 });
+    const errorMessage = error?.message || '';
+    if (errorMessage.includes('STAFF_ACTIVATION_REQUIRED')) {
+      return NextResponse.json({
+        error: 'Staff portal activation is required before the employment status can become active. Use Staff Account to issue or reissue the one-time activation link, then let the staff member complete activation.',
+      }, { status: 409 });
+    }
+    return NextResponse.json({ error: errorMessage || 'Unable to update staff status.' }, { status: 409 });
   }
 
   return NextResponse.json({ staff: data });
