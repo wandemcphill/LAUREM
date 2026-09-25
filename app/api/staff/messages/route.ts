@@ -4,6 +4,7 @@ import { getStaffSession, requestIp } from '@/lib/laurem-staff-auth';
 import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, getOrCreateAdminConversation, participantConversationIds } from '@/lib/laurem-messaging';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
+import { readLauremIdempotencyKey } from '@/lib/laurem-message-idempotency';
 
 export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest) {
   const to = typeof body?.to === 'string' ? body.to.trim() : '';
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
   if (!to || !message || message.length > 10000) return NextResponse.json({ error: 'A LAUREM address and message are required.' }, { status: 400 });
+  const idempotencyKey = readLauremIdempotencyKey(req);
+  if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
   const client = db();
   const { data: me } = await client.from('staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
@@ -80,25 +83,41 @@ export async function POST(req: NextRequest) {
     conversation = await getOrCreateConversation(client, session.staff_id, recipient.id);
   }
 
-  // Idempotency / duplicate check within 3 seconds
   const { data: duplicate } = await client.from('staff_messages')
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at')
-    .eq('conversation_id', conversation.id)
     .eq('sender_staff_id', session.staff_id)
-    .eq('body', message)
-    .gt('created_at', new Date(Date.now() - 3000).toISOString())
+    .eq('idempotency_key', idempotencyKey)
     .maybeSingle();
 
   if (duplicate) {
+    if (duplicate.conversation_id !== conversation.id || duplicate.body !== message) {
+      return NextResponse.json({ error: 'This Idempotency-Key was already used for a different message.' }, { status: 409 });
+    }
     return NextResponse.json({ conversation, message: duplicate }, { status: 200 });
   }
 
   const { data: created, error } = await client.from('staff_messages')
-    .insert({ conversation_id: conversation.id, sender_staff_id: session.staff_id, body: message })
-    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at')
+    .insert({ conversation_id: conversation.id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
+    .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
     .single();
 
-  if (error || !created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
+  if (error) {
+    if (error.code === '23505') {
+      const { data: retry } = await client.from('staff_messages')
+        .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
+        .eq('sender_staff_id', session.staff_id)
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (retry) {
+        if (retry.conversation_id !== conversation.id || retry.body !== message) {
+          return NextResponse.json({ error: 'This Idempotency-Key was already used for a different message.' }, { status: 409 });
+        }
+        return NextResponse.json({ conversation, message: retry }, { status: 200 });
+      }
+    }
+    return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
+  }
+  if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
   await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
   await client.from('staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
