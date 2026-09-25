@@ -36,8 +36,8 @@ describe('canonical audit timeline contract', () => {
     const candidateRoute = await fs.readFile('app/api/admin/applications/[id]/route.ts', 'utf8');
 
     expect(staffRoute).toContain("from('laurem_audit_events')");
-    expect(staffRoute).toContain("p_action: 'staff.status_changed'");
-    expect(staffRoute).toContain('A reason is required for suspension or leaver status.');
+    expect(staffRoute).toContain("client.rpc('laurem_change_staff_employment_status'");
+    expect(staffRoute).toContain('A reason is required for this employment status change.');
 
     expect(candidateRoute).toContain("from('laurem_audit_events')");
     expect(candidateRoute).toContain('canonical_audit');
