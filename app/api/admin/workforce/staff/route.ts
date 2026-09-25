@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { buildStaffComplianceSnapshot } from '@/lib/laurem-hr-workforce';
+import { isLauremStaffEmploymentStatus } from '@/lib/laurem-lifecycle-policy';
 
 export async function GET(request: NextRequest) {
   const session = readAdminSession(request);
