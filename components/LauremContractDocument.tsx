@@ -49,6 +49,7 @@ export default function LauremContractDocument(input: LauremContractDocumentInpu
 }
 
 const contractScreenCss = [
+  LAUREM_LETTERHEAD_CSS,
   LAUREM_CONTRACT_PRINT_CSS,
   '.laurem-contract-view{background:#edf2f4;border:1px solid #d8e1e5;border-radius:16px;padding:14px}',
   '.laurem-contract-actions{display:flex;justify-content:flex-end;padding:0 0 10px}',
