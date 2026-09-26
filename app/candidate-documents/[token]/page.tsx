@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import LauremCandidateJourney from '@/components/LauremCandidateJourney';
+import LauremContractDocument from '@/components/LauremContractDocument';
 import LauremDocument from '@/components/LauremDocument';
 import LauremElectronicSignature from '@/components/LauremElectronicSignature';
 
