@@ -211,7 +211,7 @@ function AssessmentReview({ assessment }: { assessment: Assessment }) {
         <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
           {questions.map((question: any, index: number) => {
             const answerValue = answers[String(question.id)];
-            const answerIndex = isRound1 ? Number(answerValue) : null;
+            const answerIndex = isRound1 ? Number(answerValue) : -1;
             const validAnswerIndex = isRound1 && Number.isInteger(answerIndex) && Array.isArray(question.options) && answerIndex >= 0 && answerIndex < question.options.length;
             const selectedAnswer = validAnswerIndex ? question.options[answerIndex as number] : isRound1 ? 'No recorded answer' : show(answerValue);
             const correctAnswer = isRound1 && Array.isArray(question.options) && Number.isInteger(Number(question.correctIndex))
