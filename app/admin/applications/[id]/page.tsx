@@ -29,6 +29,8 @@ type Assessment = Record<string, any> & {
   second_interview_id: string | null;
   started_at: string;
   submitted_at: string | null;
+  question_snapshot?: any[] | null;
+  answers?: Record<string, unknown> | null;
 };
 type Detail = {
   application: Candidate;
@@ -168,6 +170,91 @@ function Detail({ label, value }: { label: string; value: any }) {
       <div style={{ ...muted, fontSize: 12, marginBottom: 5 }}>{label}</div>
       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{show(value)}</div>
     </div>
+  );
+}
+
+function AssessmentReview({ assessment }: { assessment: Assessment }) {
+  const questions = Array.isArray(assessment.question_snapshot) ? assessment.question_snapshot : [];
+  const answers = assessment.answers && typeof assessment.answers === 'object' ? assessment.answers : {};
+  const isRound1 = assessment.round === 1;
+  const scoreLabel = assessment.score === null || assessment.score === undefined
+    ? 'Not scored'
+    : `${assessment.score}/${assessment.total_questions || questions.length}`;
+  const percentLabel = assessment.percent === null || assessment.percent === undefined ? 'Not scored' : `${assessment.percent}%`;
+
+  return (
+    <article style={{ ...card, marginTop: 12 }}>
+      <div style={row}>
+        <div>
+          <strong>Round {assessment.round} assessment</strong>
+          <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>
+            {assessment.status} · {questions.length || assessment.total_questions || 0} questions · {assessment.role} · {assessment.pathway}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {badge(`Score: ${scoreLabel}`)}
+          {badge(`Percentage: ${percentLabel}`)}
+          {isRound1 && badge(`Pass mark: ${assessment.pass_percent ?? 'Not set'}%`)}
+        </div>
+      </div>
+
+      {!isRound1 && (
+        <div style={{ ...subcard, marginTop: 12, borderColor: '#f0d7a7', background: '#fffaf2' }}>
+          <strong>Round 2 is not automatically scored</strong>
+          <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>
+            The submitted answers are stored for recruiter review, but the current workflow does not calculate a Round 2 score. No score is being invented here.
+          </div>
+        </div>
+      )}
+
+      {questions.length === 0 ? <Empty text="No question snapshot was stored for this assessment." /> : (
+        <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          {questions.map((question: any, index: number) => {
+            const answerValue = answers[String(question.id)];
+            const answerIndex = isRound1 ? Number(answerValue) : null;
+            const validAnswerIndex = isRound1 && Number.isInteger(answerIndex) && Array.isArray(question.options) && answerIndex >= 0 && answerIndex < question.options.length;
+            const selectedAnswer = validAnswerIndex ? question.options[answerIndex as number] : isRound1 ? 'No recorded answer' : show(answerValue);
+            const correctAnswer = isRound1 && Array.isArray(question.options) && Number.isInteger(Number(question.correctIndex))
+              ? question.options[Number(question.correctIndex)]
+              : null;
+            const correct = isRound1 && validAnswerIndex && Number(answerIndex) === Number(question.correctIndex);
+
+            return (
+              <article key={question.id || index} style={{ ...subcard, background: '#fff' }}>
+                <div style={row}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: '#0f766e' }}>
+                    {index + 1}. {question.category || 'Assessment question'}
+                  </div>
+                  {isRound1 && badge(correct ? 'Correct' : 'Incorrect')}
+                </div>
+                <div style={{ marginTop: 7, fontWeight: 800 }}>{question.text}</div>
+
+                {isRound1 ? (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 7 }}>
+                    <div><span style={{ ...muted, fontSize: 12 }}>Candidate answer</span><div style={{ marginTop: 3 }}>{selectedAnswer}</div></div>
+                    <div><span style={{ ...muted, fontSize: 12 }}>Correct answer</span><div style={{ marginTop: 3 }}>{correctAnswer || 'Not available'}</div></div>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ ...muted, fontSize: 12 }}>Candidate answer</span>
+                    <div style={{ marginTop: 3, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{selectedAnswer}</div>
+                    {question.guidance && (
+                      <div style={{ marginTop: 8, ...muted, fontSize: 12 }}>
+                        Review guidance: {question.guidance}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ ...muted, fontSize: 12, marginTop: 12 }}>
+        Started {fmt(assessment.started_at)} · Submitted {fmt(assessment.submitted_at)}
+      </div>
+    </article>
   );
 }
 
@@ -643,6 +730,21 @@ export default function Candidate360Page() {
           <Detail label="Employment history" value={application.employment_history} />
           <Detail label="Employment gaps" value={application.employment_gaps} />
           <Detail label="Professional references" value={application.professional_references} />
+        </section>
+
+        <section style={{ ...card, marginTop: 16 }}>
+          <div style={row}>
+            <div>
+              <h2 style={{ margin: 0 }}>Assessment review</h2>
+              <div style={{ ...muted, marginTop: 5 }}>
+                Full question snapshots, candidate answers and recorded scoring for Round 1 and Round 2.
+              </div>
+            </div>
+            <span style={muted}>{data.assessments.length} assessment records</span>
+          </div>
+          {data.assessments.length === 0
+            ? <Empty text="No first-stage or second-stage assessment records exist for this candidate." />
+            : data.assessments.map((assessment) => <AssessmentReview key={assessment.id} assessment={assessment} />)}
         </section>
 
         <section style={{ ...card, marginTop: 16 }}>
