@@ -18,7 +18,7 @@ type DocumentRow = {
 type PageData = {
   application: { full_name: string; role_applied: string };
   pack: { id: string; status: string; expires_at: string };
-  contract: { status: string; accepted_at?: string | null; job_title?: string | null; version?: number | null } | null;
+  contract: { status: string; accepted_at?: string | null; job_title?: string | null; version?: number | null; contract_content?: string | null; accepted_by_name?: string | null } | null;
   readiness: Array<{ id: string; item_key: string; title: string; description: string; required: boolean; status: 'pending' | 'completed' | 'waived' }>;
   documents: DocumentRow[];
 };
@@ -34,6 +34,7 @@ export default function CandidateDocumentsPage({
   const [token, setToken] = useState('');
   const [data, setData] = useState<PageData | null>(null);
   const [selected, setSelected] = useState<DocumentRow | null>(null);
+  const [showAcceptedContract, setShowAcceptedContract] = useState(false);
   const [name, setName] = useState('');
   const [agree, setAgree] = useState(false);
   const [signatureData, setSignatureData] = useState('');
@@ -182,6 +183,24 @@ export default function CandidateDocumentsPage({
           </div>
         </div>
 
+        {data?.contract?.status === 'accepted' && data.contract.contract_content && (
+          <article className="card" style={{ padding: 18, marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', letterSpacing: '.08em' }}>EMPLOYMENT CONTRACT</div>
+                <h2 style={{ fontSize: 20, margin: '6px 0' }}>{data.contract.job_title || 'Employment Contract'}</h2>
+                <p style={{ color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                  Accepted electronically{data.contract.accepted_by_name ? ` by ${data.contract.accepted_by_name}` : ''}. This copy is read-only and does not request a second signature.
+                </p>
+              </div>
+              <span style={{ padding: '6px 9px', borderRadius: 999, background: '#e7f8ef', fontSize: 12, fontWeight: 900 }}>SIGNED</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+              <button type="button" onClick={() => setShowAcceptedContract(true)} style={buttonPrimary}>Open accepted contract</button>
+            </div>
+          </article>
+        )}
+
         <div style={{ display: 'grid', gap: 12, marginTop: 20 }}>
           {data?.documents.map((document) => (
             <article key={document.id} className="card" style={{ padding: 18 }}>
@@ -252,6 +271,36 @@ export default function CandidateDocumentsPage({
           </section>
         )}
       </section>
+
+      {showAcceptedContract && data?.contract?.contract_content && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={overlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setShowAcceptedContract(false);
+          }}
+        >
+          <section className="card" style={{ width: 'min(1040px, 100%)', maxHeight: '94vh', overflow: 'auto', padding: 18, background: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '4px 8px 8px' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', letterSpacing: '.08em' }}>ACCEPTED EMPLOYMENT CONTRACT</div>
+                <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 3 }}>Read-only copy · LAUREM Caregroup Ltd</div>
+              </div>
+              <button type="button" onClick={() => setShowAcceptedContract(false)} style={buttonSecondary}>Close</button>
+            </div>
+            <LauremContractDocument
+              content={data.contract.contract_content}
+              employeeName={data.application.full_name}
+              jobTitle={data.contract.job_title || data.application.role_applied}
+              status={data.contract.status}
+              version={data.contract.version}
+              acceptedByName={data.contract.accepted_by_name}
+              acceptedAt={data.contract.accepted_at}
+            />
+          </section>
+        </div>
+      )}
 
       {selected && (
         <div
