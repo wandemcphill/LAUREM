@@ -44,7 +44,7 @@ async function loadPack(token: string) {
   const [{ data: application, error: applicationError }, { data: documents, error: documentsError }, { data: contract, error: contractError }] = await Promise.all([
     client.from('recruitment_applications').select('id,full_name,role_applied,living_in_uk').eq('id', pack.application_id).maybeSingle(),
     client.from('laurem_candidate_documents').select('id,document_type,title,content_text,signature_status,signature_name,signed_at,first_viewed_at,viewed_count').eq('pack_id', pack.id).order('document_type', { ascending: true }),
-    client.from('recruitment_contracts').select('status,accepted_at,job_title,version').eq('application_id', pack.application_id).order('version', { ascending: false }).limit(1).maybeSingle(),
+    client.from('recruitment_contracts').select('status,accepted_at,job_title,version,contract_content,accepted_by_name').eq('application_id', pack.application_id).order('version', { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (applicationError) throw applicationError;
   if (documentsError) throw documentsError;
