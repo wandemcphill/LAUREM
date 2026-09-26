@@ -280,6 +280,7 @@ export default function Candidate360Page() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [assessmentLink, setAssessmentLink] = useState('');
+  const [documentPackLink, setDocumentPackLink] = useState('');
   const [onboardingLink, setOnboardingLink] = useState('');
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const [interviewForm, setInterviewForm] = useState({ scheduledAt: '', durationMinutes: '60', location: 'Online', meetingLink: '', interviewer: '', candidateInstructions: '' });
@@ -409,6 +410,35 @@ export default function Candidate360Page() {
       router.refresh();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete application.');
+      setBusy(false);
+    }
+  }
+
+  async function reissueEmploymentDocuments() {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setDocumentPackLink('');
+    try {
+      const response = await fetch('/api/admin/document-packs/reissue', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ applicationId: id }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to reissue employment documents.');
+      setDocumentPackLink(body.documentPackUrl || '');
+      setNotice(
+        body.email?.status === 'sent'
+          ? 'Employment document pack reissued and emailed to the candidate.'
+          : body.email?.status === 'not_configured'
+            ? 'Employment document pack reissued. Email delivery is not configured, so use the secure link below.'
+            : 'Employment document pack reissued, but email delivery needs attention.',
+      );
+      await load();
+    } catch (reissueError) {
+      setError(reissueError instanceof Error ? reissueError.message : 'Unable to reissue employment documents.');
+    } finally {
       setBusy(false);
     }
   }
@@ -554,6 +584,19 @@ export default function Candidate360Page() {
               <button type="button" onClick={() => void navigator.clipboard.writeText(assessmentLink)} style={primary}>Copy private link</button>
             </div>
             <div style={{ marginTop: 12, wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 }}>{assessmentLink}</div>
+          </section>
+        )}
+
+        {documentPackLink && (
+          <section style={{ ...card, marginTop: 16, borderColor: '#b7ded2', background: '#f3faf7' }}>
+            <div style={row}>
+              <div>
+                <h2 style={{ margin: 0 }}>Reissued employment document pack</h2>
+                <div style={{ ...muted, marginTop: 5 }}>Secure 14-day link for the current Job Description and Handbook. The previously accepted contract remains unchanged.</div>
+              </div>
+              <button type="button" onClick={() => void navigator.clipboard.writeText(documentPackLink)} style={primary}>Copy secure link</button>
+            </div>
+            <div style={{ marginTop: 12, wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 }}>{documentPackLink}</div>
           </section>
         )}
 
@@ -785,7 +828,13 @@ export default function Candidate360Page() {
         )}
 
         <section style={{ ...card, marginTop: 16 }}>
-          <h2 style={{ marginTop: 0 }}>Documents & evidence</h2>
+          <div style={row}>
+            <div>
+              <h2 style={{ margin: 0 }}>Documents & evidence</h2>
+              <div style={{ ...muted, marginTop: 5 }}>The accepted contract remains the contract record. The current Job Description and Handbook can be reissued as a fresh signable document pack.</div>
+            </div>
+            <button disabled={busy} onClick={() => void reissueEmploymentDocuments()} style={primary}>Reissue Job Description & Handbook</button>
+          </div>
           {data.documents.length === 0 ? <Empty text="No uploaded documents yet." /> : (
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
               {data.documents.map((document: any) => (
