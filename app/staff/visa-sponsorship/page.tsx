@@ -116,7 +116,7 @@ export default function StaffVisaSponsorshipPage() {
           <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
         </div>
         <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':'Request £2,000 Invoice'}</button>
-      </section> : <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
+      </section> : <><section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
           <div>
             <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>CERTIFICATE OF SPONSORSHIP</div>
