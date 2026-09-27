@@ -13,7 +13,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     const pricing = readFileSync('supabase/migrations/20260927190000_uk_switch_split_invoice.sql', 'utf8');
     expect(pricing).toContain('v_invoice_amount_pence := 50000');
     expect(pricing).toContain('v_invoice_amount_pence := 200000');
-    expect(pricing).toContain('weekly_deduction_count', 13);
+    expect(pricing).toContain("'weekly_deduction_count', 13");
   });
 
   it('keeps visa sponsorship records private to the service layer', () => {
