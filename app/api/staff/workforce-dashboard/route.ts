@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
     const visaPathway = roleValue.includes('healthcare assistant') ? 'visa_switch' : (roleValue.includes('registered nurse') || roleValue === 'nurse' || roleValue.includes(' nurse')) ? 'international_sponsorship' : null;
     const cosStatus = !visaCase
       ? { key: 'not_requested', label: 'COS not requested', canDownload: false, documentId: null }
-      : ['preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
+      : ['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
         ? { key: 'processing', label: 'Processing COS', canDownload: false, documentId: null }
         : ['cos_assigned', 'completed'].includes(String(visaCase.status)) && visaDocuments.length > 0
           ? { key: 'active', label: 'Active', canDownload: true, documentId: visaDocuments[0].id }
