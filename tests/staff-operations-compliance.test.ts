@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { getEnhancedDbsFeePence, getPvgOfficialFeePence } from '../lib/laurem-staff-operations';
+import { calculateThreeYearContractEndDate } from '../lib/laurem-contract-dates';
 
 const source=(path:string)=>readFileSync(path,'utf8');
 
@@ -21,6 +22,28 @@ describe('LAUREM staff operations and compliance',()=>{
     expect(getPvgOfficialFeePence(new Date('2026-09-27T00:00:00Z'))).toBe(0);
     expect(getPvgOfficialFeePence(new Date('2027-08-01T00:00:00Z'))).toBe(5900);
     expect(source('supabase/migrations/20260927203000_staff_operations_rota_training_compliance.sql')).toContain('v_amount:=0');
+  });
+  it('stores a single selectable training city and separate service coverage regions',()=>{
+    const api=source('app/api/staff/rota/route.ts');
+    const page=source('app/staff/availability/page.tsx');
+    const migration=source('supabase/migrations/20260927210000_training_location_preferences.sql');
+    for(const value of ['Birmingham','London','Glasgow','Manchester']) expect(api+page+source('lib/laurem-staff-operations.ts')).toContain(value);
+    for(const value of ['London','West Midlands','Manchester','Glasgow']) expect(page).toContain(value);
+    expect(api).toContain('preferred_training_location');
+    expect(migration).toContain('laurem_staff_rota_requests_training_location_chk');
+    expect(page).toContain('Where would you like to cover shifts?');
+  });
+  it('calculates a calendar three-year sponsored contract end date',()=>{
+    expect(calculateThreeYearContractEndDate('2026-09-27')).toBe('2029-09-27');
+    expect(calculateThreeYearContractEndDate('2024-02-29')).toBe('2027-02-28');
+    const api=source('app/api/admin/contracts/route.ts');
+    expect(api).toContain('calculateThreeYearContractEndDate');
+    expect(source('lib/laurem-contract.ts')).toContain('three-year');
+    expect(source('lib/laurem-international-nurse-contract.ts')).toContain('three calendar years');
+  });
+  it('shows the planned three-year sponsorship term in the staff visa workspace',()=>{
+    expect(source('app/api/staff/visa-sponsorship/route.ts')).toContain('sponsorshipTermEndDate');
+    expect(source('app/staff/visa-sponsorship/page.tsx')).toContain('Planned LAUREM sponsorship term');
   });
   it('keeps DBS/PVG requests separate from visa sponsorship invoices',()=>{
     expect(source('app/api/staff/compliance/route.ts')).toContain("laurem_request_staff_compliance");
