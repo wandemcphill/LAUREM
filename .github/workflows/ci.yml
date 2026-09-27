@@ -1,6 +1,6 @@
 name: CI
 
-# Keep the release gate explicit for every production merge.
+# Keep the release gate explicit for every production merge and current workflow revision.
 
 on:
   push:
