@@ -6,14 +6,14 @@ import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 
 async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   const { data: staff, error: staffError } = await client.from('staff_profiles')
-    .select('id,application_id,full_name,email,job_title,employment_status,start_date,nmc_number')
+    .select('id,application_id,full_name,job_title,start_date')
     .eq('id', staffId)
     .maybeSingle();
   if (staffError) throw staffError;
   if (!staff) return null;
 
   const { data: application, error: appError } = await client.from('recruitment_applications')
-    .select('id,full_name,preferred_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,employment_type,start_date,qualifications,training,professional_experience,employment_history,living_in_uk,current_country,work_permission,requires_sponsorship,supporting_documents,application_data')
+    .select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship')
     .eq('id', staff.application_id)
     .maybeSingle();
   if (appError) throw appError;

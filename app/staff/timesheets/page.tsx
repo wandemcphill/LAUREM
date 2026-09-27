@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 export default function StaffTimesheetsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignmentId, setAssignmentId] = useState('');
   const [workDate, setWorkDate] = useState('');
   const [clockIn, setClockIn] = useState('');
   const [clockOut, setClockOut] = useState('');
@@ -17,8 +19,20 @@ export default function StaffTimesheetsPage() {
     const response = await fetch('/api/staff/timesheets', { cache: 'no-store' });
     if (response.status === 401) { router.replace('/staff/login'); return; }
     const data = await response.json().catch(() => ({}));
-    if (response.ok) setRows(data.timesheets || []);
-    else setError(data.error || 'Unable to load timesheets.');
+    if (response.ok) {
+      setRows(data.timesheets || []);
+      const shiftResponse = await fetch('/api/staff/shifts', { cache: 'no-store' });
+      if (shiftResponse.status === 401) { router.replace('/staff/login'); return; }
+      const shiftData = await shiftResponse.json().catch(() => ({}));
+      if (!shiftResponse.ok) {
+        setError(shiftData.error || 'Unable to load your assignments.');
+        return;
+      }
+      const merged = [...(shiftData.shifts || []), ...(shiftData.history || [])];
+      const unique = merged.filter((item: any, index: number, list: any[]) => index === list.findIndex((other) => other.id === item.id));
+      setAssignments(unique);
+      if (!assignmentId && unique.length) setAssignmentId(unique[0].id);
+    } else setError(data.error || 'Unable to load timesheets.');
   }
 
   useEffect(() => { void load(); }, [router]);
@@ -28,11 +42,11 @@ export default function StaffTimesheetsPage() {
     setBusy(true); setError('');
     const response = await fetch('/api/staff/timesheets', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ workDate, clockIn, clockOut, breakMinutes: Number(breakMinutes), notes }),
+      body: JSON.stringify({ assignmentId, workDate, clockIn, clockOut, breakMinutes: Number(breakMinutes), notes }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { setError(data.error || 'Unable to submit timesheet.'); setBusy(false); return; }
-    setWorkDate(''); setClockIn(''); setClockOut(''); setBreakMinutes('0'); setNotes('');
+    setClockIn(''); setClockOut(''); setBreakMinutes('0'); setNotes('');
     await load(); setBusy(false);
   }
 
@@ -40,8 +54,14 @@ export default function StaffTimesheetsPage() {
     <div style={{ maxWidth: 1050, margin: '0 auto' }}>
       <button onClick={() => router.push('/staff')} style={{ border: 0, background: 'transparent', padding: 0, color: '#0f766e', fontWeight: 800 }}>← Staff Portal</button>
       <h1>Timesheets</h1>
-      <p style={{ color: '#627d98' }}>Submit worked hours for payroll review.</p>
+      <p style={{ color: '#627d98' }}>Submit worked hours for payroll review. Every timesheet must be linked to a scheduled LAUREM assignment.</p>
       <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #e5eaf0', borderRadius: 14, padding: 18, marginBottom: 18, display: 'grid', gap: 10 }}>
+        <label>Assignment
+          <select required value={assignmentId} onChange={(e) => setAssignmentId(e.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5 }}>
+            <option value="" disabled>Select a LAUREM assignment</option>
+            {assignments.map((assignment: any) => <option key={assignment.id} value={assignment.id}>{assignment.client_name || 'LAUREM Assignment'} · {new Date(assignment.scheduled_start).toLocaleString('en-GB')}</option>)}
+          </select>
+        </label>
         <label>Work date<input type="date" required value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5 }} /></label>
         <label>Clock in<input type="datetime-local" required value={clockIn} onChange={(e) => setClockIn(e.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5 }} /></label>
         <label>Clock out<input type="datetime-local" required value={clockOut} onChange={(e) => setClockOut(e.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: 10, marginTop: 5 }} /></label>

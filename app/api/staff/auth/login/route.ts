@@ -18,6 +18,16 @@ export async function POST(req: NextRequest) {
   if (limiterError) return NextResponse.json({ error: 'Unable to process sign-in.' }, { status: 503 });
   if (!limiter?.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 900) } });
 
+  const accountBucket = `staff-login-account:${id}`;
+  const { data: accountLimiter, error: accountLimiterError } = await client.rpc('laurem_consume_staff_auth_attempt', {
+    p_bucket_key: accountBucket,
+    p_max_attempts: 20,
+    p_window_seconds: 900,
+    p_lock_seconds: 900,
+  });
+  if (accountLimiterError) return NextResponse.json({ error: 'Unable to process sign-in.' }, { status: 503 });
+  if (!accountLimiter?.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(accountLimiter.retry_after || 900) } });
+
   const { data: staff } = await client.from('staff_profiles')
     .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,activated_at,session_version')
     .or(`laurem_id.eq.${id},employee_number.eq.${id}`).maybeSingle();

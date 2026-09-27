@@ -95,17 +95,19 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Leave request id is required.' }, { status: 400 });
 
   const { data: current, error: readError } = await db().from('staff_leave_requests')
-    .select('id,status,staff_id').eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
+    .select('id,status,staff_id,start_date,end_date').eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load leave request.' }, { status: 500 });
   if (!current) return NextResponse.json({ error: 'Leave request not found.' }, { status: 404 });
   if (!['pending', 'approved'].includes(current.status)) return NextResponse.json({ error: 'This leave request can no longer be cancelled.' }, { status: 409 });
 
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+  if (current.status === 'approved' && current.start_date <= today) {
+    return NextResponse.json({ error: 'Approved leave that has started or is due today cannot be cancelled from the Staff Portal. Please contact LAUREM HR.' }, { status: 409 });
+  }
+
   const now = new Date().toISOString();
   const { data, error } = await db().from('staff_leave_requests').update({
     status: 'cancelled',
-    reviewed_by: session.staff_id,
-    reviewed_at: now,
-    review_note: 'Cancelled by staff member.',
     updated_at: now,
   }).eq('id', id).eq('staff_id', session.staff_id).select('*').single();
   if (error || !data) {

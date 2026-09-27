@@ -49,23 +49,26 @@ export async function POST(req: NextRequest) {
   const totalHours = hoursBetween(clockIn, clockOut, breakMinutes);
   if (totalHours === null) return NextResponse.json({ error: 'Clock-out must be later than clock-in.' }, { status: 400 });
 
-  const assignmentId = typeof input.assignmentId === 'string' ? input.assignmentId : null;
-  const client = db();
-  if (assignmentId) {
-    const { data: assignment } = await client.from('staff_assignments')
-      .select('id,staff_id,scheduled_start,scheduled_end,status')
-      .eq('id', assignmentId)
-      .eq('staff_id', session.staff_id)
-      .maybeSingle();
-    if (!assignment) return NextResponse.json({ error: 'Assignment not found.' }, { status: 404 });
-    const validation = validateAssignedTimesheet(assignment, {
-      assignmentId,
-      workDate,
-      clockIn,
-      clockOut,
-    });
-    if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
+  const assignmentId = typeof input.assignmentId === 'string' ? input.assignmentId.trim() : '';
+  if (!assignmentId) {
+    return NextResponse.json({ error: 'A valid LAUREM assignment is required for every staff timesheet.' }, { status: 400 });
   }
+
+  const client = db();
+  const { data: assignment } = await client.from('staff_assignments')
+    .select('id,staff_id,scheduled_start,scheduled_end,status')
+    .eq('id', assignmentId)
+    .eq('staff_id', session.staff_id)
+    .maybeSingle();
+  if (!assignment) return NextResponse.json({ error: 'Assignment not found.' }, { status: 404 });
+
+  const validation = validateAssignedTimesheet(assignment, {
+    assignmentId,
+    workDate,
+    clockIn,
+    clockOut,
+  });
+  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 409 });
   const { data: created, error } = await client.from('staff_timesheets').insert({
     staff_id: session.staff_id,
     assignment_id: assignmentId,
@@ -110,8 +113,14 @@ export async function PATCH(req: NextRequest) {
   const nextClockOut = body?.clockOut === undefined ? current.clock_out : String(body.clockOut);
   const nextBreak = body?.breakMinutes === undefined ? Number(current.break_minutes) : Number(body.breakMinutes);
   const notes = body?.notes === undefined ? current.notes : (typeof body.notes === 'string' ? body.notes.trim() || null : null);
-  const nextAssignment = body?.assignmentId === undefined ? current.assignment_id : (typeof body.assignmentId === 'string' ? body.assignmentId : null);
+  const nextAssignment = body?.assignmentId === undefined
+    ? current.assignment_id
+    : (typeof body.assignmentId === 'string' ? body.assignmentId.trim() : null);
   const resubmit = body?.submit === true;
+
+  if (!nextAssignment) {
+    return NextResponse.json({ error: 'A valid LAUREM assignment is required for every staff timesheet.' }, { status: 409 });
+  }
 
   if (!isDateOnly(nextWorkDate) || !validTimestamp(nextClockIn) || !validTimestamp(nextClockOut) || !Number.isInteger(nextBreak) || nextBreak < 0 || nextBreak > 480) {
     return NextResponse.json({ error: 'Work date, timestamps and break duration are invalid.' }, { status: 400 });
@@ -123,7 +132,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Submitted or approved assigned timesheets cannot be detached from their assignment.' }, { status: 409 });
   }
 
-  if (nextAssignment) {
+  {
     const { data: assignment } = await db().from('staff_assignments')
       .select('id,staff_id,scheduled_start,scheduled_end,status')
       .eq('id', nextAssignment)

@@ -9,6 +9,9 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-request-id', requestId);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
+  if (request.nextUrl.pathname.startsWith('/api/staff/')) {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  }
   return response;
 }
 
