@@ -1,5 +1,7 @@
 name: CI
 
+# Keep the release gate explicit for every production merge.
+
 on:
   push:
     branches: [main]
