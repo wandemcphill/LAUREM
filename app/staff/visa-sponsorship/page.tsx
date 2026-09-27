@@ -116,8 +116,7 @@ export default function StaffVisaSponsorshipPage() {
           <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
         </div>
         <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':'Request £2,000 Invoice'}</button>
-      </section> :
-      <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
+      </section> : <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
           <div>
             <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>CERTIFICATE OF SPONSORSHIP</div>
@@ -134,7 +133,7 @@ export default function StaffVisaSponsorshipPage() {
           {data.cosStatus.canDownload && data.visaDocuments[0] && <a href={\`/api/staff/documents/\${encodeURIComponent(data.visaDocuments[0].id)}/download\`} download style={{...button(true),background:'#0f766e'}}>Download COS</a>}
           <button onClick={()=>router.push('/staff/messages')} style={button()}>Message Admin / HR</button>
         </div>
-      </section>><section style={{...card,marginTop:14}}>
+      </section><section style={{...card,marginTop:14}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>CASE</div><h2 style={{margin:'5px 0'}}>{visaPathwayLabel(c.pathway)}</h2><div style={muted}>Status: <strong style={{color:'#102a43'}}>{c.status.replaceAll('_',' ')}</strong> · Requested {fmt(c.requested_at)}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:'#edf2f7',fontSize:12,fontWeight:900}}>{c.pathway}</span></div><p style={{...muted,lineHeight:1.55}}>{c.pathway_basis}</p></section>
 
       <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:14,marginTop:14}}>
