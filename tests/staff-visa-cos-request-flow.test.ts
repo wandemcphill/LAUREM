@@ -30,9 +30,11 @@ describe('LAUREM staff visa / COS request flow', () => {
 
   it('restricts the staff request CTA to Healthcare Assistants and Registered Nurses', () => {
     const api = source('app/api/staff/visa-sponsorship/route.ts');
-    expect(api).toContain("if (value.includes('healthcare assistant')) return 'visa_switch';");
-    expect(api).toContain("return 'international_sponsorship';");
-    expect(api).toContain('Visa support requests are currently available for Healthcare Assistants and Registered Nurses.');
+    const helper = source('lib/laurem-visa-payment-plan.ts');
+    expect(api).toContain("if (isInternationalNurseRole(role)) return 'international_sponsorship';");
+    expect(api).toContain("if (isApplicationInUk(application) && isUkSwitchSplitRole(role)) return 'visa_switch';");
+    expect(helper).toContain("value.includes('healthcare assistant') || value.includes('support worker')");
+    expect(api).toContain('Visa support requests are currently available for UK visa switches for Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, and for International Nurses.');
   });
 
   it('uses the requested COS state language while keeping existing lifecycle storage states', () => {
@@ -44,6 +46,7 @@ describe('LAUREM staff visa / COS request flow', () => {
     expect(staffApi).toContain("label: 'Processing COS'");
     expect(staffApi).toContain("label: 'Active'");
     expect(readiness).toContain("!['preparing_sms', 'submitted_to_sms'].includes(input.targetStatus)");
+    expect(staffApi).toContain("['preparing_sms', 'submitted_to_sms', 'cos_pending']");
   });
 
   it('lets Admin move a requested case to Processing COS and upload the CoS into the same private staff record', () => {
