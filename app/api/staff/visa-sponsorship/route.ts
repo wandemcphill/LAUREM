@@ -22,7 +22,7 @@ function roleBasedPathway(role: string | null | undefined): LauremVisaPathway | 
 function cosStatus(caseRow: any, visaDocuments: any[]) {
   if (!caseRow) return { key: 'not_requested', label: 'COS not requested', canDownload: false };
   if (['declined', 'withdrawn'].includes(caseRow.status)) return { key: 'closed', label: caseRow.status === 'declined' ? 'Declined' : 'Withdrawn', canDownload: false };
-  if (['preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(caseRow.status)) return { key: 'processing', label: 'Processing COS', canDownload: false };
+  if (['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(caseRow.status)) return { key: 'processing', label: 'Processing COS', canDownload: false };
   if (['cos_assigned', 'completed'].includes(caseRow.status) && visaDocuments.length > 0) return { key: 'active', label: 'Active', canDownload: true };
   return { key: 'invoice_requested', label: 'Invoice requested', canDownload: false };
 }
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     if (pathway && pathway !== rolePathway) return NextResponse.json({ error: 'The available visa support route for your staff role does not match this request.' }, { status: 409 });
 
     const requestedPathway = pathway || rolePathway;
-    const { data, error } = await client.rpc('laurem_request_staff_visa_sponsorship', {
+    const { data, error } = await db().rpc('laurem_request_staff_visa_sponsorship', {
       p_staff_id: session.staff_id,
       p_requested_pathway: requestedPathway,
     });
