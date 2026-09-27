@@ -14,7 +14,7 @@ const input:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:10,
 function fmt(value:any){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});}
 function cosUserStatus(status:string, hasDocument:boolean) {
   if (['cos_assigned','completed'].includes(status) && hasDocument) return 'Active';
-  if (['preparing_sms','submitted_to_sms','cos_pending'].includes(status)) return 'Processing COS';
+  if (['awaiting_payment','preparing_sms','submitted_to_sms','cos_pending'].includes(status)) return 'Processing COS';
   return 'Invoice requested';
 }
 function badge(value:string){return <span style={{padding:'6px 9px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>{String(value||'Not set').replaceAll('_',' ')}</span>;}
@@ -44,7 +44,7 @@ export default function AdminVisaSponsorshipPage(){
    <label style={{fontSize:12,fontWeight:800}}>SMS reference<input value={smsReference} onChange={e=>setSmsReference(e.target.value)} style={input}/></label>
    <label style={{fontSize:12,fontWeight:800}}>CoS number<input value={cosNumber} onChange={e=>setCosNumber(e.target.value)} style={input}/></label>
   </div><label style={{display:'block',fontSize:12,fontWeight:800,marginTop:12}}>Admin notes<textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4} style={{...input,resize:'vertical',marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch()} style={{...button(true),marginTop:12}}>{busy?'Saving…':'Save case'}</button>
-   {c.status !== 'preparing_sms' && c.status !== 'submitted_to_sms' && c.status !== 'cos_pending' && c.status !== 'cos_assigned' && c.status !== 'completed' && <button disabled={busy} onClick={()=>void patch({status:'preparing_sms'})} style={{...button(true),marginTop:10,background:'#0f766e'}}>Mark Processing COS</button>}
+   {c.status !== 'preparing_sms' && c.status !== 'submitted_to_sms' && c.status !== 'cos_pending' && c.status !== 'cos_assigned' && c.status !== 'completed' && <button disabled={busy} onClick={()=>void patch({status:'awaiting_payment'})} style={{...button(true),marginTop:10,background:'#0f766e'}}>Mark Processing COS</button>}
 </section>
   <section className='card' style={{padding:20,marginTop:16}}>
    <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
