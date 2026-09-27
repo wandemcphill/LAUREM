@@ -445,7 +445,7 @@ export default function WorkforcePage() {
           {visaRequests.map((request) => {
             const userStatus = request.cosDocument && ['cos_assigned','completed'].includes(request.status)
               ? 'Active'
-              : ['awaiting_payment','preparing_sms','submitted_to_sms','cos_pending'].includes(request.status)
+              : ['preparing_sms','submitted_to_sms','cos_pending'].includes(request.status)
                 ? 'Processing COS'
                 : 'Invoice requested';
             return <article className='card' key={request.id} style={{padding:16,display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap',alignItems:'center'}}>
