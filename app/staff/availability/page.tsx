@@ -3,7 +3,8 @@
 import { FormEvent,useEffect,useState } from 'react';
 import { useRouter } from 'next/navigation';
 type Rota={id:string;effective_from:string;stable_shift_preference:boolean;regions:string[];shift_preferences:string[];care_settings:string[];preferred_training_location:string|null;driver_available:boolean;notes:string|null;status:string;review_note:string|null};
-const regions=['London','West Midlands','Manchester','Glasgow'];\nconst trainingLocations=['Birmingham','London','Glasgow','Manchester'] as const;
+const regions=['London','West Midlands','Manchester','Glasgow'];
+const trainingLocations=['Birmingham','London','Glasgow','Manchester'] as const;
 const shifts=[['day','Day shifts'],['night','Night shifts'],['either','Day or night']] as const;
 const settings=[['care_home','Care home'],['supported_living','Supported living / 1-to-1'],['live_in_care','Live-in care'],['shared_lives','Shared Lives / adult placement'],['home_care','Domiciliary / home care'],['community_care_calls','Community care calls / double-up']] as const;
 const card:React.CSSProperties={background:'#fff',border:'1px solid #e5eaf0',borderRadius:16,padding:20};
