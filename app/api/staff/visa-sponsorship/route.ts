@@ -5,6 +5,7 @@ import { determineLauremVisaPathway, visaPathwayLabel, type LauremVisaPathway } 
 import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
+import { buildUkSwitchPaymentPlan, getVisaPaymentPlan, isInternationalNurseRole, isUkSwitchSplitRole, type LauremVisaPaymentPlanKind } from '@/lib/laurem-visa-payment-plan';
 
 
 
@@ -12,11 +13,25 @@ function escHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function roleBasedPathway(role: string | null | undefined): LauremVisaPathway | null {
-  const value = (role || '').trim().toLowerCase();
-  if (value.includes('healthcare assistant')) return 'visa_switch';
-  if (value.includes('registered nurse') || value === 'nurse' || value.includes(' nurse')) return 'international_sponsorship';
+function isApplicationInUk(application: Record<string, unknown> | null | undefined) {
+  return lowerString(application?.living_in_uk) === 'yes'
+    || lowerString(application?.living_in_uk) === 'true'
+    || lowerString(application?.living_in_uk) === 'currently in the uk'
+    || /(united kingdom|^uk$|england|scotland|wales|northern ireland)/i.test(String(application?.current_country || application?.country_of_residence || ''));
+}
+
+function lowerString(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function roleBasedPathway(role: string | null | undefined, application: Record<string, unknown> | null | undefined): LauremVisaPathway | null {
+  if (isInternationalNurseRole(role)) return 'international_sponsorship';
+  if (isApplicationInUk(application) && isUkSwitchSplitRole(role)) return 'visa_switch';
   return null;
+}
+
+function paymentPlanFor(role: string | null | undefined, pathway: string, application: Record<string, unknown> | null | undefined): LauremVisaPaymentPlanKind {
+  return getVisaPaymentPlan(role, pathway, isApplicationInUk(application));
 }
 
 function cosStatus(caseRow: any, visaDocuments: any[]) {
@@ -47,7 +62,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     currentCountry: application.current_country || application.country_of_residence,
   });
 
-  const rolePathway = roleBasedPathway(staff.job_title || application.role_applied);
+  const rolePathway = roleBasedPathway(staff.job_title || application.role_applied, application);
 
   const { data: visaCase, error: caseError } = await client.from('staff_visa_cases')
     .select('*')
@@ -108,15 +123,17 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     readiness,
     visaDocuments: visaDocuments || [],
     cosStatus: cosStatus(visaCase, visaDocuments || []),
+    paymentPlan: visaCase && invoice?.amount_pence === 50000 ? buildUkSwitchPaymentPlan() : null,
     request: {
       available: Boolean(rolePathway),
       pathway: rolePathway,
+      paymentPlanKind: rolePathway ? paymentPlanFor(rolePathway === 'visa_switch' ? staff.job_title || application.role_applied : staff.job_title || application.role_applied, rolePathway, application) : 'full_upfront',
       label: rolePathway === 'visa_switch' ? 'Apply for Visa Switch' : rolePathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
       explanation: rolePathway === 'visa_switch'
-        ? 'Request a LAUREM visa-switch support case and generate the required £2,000 service invoice.'
+        ? 'Request UK visa-switch support. The upfront invoice is £500 and is due immediately before LAUREM starts the visa sponsorship process. The remaining £1,500 is recovered through weekly salary deductions during the first three months after successful visa approval and commencement of employment.'
         : rolePathway === 'international_sponsorship'
-          ? 'Request a LAUREM international visa-sponsorship support case and generate the required £2,000 service invoice.'
-          : 'Visa support requests are currently available here for Healthcare Assistants and Registered Nurses.',
+          ? 'Request international visa sponsorship support. The existing £2,000 invoice arrangement remains unchanged.'
+          : 'Visa support requests are currently available here for eligible UK switch roles and Registered Nurses.',
     },
   };
 }
@@ -152,8 +169,13 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (staffError) throw staffError;
     if (!staff) return NextResponse.json({ error: 'Staff profile not found.' }, { status: 404 });
-    const rolePathway = roleBasedPathway(staff.job_title);
-    if (!rolePathway) return NextResponse.json({ error: 'Visa support requests are currently available for Healthcare Assistants and Registered Nurses.' }, { status: 409 });
+    const applicationResult = await client.from('recruitment_applications')
+      .select('id,role_applied,living_in_uk,current_country,country_of_residence')
+      .eq('id', staff.application_id)
+      .maybeSingle();
+    if (applicationResult.error) throw applicationResult.error;
+    const rolePathway = roleBasedPathway(staff.job_title || applicationResult.data?.role_applied, applicationResult.data);
+    if (!rolePathway) return NextResponse.json({ error: 'Visa support requests are currently available for UK visa switches for Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, and for International Nurses.' }, { status: 409 });
     if (pathway && pathway !== rolePathway) return NextResponse.json({ error: 'The available visa support route for your staff role does not match this request.' }, { status: 409 });
 
     const requestedPathway = pathway || rolePathway;
