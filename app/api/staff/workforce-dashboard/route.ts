@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(12),
       client.from('staff_visa_cases')
-        .select('id,pathway,status,requested_at,updated_at')
+        .select('id,pathway,status,requested_at,updated_at,job_title_at_request')
         .eq('staff_id', session.staff_id)
         .not('status', 'in', '(declined,withdrawn)')
         .order('requested_at', { ascending: false })
