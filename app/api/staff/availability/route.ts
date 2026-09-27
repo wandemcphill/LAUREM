@@ -35,7 +35,11 @@ export async function PATCH(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-  const effectiveFrom = parseDate(body?.effectiveFrom) || new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+  const effectiveFrom = parseDate(body?.effectiveFrom) || today;
+  if (effectiveFrom < today) {
+    return NextResponse.json({ error: 'Availability changes cannot be backdated. Choose today or a future effective date.' }, { status: 400 });
+  }
   const payload = {
     effective_from: effectiveFrom,
     full_time: bool(body?.fullTime),
