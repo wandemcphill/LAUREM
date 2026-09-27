@@ -4,6 +4,7 @@ import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { participantConversationIds } from '@/lib/laurem-messaging';
 import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
 import { buildWorkforceReadiness } from '@/lib/laurem-workforce-readiness';
+import { buildUkSwitchPaymentPlan, isInternationalNurseRole, isUkSwitchSplitRole } from '@/lib/laurem-visa-payment-plan';
 
 function countByStatus(rows: Array<{ status: string | null }>, status: string) {
   return rows.filter((row) => row.status === status).length;
@@ -221,10 +222,23 @@ export async function GET(request: NextRequest) {
     const profileCompleteness = Math.round(profileFields.filter(Boolean).length / profileFields.length * 100);
 
     const visaCase = visaCaseResult.data || null;
+    const visaApplication = visaCase
+      ? {
+          living_in_uk: staff.living_in_uk,
+          current_country: staff.current_country,
+          country_of_residence: staff.country_of_residence,
+        }
+      : null;
     const visaInvoice = visaInvoiceResult.data || null;
     const visaDocuments = (documentsResult.data || []).filter((document: any) => document.category === 'visa_sponsorship');
     const roleValue = String(staff.job_title || '').trim().toLowerCase();
-    const visaPathway = roleValue.includes('healthcare assistant') ? 'visa_switch' : (roleValue.includes('registered nurse') || roleValue === 'nurse' || roleValue.includes(' nurse')) ? 'international_sponsorship' : null;
+    const isUk = String(staff.living_in_uk || '').trim().toLowerCase() === 'yes'
+      || String(staff.living_in_uk || '').trim().toLowerCase() === 'true'
+      || String(staff.living_in_uk || '').trim().toLowerCase() === 'currently in the uk'
+      || /(united kingdom|^uk$|england|scotland|wales|northern ireland)/i.test(String(staff.current_country || staff.country_of_residence || ''));
+    const visaPathway = isInternationalNurseRole(staff.job_title) ? 'international_sponsorship'
+      : isUk && isUkSwitchSplitRole(staff.job_title) ? 'visa_switch'
+      : null;
     const cosStatus = !visaCase
       ? { key: 'not_requested', label: 'COS not requested', canDownload: false, documentId: null }
       : ['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
@@ -270,11 +284,12 @@ export async function GET(request: NextRequest) {
         pathway: visaPathway,
         label: visaCase ? 'View Visa & COS' : visaPathway === 'visa_switch' ? 'Apply for Visa Switch' : visaPathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
         explanation: visaPathway === 'visa_switch'
-          ? 'Generate the £2,000 LAUREM visa-switch support invoice and open your case.'
+          ? 'Request UK visa-switch support. The upfront payment is £500; the remaining £1,500 is recovered weekly from salary during the first three months after successful visa approval and commencement of employment.'
           : visaPathway === 'international_sponsorship'
             ? 'Generate the £2,000 LAUREM international sponsorship support invoice and open your case.'
             : 'Visa support requests are currently available for Healthcare Assistants and Registered Nurses.',
         cosStatus,
+        paymentPlan: visaInvoice?.amount_pence === 50000 ? buildUkSwitchPaymentPlan() : null,
         caseId: visaCase?.id || null,
         invoice: visaInvoice ? { invoiceNumber: visaInvoice.invoice_number, status: visaInvoice.status, amountPence: visaInvoice.amount_pence, issueDate: visaInvoice.issue_date } : null,
       },
