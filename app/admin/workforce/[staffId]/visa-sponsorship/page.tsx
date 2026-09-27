@@ -45,7 +45,7 @@ export default function AdminVisaSponsorshipPage(){
    <label style={{fontSize:12,fontWeight:800}}>SMS reference<input value={smsReference} onChange={e=>setSmsReference(e.target.value)} style={input}/></label>
    <label style={{fontSize:12,fontWeight:800}}>CoS number<input value={cosNumber} onChange={e=>setCosNumber(e.target.value)} style={input}/></label>
   </div><label style={{display:'block',fontSize:12,fontWeight:800,marginTop:12}}>Admin notes<textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4} style={{...input,resize:'vertical',marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch()} style={{...button(true),marginTop:12}}>{busy?'Saving…':'Save case'}</button>
-   {c.status !== 'preparing_sms' && c.status !== 'submitted_to_sms' && c.status !== 'cos_pending' && c.status !== 'cos_assigned' && c.status !== 'completed' && <button disabled={busy} onClick={()=>void patch({status:'awaiting_payment'})} style={{...button(true),marginTop:10,background:'#0f766e'}}>Mark Processing COS</button>}
+   {c.status !== 'preparing_sms' && c.status !== 'submitted_to_sms' && c.status !== 'cos_pending' && c.status !== 'cos_assigned' && c.status !== 'completed' && <><button disabled={busy || invoice?.status !== 'paid'} onClick={()=>void patch({status:'preparing_sms'})} style={{...button(true),marginTop:10,background:invoice?.status === 'paid' ? '#0f766e' : '#94a3b8'}}>Mark Processing COS</button>{invoice?.status !== 'paid' && <div style={{...muted,fontSize:12,marginTop:5}}>Available after the upfront invoice is marked paid.</div>}</>}
 </section>
   <section className='card' style={{padding:20,marginTop:16}}>
    <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
