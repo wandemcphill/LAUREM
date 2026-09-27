@@ -6,7 +6,7 @@ import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 
 async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   const { data: staff, error: staffError } = await client.from('staff_profiles')
-    .select('id,full_name,job_title,start_date')
+    .select('id,application_id,full_name,job_title,start_date')
     .eq('id', staffId)
     .maybeSingle();
   if (staffError) throw staffError;
