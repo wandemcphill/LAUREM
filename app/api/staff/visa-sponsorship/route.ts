@@ -6,6 +6,7 @@ import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { buildUkSwitchPaymentPlan, getVisaPaymentPlan, isInternationalNurseRole, isUkSwitchSplitRole, type LauremVisaPaymentPlanKind } from '@/lib/laurem-visa-payment-plan';
+import { calculateThreeYearContractEndDate, formatContractDate } from '@/lib/laurem-contract-dates';
 
 
 
@@ -110,6 +111,8 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     invoiceStatus: invoice?.status || null,
   }) : null;
 
+  const sponsorshipTermEndDate = calculateThreeYearContractEndDate(application.start_date);
+
   return {
     staff,
     application,
@@ -124,6 +127,8 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     visaDocuments: visaDocuments || [],
     cosStatus: cosStatus(visaCase, visaDocuments || []),
     paymentPlan: visaCase && invoice?.amount_pence === 50000 ? buildUkSwitchPaymentPlan() : null,
+    sponsorshipTermEndDate,
+    sponsorshipTermEndDateLabel: sponsorshipTermEndDate ? formatContractDate(sponsorshipTermEndDate) : null,
     request: {
       available: Boolean(rolePathway),
       pathway: rolePathway,
