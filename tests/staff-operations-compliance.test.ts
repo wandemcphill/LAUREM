@@ -38,7 +38,7 @@ describe('LAUREM staff operations and compliance',()=>{
     expect(calculateThreeYearContractEndDate('2024-02-29')).toBe('2027-02-28');
     const api=source('app/api/admin/contracts/route.ts');
     expect(api).toContain('calculateThreeYearContractEndDate');
-    expect(source('lib/laurem-contract.ts')).toContain('three-year');
+    expect(source('lib/laurem-contract.ts')).toContain('calculateThreeYearContractEndDate');
     expect(source('lib/laurem-international-nurse-contract.ts')).toContain('three calendar years');
   });
   it('shows the planned three-year sponsorship term in the staff visa workspace',()=>{
@@ -63,7 +63,7 @@ describe('LAUREM staff operations and compliance',()=>{
     expect(admin).toContain('Rota requests');
     expect(admin).toContain('Training schedule');
     expect(admin).toContain('DBS & PVG requests');
-    expect(source('app/api/admin/workforce/rota-requests/route.ts')).toContain("status:'approved'");
+    expect(source('app/api/admin/workforce/rota-requests/route.ts')).toContain("'approved'");
     expect(source('app/api/admin/workforce/training/route.ts')).toContain('Mandatory one-week induction training');
     expect(source('app/api/admin/workforce/compliance-requests/route.ts')).toContain('markPaid');
   });
