@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 import LauremContractDocument from '@/components/LauremContractDocument';
+import { calculateThreeYearContractEndDate } from '@/lib/laurem-contract-dates';
 
-type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; start_date?:string|null; address?:string|null };
-type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null} };
+type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; requires_sponsorship?:string|null; start_date?:string|null; address?:string|null };
+type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null;contract_end_date?:string|null;start_date?:string|null} };
 
 function eligible(app: Application | null) { return Boolean(app); }
 
@@ -17,6 +18,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ContractResult|null>(null);
   const [form, setForm] = useState({
+    contractEndDate: '',
     weeklyHours: String(contractConfig.defaultWeeklyHours), annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark), hourlyRate: '', postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark), preRegistrationSalary: '',
     visaRoute: contractConfig.defaultVisaRoute, sponsorshipOccupationCode: contractConfig.defaultOccupationCode, nmcStatus: 'Working towards full NMC registration',
     registrationDeadline: 'Within the period permitted by the applicable immigration rules and NMC process', probation: '6 months',
@@ -105,6 +107,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     )}
 
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Employment terms</h2><div style={grid}>
+       <Field label="Contract end date (three-year sponsored term)" value={form.contractEndDate} onChange={(v)=>setField('contractEndDate',v)} type="date" />
       <Field label="Weekly contracted hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
       <Field label="Annual salary (£, where applicable)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
       <Field label="Hourly rate (£, where applicable)" value={form.hourlyRate} onChange={(v)=>setField('hourlyRate',v)} type="number" />

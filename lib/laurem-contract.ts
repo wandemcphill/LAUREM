@@ -1,4 +1,5 @@
 import { lauremEmploymentContract } from '@/lib/laurem-contract-config';
+import { calculateThreeYearContractEndDate, formatContractDate } from '@/lib/laurem-contract-dates';
 
 export type ContractInput = {
   employeeName: string;
@@ -21,8 +22,9 @@ const value = (input: string | number | null | undefined, fallback = 'As stated 
 
 export function renderLauremContract(input: ContractInput): string {
   const locations = input.workLocations?.length ? input.workLocations.join(', ') : 'As assigned by Laurem Caregroup Ltd';
+  const calculatedEndDate = calculateThreeYearContractEndDate(input.startDate);
   const startDate = value(input.startDate, 'To be confirmed before issue');
-  const endDate = value(input.contractEndDate, 'Not fixed unless stated in the offer');
+  const endDate = value(input.contractEndDate || calculatedEndDate, calculatedEndDate ? formatContractDate(calculatedEndDate) : 'Not fixed unless stated in the offer');
   const hours = input.minimumWeeklyHours == null ? 'As stated in the offer' : `${input.minimumWeeklyHours} hours per week`;
   const rate = input.hourlyRate == null ? 'As stated in the approved rate card' : `£${input.hourlyRate.toFixed(2)} per hour`;
 

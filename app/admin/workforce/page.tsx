@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { LAUREM_TRAINING_LOCATIONS } from '@/lib/laurem-staff-operations';
 
 type Manager = { id: string; full_name: string; job_title: string };
 type ComplianceSnapshot = {
@@ -78,6 +79,13 @@ export default function WorkforcePage() {
   const [busy, setBusy] = useState(false);
   const [visaRequests, setVisaRequests] = useState<VisaRequest[]>([]);
   const [visaCounts, setVisaCounts] = useState({newRequests:0,processing:0,active:0});
+  const [rotaRequests, setRotaRequests] = useState<any[]>([]);
+  const [rotaCounts, setRotaCounts] = useState({requested:0,underReview:0,approved:0});
+  const [trainingAssignments, setTrainingAssignments] = useState<any[]>([]);
+  const [complianceRequests, setComplianceRequests] = useState<any[]>([]);
+  const [complianceCounts, setComplianceCounts] = useState({open:0,unpaid:0,paid:0});
+  const [trainingWeekStart, setTrainingWeekStart] = useState('');
+  const [trainingLocation, setTrainingLocation] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -86,6 +94,7 @@ export default function WorkforcePage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedStaff, setSelectedStaff] = useState('');
+  const [trainingStaffId, setTrainingStaffId] = useState('');
   const [clientName, setClientName] = useState('');
   const [location, setLocation] = useState('');
   const [scheduledStart, setScheduledStart] = useState(localInput(new Date()));
@@ -102,16 +111,19 @@ export default function WorkforcePage() {
       params.set('page', String(page));
       params.set('limit', '50');
 
-      const [s, a, t, l, r, v] = await Promise.all([
+      const [s, a, t, l, r, v, rr, tr, c] = await Promise.all([
         fetch(`/api/admin/workforce/staff?${params.toString()}`, { cache: 'no-store' }),
         fetch('/api/admin/workforce/assignments', { cache: 'no-store' }),
         fetch('/api/admin/workforce/timesheets', { cache: 'no-store' }),
         fetch('/api/admin/workforce/leave', { cache: 'no-store' }),
         fetch('/api/admin/workforce/readiness', { cache: 'no-store' }),
         fetch('/api/admin/workforce/visa-requests', { cache: 'no-store' }),
+        fetch('/api/admin/workforce/rota-requests', { cache: 'no-store' }),
+        fetch('/api/admin/workforce/training', { cache: 'no-store' }),
+        fetch('/api/admin/workforce/compliance-requests', { cache: 'no-store' }),
       ]);
 
-      const [sp, ap, tp, lp, rp, vp] = await Promise.all([s.json(), a.json(), t.json(), l.json(), r.json(), v.json()]);
+      const [sp, ap, tp, lp, rp, vp, rta, trp, cp] = await Promise.all([s.json(), a.json(), t.json(), l.json(), r.json(), v.json(), rr.json(), tr.json(), c.json()]);
 
       if (!s.ok || !a.ok || !t.ok || !l.ok) {
         throw new Error(sp.error || ap.error || tp.error || lp.error || 'Unable to load workforce data.');
@@ -125,6 +137,11 @@ export default function WorkforcePage() {
       setWorkforceReadiness(r.ok ? rp : null);
       setVisaRequests(v.ok ? (vp.requests || []) : []);
       setVisaCounts(v.ok ? (vp.counts || {newRequests:0,processing:0,active:0}) : {newRequests:0,processing:0,active:0});
+      setRotaRequests(rr.ok ? (rta.requests || []) : []);
+      setRotaCounts(rr.ok ? (rta.counts || {requested:0,underReview:0,approved:0}) : {requested:0,underReview:0,approved:0});
+      setTrainingAssignments(tr.ok ? (trp.assignments || []) : []);
+      setComplianceRequests(c.ok ? (cp.requests || []) : []);
+      setComplianceCounts(c.ok ? (cp.counts || {open:0,unpaid:0,paid:0}) : {open:0,unpaid:0,paid:0});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load workforce data.');
     }
@@ -207,6 +224,18 @@ export default function WorkforcePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function scheduleTraining(e: React.FormEvent) {
+    e.preventDefault();
+    if (!trainingStaffId || !trainingWeekStart || !trainingLocation) return;
+    setBusy(true); setError('');
+    try {
+      const r = await fetch('/api/admin/workforce/training', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({staffId:trainingStaffId,weekStart:trainingWeekStart,location:trainingLocation,status:'scheduled'}) });
+      const p = await r.json(); if (!r.ok) throw new Error(p.error || 'Unable to schedule training.');
+      setTrainingWeekStart(''); setTrainingLocation(''); await load(currentPage);
+    } catch(e) { setError(e instanceof Error ? e.message : 'Unable to schedule training.'); }
+    finally { setBusy(false); }
   }
 
   const pendingTimesheets = timesheets.filter((t) => t.status === 'submitted');
@@ -463,6 +492,41 @@ export default function WorkforcePage() {
           })}
           {!visaRequests.length && <div className='card' style={{padding:20,color:'var(--muted)'}}>No open visa support requests.</div>}
         </div>
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+          <div><h2 style={{marginBottom:4}}>Rota requests</h2><p style={{color:'var(--muted)',marginTop:0}}>Staff preferences for regions, shifts, care settings, stable placements and driving.</p></div>
+          <div style={{display:'flex',gap:7,flexWrap:'wrap'}}><span className="badge">Requested {rotaCounts.requested}</span><span className="badge">Under review {rotaCounts.underReview}</span><span className="badge">Approved {rotaCounts.approved}</span></div>
+        </div>
+        <div style={{display:'grid',gap:9,marginTop:12}}>
+          {rotaRequests.slice(0,30).map((r:any)=><article className="card" key={r.id} style={{padding:15}}>
+            <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><div><strong>{r.staff?.full_name || 'Staff'}</strong><div style={{color:'var(--muted)',fontSize:12}}>{r.staff?.job_title || ''} · Effective {r.effective_from}</div></div><span className="badge">{r.status.replaceAll('_',' ')}</span></div>
+            <div style={{color:'var(--muted)',fontSize:13,marginTop:7}}>Service regions: {r.regions?.join(', ')} · Training city: {r.preferred_training_location || 'Not selected'} · Shifts: {r.shift_preferences?.join(', ')} · Settings: {r.care_settings?.join(', ')}</div>
+            <div style={{color:'var(--muted)',fontSize:13,marginTop:4}}>Stable shift: {r.stable_shift_preference?'Yes':'No'} · Driver: {r.driver_available?'Available':'Not marked'}</div>
+            {r.notes && <div style={{color:'var(--muted)',fontSize:12,marginTop:5}}>{r.notes}</div>}
+            <div style={{display:'flex',gap:7,marginTop:9,flexWrap:'wrap'}}>{r.status==='requested' && <button disabled={busy} onClick={()=>void patch('/api/admin/workforce/rota-requests',r.id,{status:'under_review'})}>Review</button>}{['requested','under_review'].includes(r.status)&&<button disabled={busy} onClick={()=>void patch('/api/admin/workforce/rota-requests',r.id,{status:'approved',reviewNote:'Rota preference approved for workforce matching.'})}>Approve preference</button>}</div>
+          </article>)}
+          {!rotaRequests.length&&<div className="card" style={{padding:18,color:'var(--muted)'}}>No rota requests.</div>}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><h2 style={{marginBottom:4}}>Training schedule</h2><p style={{color:'var(--muted)',marginTop:0}}>Mandatory one-week training is scheduled here and appears in the staff portal. The selected staff member's preferred training city is preselected when available.</p></div></div>
+        <div className="card" style={{padding:16,marginTop:12}}>
+          <form onSubmit={scheduleTraining} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,alignItems:'end'}}>
+            <select value={trainingStaffId} onChange={e=>{const id=e.target.value;setTrainingStaffId(id);const pref=rotaRequests.find((x:any)=>x.staff_id===id)?.preferred_training_location;if(pref)setTrainingLocation(pref);}} required style={{padding:10,border:'1px solid var(--line)',borderRadius:8}}><option value="">Select active staff</option>{activeStaff.map((s)=><option key={s.id} value={s.id}>{s.full_name} · {s.job_title}</option>)}</select>
+            <label style={{fontSize:12,color:'var(--muted)'}}>Training week starts<input type="date" value={trainingWeekStart} onChange={e=>setTrainingWeekStart(e.target.value)} required style={{width:'100%',marginTop:4,padding:9,border:'1px solid var(--line)',borderRadius:8}}/></label>
+            <label style={{fontSize:12,color:'var(--muted)'}}>Training location<select value={trainingLocation} onChange={e=>setTrainingLocation(e.target.value)} required style={{width:'100%',marginTop:4,padding:9,border:'1px solid var(--line)',borderRadius:8}}><option value="">Select city</option>{LAUREM_TRAINING_LOCATIONS.map((x)=><option key={x} value={x}>{x}</option>)}</select></label>
+            <button disabled={busy} style={{padding:10,background:'var(--ink)',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Schedule one-week training</button>
+          </form>
+        </div>
+        <div style={{display:'grid',gap:8,marginTop:10}}>{trainingAssignments.slice(-30).reverse().map((r:any)=><article className="card" key={r.id} style={{padding:14,display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><div><strong>{r.staff?.full_name||'Staff'}</strong><div style={{color:'var(--muted)',fontSize:12}}>{r.week_start||'Due date not set'} to {r.week_end||'not scheduled'} · {r.location||'Location not set'}</div></div><div style={{display:'flex',gap:7,alignItems:'center'}}><span className="badge">{r.status.replaceAll('_',' ')}</span>{!['completed','cancelled','waived'].includes(r.status)&&<button disabled={busy} onClick={()=>void patch('/api/admin/workforce/training',r.id,{status:'completed'})}>Mark complete</button>}</div></article>)}</div>
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><h2 style={{marginBottom:4}}>DBS & PVG requests</h2><p style={{color:'var(--muted)',marginTop:0}}>Disclosure requests and invoices raised through the staff portal. Amounts shown are official disclosure fees only.</p></div><div style={{display:'flex',gap:7,flexWrap:'wrap'}}><span className="badge">Open {complianceCounts.open}</span><span className="badge">Unpaid {complianceCounts.unpaid}</span><span className="badge">Paid {complianceCounts.paid}</span></div></div>
+        <div style={{display:'grid',gap:9,marginTop:12}}>{complianceRequests.slice(0,30).map((r:any)=><article className="card" key={r.id} style={{padding:14,display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',alignItems:'center'}}><div><strong>{r.staff?.full_name||'Staff'} · {String(r.compliance_type).toUpperCase()}</strong><div style={{color:'var(--muted)',fontSize:12}}>{r.invoice_number} · £{(Number(r.amount_pence||0)/100).toFixed(2)} · {r.status}</div><div style={{color:'var(--muted)',fontSize:12,marginTop:3}}>{r.details?.official_fee_note||''}</div></div><div>{['requested','invoice_issued'].includes(r.status)&&<button disabled={busy} onClick={()=>void patch('/api/admin/workforce/compliance-requests',r.id,{markPaid:true,paymentReference:'',paymentMethod:'admin-recorded'})}>Mark paid</button>}{r.status==='paid'&&<button disabled={busy} onClick={()=>void patch('/api/admin/workforce/compliance-requests',r.id,{status:'submitted'})}>Mark submitted</button>}</div></article>)}{!complianceRequests.length&&<div className="card" style={{padding:18,color:'var(--muted)'}}>No open DBS/PVG requests.</div>}</div>
       </section>
 
       <section style={{ marginTop: 32 }}>

@@ -150,7 +150,7 @@ export default function StaffPortalHome() {
           <div>
             <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>IMMIGRATION & COS</div>
             <h2 style={{margin:'6px 0 5px'}}>Certificate of Sponsorship</h2>
-            <div style={muted}>Your COS status is kept visible here. Requesting visa support generates the £2,000 LAUREM service invoice.</div>
+            <div style={muted}>Your COS status is kept visible here. Eligible UK visa switches use the £500 upfront plan; International Nurse sponsorship keeps the existing £2,000 arrangement.</div>
           </div>
           <span style={{padding:'8px 11px',borderRadius:999,background:bodyVisaStatusColor==='active'?'#e8f7ee':bodyVisaStatusColor==='processing'?'#fff4e5':'#edf2f7',color:bodyVisaStatusColor==='active'?'#166534':bodyVisaStatusColor==='processing'?'#9a3412':'#102a43',fontSize:12,fontWeight:900}}>{bodyVisaStatusLabel}</span>
         </div>
@@ -174,6 +174,22 @@ export default function StaffPortalHome() {
       <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/><Metric label="Open payroll" value={metrics.openPayroll}/>
     </section>
 
+    <section style={{...card,marginTop:14}}>
+      <div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>LAUREM WORKFORCE</div>
+      <h2 style={{margin:'5px 0 4px'}}>How we work</h2>
+      <p style={{...muted,lineHeight:1.55,marginTop:0}}>LAUREM recruits care staff and places them into contracted services across London, West Midlands, Manchester and Glasgow. We aim for stable shifts and longer-term postings where client contracts allow.</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10,marginTop:14}}>
+        <button onClick={()=>router.push('/staff/availability')} style={{...btn(true),textAlign:'left'}}>
+          <strong style={{display:'block'}}>Rota & work preferences</strong><span style={{display:'block',fontSize:12,fontWeight:500,marginTop:4,color:'#dbeafe'}}>Choose regions, day/night, care settings, stable shifts and driver availability.</span>
+        </button>
+        <button onClick={()=>router.push('/staff/training')} style={{...btn(true),textAlign:'left',background:'#0f766e'}}>
+          <strong style={{display:'block'}}>Training</strong><span style={{display:'block',fontSize:12,fontWeight:500,marginTop:4,color:'#d1fae5'}}>Check your mandatory one-week training status and training week.</span>
+        </button>
+        <button onClick={()=>router.push('/staff/compliance')} style={{...btn(),textAlign:'left'}}>
+          <strong style={{display:'block'}}>DBS & PVG</strong><span style={{display:'block',fontSize:12,fontWeight:500,marginTop:4,color:'#627d98'}}>Keep disclosure dates current or apply through LAUREM.</span>
+        </button>
+      </div>
+    </section>
     {workforceReadiness && <section style={{...card,marginTop:14}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,letterSpacing:'.08em',color:'#0f766e'}}>OPERATIONS STATUS</div><h2 style={{margin:'5px 0 4px'}}>Workforce operations</h2><div style={muted}>{workforceReadiness.nextAction || 'No operational exceptions detected.'}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:workforceReadiness.overall==='ready'?'#e8f7ee':workforceReadiness.overall==='attention'?'#fff4e5':'#fdecec',color:workforceReadiness.overall==='ready'?'#166534':workforceReadiness.overall==='attention'?'#9a3412':'#991b1b',fontSize:12,fontWeight:900}}>{workforceReadiness.overall.toUpperCase()}</span></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:9,marginTop:14}}>{workforceReadiness.lanes.map(lane=><div key={lane.key} style={{padding:12,border:'1px solid #e5eaf0',borderRadius:12}}><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>{lane.label}</div><strong style={{display:'block',marginTop:4}}>{lane.level==='ready'?'Ready':lane.level==='attention'?'Needs attention':'Blocked'}</strong><div style={{...muted,fontSize:12,marginTop:4,lineHeight:1.45}}>{lane.detail}</div></div>)}</div></section>}
 
     {operationalState && <section style={{...card,marginTop:14,borderLeft:`5px solid ${operationalState.level==='blocked'?'#991b1b':operationalState.level==='attention'?'#9a3412':operationalState.level==='active'?'#166534':'#0f766e'}`}}>
