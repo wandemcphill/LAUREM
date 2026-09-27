@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       visaInvoiceResult,
     ] = await Promise.all([
       client.from('staff_profiles')
-        .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
+        .select('id,application_id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
         .eq('id', session.staff_id)
         .maybeSingle(),
       client.from('staff_assignments')
@@ -115,6 +115,10 @@ export async function GET(request: NextRequest) {
     }
 
     const staff = staffResult.data;
+    const { data: visaApplication, error: visaApplicationError } = staff.application_id
+      ? await client.from('recruitment_applications').select('role_applied,living_in_uk,current_country,country_of_residence').eq('id', staff.application_id).maybeSingle()
+      : { data: null, error: null };
+    if (visaApplicationError) return NextResponse.json({ error: 'Unable to load staff immigration record.' }, { status: 500 });
     const assignments = assignmentsResult.data || [];
     const timesheets = timesheetsResult.data || [];
     const leave = leaveResult.data || [];
@@ -222,22 +226,16 @@ export async function GET(request: NextRequest) {
     const profileCompleteness = Math.round(profileFields.filter(Boolean).length / profileFields.length * 100);
 
     const visaCase = visaCaseResult.data || null;
-    const visaApplication = visaCase
-      ? {
-          living_in_uk: staff.living_in_uk,
-          current_country: staff.current_country,
-          country_of_residence: staff.country_of_residence,
-        }
-      : null;
     const visaInvoice = visaInvoiceResult.data || null;
     const visaDocuments = (documentsResult.data || []).filter((document: any) => document.category === 'visa_sponsorship');
     const roleValue = String(staff.job_title || '').trim().toLowerCase();
-    const isUk = String(staff.living_in_uk || '').trim().toLowerCase() === 'yes'
-      || String(staff.living_in_uk || '').trim().toLowerCase() === 'true'
-      || String(staff.living_in_uk || '').trim().toLowerCase() === 'currently in the uk'
-      || /(united kingdom|^uk$|england|scotland|wales|northern ireland)/i.test(String(staff.current_country || staff.country_of_residence || ''));
-    const visaPathway = isInternationalNurseRole(staff.job_title) ? 'international_sponsorship'
-      : isUk && isUkSwitchSplitRole(staff.job_title) ? 'visa_switch'
+    const isUk = String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'yes'
+      || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'true'
+      || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'currently in the uk'
+      || /(united kingdom|^uk$|england|scotland|wales|northern ireland)/i.test(String(visaApplication?.current_country || visaApplication?.country_of_residence || ''));
+    const roleForVisa = visaCase?.job_title_at_request || staff.job_title || visaApplication?.role_applied || null;
+    const visaPathway = isInternationalNurseRole(roleForVisa) ? 'international_sponsorship'
+      : isUk && isUkSwitchSplitRole(roleForVisa) ? 'visa_switch'
       : null;
     const cosStatus = !visaCase
       ? { key: 'not_requested', label: 'COS not requested', canDownload: false, documentId: null }
