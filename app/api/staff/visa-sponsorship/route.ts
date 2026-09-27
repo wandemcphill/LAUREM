@@ -37,7 +37,7 @@ function paymentPlanFor(role: string | null | undefined, pathway: string, applic
 function cosStatus(caseRow: any, visaDocuments: any[]) {
   if (!caseRow) return { key: 'not_requested', label: 'COS not requested', canDownload: false };
   if (['declined', 'withdrawn'].includes(caseRow.status)) return { key: 'closed', label: caseRow.status === 'declined' ? 'Declined' : 'Withdrawn', canDownload: false };
-  if (['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(caseRow.status)) return { key: 'processing', label: 'Processing COS', canDownload: false };
+  if (['preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(caseRow.status)) return { key: 'processing', label: 'Processing COS', canDownload: false };
   if (['cos_assigned', 'completed'].includes(caseRow.status) && visaDocuments.length > 0) return { key: 'active', label: 'Active', canDownload: true };
   return { key: 'invoice_requested', label: 'Invoice requested', canDownload: false };
 }
