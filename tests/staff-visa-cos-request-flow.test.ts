@@ -77,3 +77,40 @@ describe('LAUREM staff visa / COS request flow', () => {
     expect(route).toContain("'private, no-store, max-age=0'");
   });
 });
+
+
+describe('LAUREM UK switch invoice terms', () => {
+  it('uses £500 upfront and £1,500 deferred across 13 weekly deductions', () => {
+    const helper = source('lib/laurem-visa-payment-plan.ts');
+    const migration = source('supabase/migrations/20260927190000_uk_switch_split_invoice.sql');
+    const staffApi = source('app/api/staff/visa-sponsorship/route.ts');
+    expect(helper).toContain('UK_SWITCH_UPFRONT_AMOUNT_PENCE = 50_000');
+    expect(helper).toContain('UK_SWITCH_DEFERRED_AMOUNT_PENCE = 150_000');
+    expect(helper).toContain('UK_SWITCH_WEEK_COUNT = 13');
+    expect(helper).toContain('UK_SWITCH_WEEKLY_AMOUNT_PENCE = 11_538');
+    expect(helper).toContain('UK_SWITCH_FINAL_WEEK_AMOUNT_PENCE = 11_544');
+    expect(helper).toContain("value.includes('healthcare assistant') || value.includes('support worker')");
+    expect(migration).toContain('v_invoice_amount_pence := 50000');
+    expect(migration).toContain('v_invoice_due_date := current_date');
+    expect(migration).toContain("'weekly_deduction_count', 13");
+    expect(migration).toContain("'weekly_deduction_pence', 11538");
+    expect(migration).toContain("'final_weekly_deduction_pence', 11544");
+    expect(staffApi).toContain("Request UK visa-switch support.");
+    expect(staffApi).toContain("International Nurses remain on the existing £2,000 arrangement.");
+  });
+
+  it('does not show Processing COS merely because an invoice is unpaid', () => {
+    const staffApi = source('app/api/staff/visa-sponsorship/route.ts');
+    const dashboardApi = source('app/api/staff/workforce-dashboard/route.ts');
+    expect(staffApi).toContain("['preparing_sms', 'submitted_to_sms', 'cos_pending']");
+    expect(staffApi).not.toContain("['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending']");
+    expect(dashboardApi).toContain("['preparing_sms', 'submitted_to_sms', 'cos_pending']");
+  });
+
+  it('keeps International Nurse requests on the full upfront path', () => {
+    const api = source('app/api/staff/visa-sponsorship/route.ts');
+    const helper = source('lib/laurem-visa-payment-plan.ts');
+    expect(helper).toContain("value.includes('registered nurse') || value === 'nurse' || value.includes(' nurse')");
+    expect(api).toContain("roleBasedPathway(role: string | null | undefined, application");
+    expect(api).toContain("if (isInternationalNurseRole(role)) return 'international_sponsorship';");
+  });
