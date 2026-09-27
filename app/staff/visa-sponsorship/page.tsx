@@ -16,7 +16,7 @@ type Data = {
   readiness: Readiness | null;
   visaDocuments: any[];
   cosStatus: { key: string; label: string; canDownload: boolean };
-  request: { available: boolean; pathway: LauremVisaPathway | null; label: string | null; explanation: string };
+  request: { available: boolean; pathway: LauremVisaPathway | null; paymentPlanKind: 'uk_switch_split' | 'full_upfront'; label: string | null; explanation: string };
 };
 
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -91,6 +91,8 @@ export default function StaffVisaSponsorshipPage() {
 
   const c=data.case;
   const invoice=data.invoice;
+  const splitPayment = data.request.paymentPlanKind === 'uk_switch_split' || Number(invoice?.amount_pence) === 50000;
+  const upfrontAmount = splitPayment ? 500 : 2000;
   return <main style={{minHeight:'100vh',background:'#f4f7fb',padding:'24px 18px 70px',fontFamily:'system-ui',color:'#102a43'}}>
     <div style={{maxWidth:1100,margin:'0 auto'}}>
       <button onClick={()=>router.push('/staff')} style={button()}>← Staff Portal</button>
@@ -108,14 +110,14 @@ export default function StaffVisaSponsorshipPage() {
         <p style={{...muted,lineHeight:1.6,marginTop:0}}>{data.request.explanation}</p>
         <div style={{marginTop:14,padding:15,borderRadius:12,background:'#f7fafc',lineHeight:1.6,fontSize:13}}>
           <strong>Before you proceed</strong>
-          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below creates a £2,000 LAUREM service invoice for visa-switch or sponsorship support and opens your case. This is a LAUREM service charge, not a UK government visa fee. LAUREM will review the case and payment before COS processing.</p>
+          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below creates the applicable LAUREM service invoice and opens your case. For UK visa switches for Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, the initial invoice is £500 and is due immediately before LAUREM starts the visa sponsorship process. The remaining £1,500 is not due now and is recovered through weekly salary deductions during the first three months after successful visa approval and commencement of employment. International Nurses remain on the existing £2,000 arrangement.</p>
         </div>
         <div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea'}}>
           <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Your route</div>
           <strong>{data.request.pathway === 'visa_switch' ? 'UK visa switch support' : 'International visa sponsorship support'}</strong>
           <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
         </div>
-        <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':'Request £2,000 Invoice'}</button>
+        <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':`Request £${upfrontAmount.toLocaleString('en-GB')} Invoice`}</button>
       </section> : <><section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
           <div>
@@ -126,7 +128,7 @@ export default function StaffVisaSponsorshipPage() {
           <span style={{padding:'8px 12px',borderRadius:999,background:data.cosStatus.key==='active'?'#e8f7ee':data.cosStatus.key==='processing'?'#fff4e5':'#edf2f7',color:data.cosStatus.key==='active'?'#166534':data.cosStatus.key==='processing'?'#9a3412':'#102a43',fontSize:13,fontWeight:900}}>{data.cosStatus.label}</span>
         </div>
         {invoice && <div style={{marginTop:14,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}>
-          <strong>£2,000 invoice</strong> · {invoice.invoice_number} · {invoice.status}
+          <strong>£{(Number(invoice.amount_pence || 200000)/100).toFixed(2)} invoice</strong> · {invoice.invoice_number} · {invoice.status}
           <div style={{...muted,marginTop:4}}>Issued {invoice.issue_date || 'today'}</div>
         </div>}
         <div style={{display:'flex',gap:9,flexWrap:'wrap',marginTop:14}}>
@@ -138,7 +140,7 @@ export default function StaffVisaSponsorshipPage() {
 
       <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:14,marginTop:14}}>
         <article style={card}><h2 style={{marginTop:0}}>Information already held</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14}}><Info label="Full name" value={data.application.full_name}/><Info label="Date of birth" value={data.application.date_of_birth}/><Info label="Nationality" value={data.application.nationality}/><Info label="Current country" value={data.application.current_country||data.application.country_of_residence}/><Info label="Role applied for" value={data.application.role_applied||data.staff.job_title}/><Info label="Start date" value={data.application.start_date||data.staff.start_date}/><Info label="Living in UK" value={data.application.living_in_uk}/><Info label="Work permission" value={data.application.work_permission}/><Info label="Requires sponsorship" value={data.application.requires_sponsorship}/><Info label="Phone" value={data.application.phone}/><Info label="Email" value={data.application.email}/><Info label="Address" value={data.application.address}/></div></article>
-        <article style={card}><h2 style={{marginTop:0}}>£2,000 LAUREM invoice</h2><div style={{fontSize:30,fontWeight:900}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)}</div><div style={{...muted,marginTop:4}}>{invoice?.invoice_number||'Invoice being prepared'}</div><div style={{marginTop:15,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}><strong>{invoice?.description}</strong><p style={{...muted,margin:'7px 0 0'}}>Status: {invoice?.status||'issued'} · Issued {invoice?.issue_date||'today'}</p></div><p style={{...muted,fontSize:12,lineHeight:1.5}}>This is a LAUREM service invoice. It is not presented as a UK government visa fee. Payment instructions and final terms will appear here once configured by LAUREM management.</p><button onClick={()=>window.print()} style={{...button(),marginTop:7}}>Print / Save invoice</button></article>
+        <article style={card}><h2 style={{marginTop:0}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)} LAUREM invoice</h2><div style={{fontSize:30,fontWeight:900}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)}</div><div style={{...muted,marginTop:4}}>{invoice?.invoice_number||'Invoice being prepared'}</div><div style={{marginTop:15,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}><strong>{invoice?.description}</strong><p style={{...muted,margin:'7px 0 0'}}>Status: {invoice?.status||'issued'} · Issued {invoice?.issue_date||'today'}{invoice?.due_date ? \` · Due \${invoice.due_date}\` : ''}</p></div>{splitPayment ? <div style={{marginTop:12,padding:14,borderRadius:11,border:'1px solid #dbe5ea',fontSize:13,lineHeight:1.55}}><strong>UK visa switch payment plan</strong><p style={{...muted,margin:'7px 0'}}>£500 is due immediately. The remaining £1,500 is recovered after successful visa approval and commencement of employment through weekly salary deductions during the first three months, beginning with the first training week.</p><div style={{display:'grid',gap:5,marginTop:8}}><span>Weeks 1-12: <strong>£115.38 per week</strong></span><span>Week 13: <strong>£115.44 final deduction</strong></span><span>Total deferred: <strong>£1,500.00</strong></span></div></div> : <p style={{...muted,fontSize:12,lineHeight:1.5}}>This is the existing LAUREM service invoice arrangement. It is not presented as a UK government visa fee.</p>}<button onClick={()=>window.print()} style={{...button(),marginTop:10}}>Print / Save invoice</button></article>
       </section>
 
       <section style={{...card,marginTop:14}}>
