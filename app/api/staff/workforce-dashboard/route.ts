@@ -228,7 +228,6 @@ export async function GET(request: NextRequest) {
     const visaCase = visaCaseResult.data || null;
     const visaInvoice = visaInvoiceResult.data || null;
     const visaDocuments = (documentsResult.data || []).filter((document: any) => document.category === 'visa_sponsorship');
-    const roleValue = String(staff.job_title || '').trim().toLowerCase();
     const isUk = String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'yes'
       || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'true'
       || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'currently in the uk'
