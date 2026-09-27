@@ -1,4 +1,5 @@
 export const LAUREM_WORK_REGIONS = ['London', 'West Midlands', 'Manchester', 'Glasgow'] as const;
+export const LAUREM_TRAINING_LOCATIONS = ['Birmingham', 'London', 'Glasgow', 'Manchester'] as const;
 export const LAUREM_CARE_SETTINGS = [
   { key: 'care_home', label: 'Care home' },
   { key: 'supported_living', label: 'Supported living / 1-to-1' },
