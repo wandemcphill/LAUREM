@@ -8,6 +8,10 @@ import { lauremCompany } from '@/lib/laurem-company-config';
 
 
 
+function escHtml(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function roleBasedPathway(role: string | null | undefined): LauremVisaPathway | null {
   const value = (role || '').trim().toLowerCase();
   if (value.includes('healthcare assistant')) return 'visa_switch';
@@ -173,7 +177,7 @@ export async function POST(request: NextRequest) {
           reply_to: lauremCompany.publicEmails.manager,
           subject: 'Staff visa support request: ' + staff.full_name,
           text: 'A new LAUREM staff visa support request has been submitted.\n\nStaff: ' + staff.full_name + '\nRole: ' + staff.job_title + '\nLAUREM ID: ' + session.laurem_id + '\nRoute: ' + requestedPathway + '\nInvoice: ' + data.invoice.invoice_number + '\nAmount: £' + invoiceAmount.toFixed(2) + '\n\nOpen the admin case: ' + adminUrl,
-          html: '<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#173a31"><p style="color:#0f766e;font-weight:800">LAUREM CARE</p><h1>New staff visa support request</h1><p><strong>' + staff.full_name + '</strong> has requested visa support from the Staff Portal.</p><p><strong>Role:</strong> ' + staff.job_title + '<br><strong>LAUREM ID:</strong> ' + session.laurem_id + '<br><strong>Route:</strong> ' + requestedPathway + '<br><strong>Invoice:</strong> ' + data.invoice.invoice_number + '<br><strong>Amount:</strong> £' + invoiceAmount.toFixed(2) + '</p><p><a href="' + adminUrl + '" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Open admin case</a></p></div>',
+          html: '<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#173a31"><p style="color:#0f766e;font-weight:800">LAUREM CARE</p><h1>New staff visa support request</h1><p><strong>' + escHtml(staff.full_name) + '</strong> has requested visa support from the Staff Portal.</p><p><strong>Role:</strong> ' + escHtml(staff.job_title) + '<br><strong>LAUREM ID:</strong> ' + escHtml(session.laurem_id) + '<br><strong>Route:</strong> ' + escHtml(requestedPathway) + '<br><strong>Invoice:</strong> ' + escHtml(data.invoice.invoice_number) + '<br><strong>Amount:</strong> £' + invoiceAmount.toFixed(2) + '</p><p><a href="' + adminUrl + '" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Open admin case</a></p></div>',
         },
       });
     }
