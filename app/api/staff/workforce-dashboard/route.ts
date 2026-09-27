@@ -4,6 +4,7 @@ import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { participantConversationIds } from '@/lib/laurem-messaging';
 import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
 import { buildWorkforceReadiness } from '@/lib/laurem-workforce-readiness';
+import { buildUkSwitchPaymentPlan, isInternationalNurseRole, isUkSwitchSplitRole } from '@/lib/laurem-visa-payment-plan';
 
 function countByStatus(rows: Array<{ status: string | null }>, status: string) {
   return rows.filter((row) => row.status === status).length;
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
       visaInvoiceResult,
     ] = await Promise.all([
       client.from('staff_profiles')
-        .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
+        .select('id,application_id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
         .eq('id', session.staff_id)
         .maybeSingle(),
       client.from('staff_assignments')
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(12),
       client.from('staff_visa_cases')
-        .select('id,pathway,status,requested_at,updated_at')
+        .select('id,pathway,status,requested_at,updated_at,job_title_at_request')
         .eq('staff_id', session.staff_id)
         .not('status', 'in', '(declined,withdrawn)')
         .order('requested_at', { ascending: false })
@@ -114,6 +115,10 @@ export async function GET(request: NextRequest) {
     }
 
     const staff = staffResult.data;
+    const { data: visaApplication, error: visaApplicationError } = staff.application_id
+      ? await client.from('recruitment_applications').select('role_applied,living_in_uk,current_country,country_of_residence').eq('id', staff.application_id).maybeSingle()
+      : { data: null, error: null };
+    if (visaApplicationError) return NextResponse.json({ error: 'Unable to load staff immigration record.' }, { status: 500 });
     const assignments = assignmentsResult.data || [];
     const timesheets = timesheetsResult.data || [];
     const leave = leaveResult.data || [];
@@ -223,11 +228,17 @@ export async function GET(request: NextRequest) {
     const visaCase = visaCaseResult.data || null;
     const visaInvoice = visaInvoiceResult.data || null;
     const visaDocuments = (documentsResult.data || []).filter((document: any) => document.category === 'visa_sponsorship');
-    const roleValue = String(staff.job_title || '').trim().toLowerCase();
-    const visaPathway = roleValue.includes('healthcare assistant') ? 'visa_switch' : (roleValue.includes('registered nurse') || roleValue === 'nurse' || roleValue.includes(' nurse')) ? 'international_sponsorship' : null;
+    const isUk = String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'yes'
+      || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'true'
+      || String(visaApplication?.living_in_uk || '').trim().toLowerCase() === 'currently in the uk'
+      || /(united kingdom|^uk$|england|scotland|wales|northern ireland)/i.test(String(visaApplication?.current_country || visaApplication?.country_of_residence || ''));
+    const roleForVisa = visaCase?.job_title_at_request || staff.job_title || visaApplication?.role_applied || null;
+    const visaPathway = isInternationalNurseRole(roleForVisa) ? 'international_sponsorship'
+      : isUk && isUkSwitchSplitRole(roleForVisa) ? 'visa_switch'
+      : null;
     const cosStatus = !visaCase
       ? { key: 'not_requested', label: 'COS not requested', canDownload: false, documentId: null }
-      : ['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
+      : ['preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
         ? { key: 'processing', label: 'Processing COS', canDownload: false, documentId: null }
         : ['cos_assigned', 'completed'].includes(String(visaCase.status)) && visaDocuments.length > 0
           ? { key: 'active', label: 'Active', canDownload: true, documentId: visaDocuments[0].id }
@@ -270,11 +281,12 @@ export async function GET(request: NextRequest) {
         pathway: visaPathway,
         label: visaCase ? 'View Visa & COS' : visaPathway === 'visa_switch' ? 'Apply for Visa Switch' : visaPathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
         explanation: visaPathway === 'visa_switch'
-          ? 'Generate the £2,000 LAUREM visa-switch support invoice and open your case.'
+          ? 'Request UK visa-switch support. The upfront payment is £500; the remaining £1,500 is recovered weekly from salary during the first three months after successful visa approval and commencement of employment.'
           : visaPathway === 'international_sponsorship'
             ? 'Generate the £2,000 LAUREM international sponsorship support invoice and open your case.'
             : 'Visa support requests are currently available for Healthcare Assistants and Registered Nurses.',
         cosStatus,
+        paymentPlan: visaInvoice?.amount_pence === 50000 ? buildUkSwitchPaymentPlan() : null,
         caseId: visaCase?.id || null,
         invoice: visaInvoice ? { invoiceNumber: visaInvoice.invoice_number, status: visaInvoice.status, amountPence: visaInvoice.amount_pence, issueDate: visaInvoice.issue_date } : null,
       },

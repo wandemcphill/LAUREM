@@ -434,7 +434,7 @@ export default function WorkforcePage() {
 
       <section style={{ marginTop: 32 }}>
         <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
-          <div><h2 style={{marginBottom:4}}>Visa & Sponsorship Requests</h2><p style={{color:'var(--muted)',marginTop:0}}>Staff requests for visa switch support or international sponsorship. £2,000 invoices and COS status are shown here.</p></div>
+          <div><h2 style={{marginBottom:4}}>Visa & Sponsorship Requests</h2><p style={{color:'var(--muted)',marginTop:0}}>Staff requests for visa switch support or international sponsorship. Invoice amount, payment plan and COS status are shown here.</p></div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>New {visaCounts.newRequests}</span>
             <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>Processing {visaCounts.processing}</span>
@@ -445,7 +445,7 @@ export default function WorkforcePage() {
           {visaRequests.map((request) => {
             const userStatus = request.cosDocument && ['cos_assigned','completed'].includes(request.status)
               ? 'Active'
-              : ['awaiting_payment','preparing_sms','submitted_to_sms','cos_pending'].includes(request.status)
+              : ['preparing_sms','submitted_to_sms','cos_pending'].includes(request.status)
                 ? 'Processing COS'
                 : 'Invoice requested';
             return <article className='card' key={request.id} style={{padding:16,display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap',alignItems:'center'}}>

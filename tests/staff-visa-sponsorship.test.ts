@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 describe('LAUREM staff visa sponsorship workflow', () => {
-  it('defines dedicated UK visa cases and a £2,000 GBP invoice issued on request', () => {
+  it('defines dedicated UK visa cases with role-specific invoice handling', () => {
     const sql = readFileSync('supabase/migrations/20260920_staff_visa_sponsorship.sql', 'utf8');
     expect(sql).toContain('create table if not exists public.laurem_staff_visa_cases');
     expect(sql).toContain('create table if not exists public.laurem_staff_visa_invoices');
@@ -10,6 +10,10 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(sql).toContain("pathway in ('visa_switch','international_sponsorship')");
     expect(sql).toContain('laurem_request_staff_visa_sponsorship');
     expect(sql).toContain('grant execute on function public.laurem_request_staff_visa_sponsorship');
+    const pricing = readFileSync('supabase/migrations/20260927190000_uk_switch_split_invoice.sql', 'utf8');
+    expect(pricing).toContain('v_invoice_amount_pence := 50000');
+    expect(pricing).toContain('v_invoice_amount_pence := 200000');
+    expect(pricing).toContain("'weekly_deduction_count', 13");
   });
 
   it('keeps visa sponsorship records private to the service layer', () => {
@@ -32,7 +36,10 @@ describe('LAUREM staff visa sponsorship workflow', () => {
 
   it('provides the staff-facing invoice and persistent CoS download', () => {
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
-    expect(page).toContain('£2,000 LAUREM invoice');
+    expect(page).toContain('LAUREM invoice');
+    expect(page).toContain('£500 is due immediately');
+    expect(page).toContain('£1,500');
+    expect(page).toContain('£2,000');
     expect(page).toContain('/api/staff/documents/');
     expect(page).toContain('/download');
     expect(page).toContain('Certificate of Sponsorship');
