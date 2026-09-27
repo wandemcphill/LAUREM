@@ -24,6 +24,7 @@ describe('LAUREM staff visa / COS request flow', () => {
     expect(api).toContain("eventType: 'staff.visa_request.admin'");
     expect(api).toContain("idempotencyKey: 'staff.visa_request.admin/' + String(data.case.id)");
     expect(api).toContain('portalNotifications.internalRecipient');
+    expect(api).toContain('to: [lauremCompany.portalNotifications.internalRecipient]');
     expect(api).toContain("Number(data.invoice.amount_pence || 200000) / 100");
   });
 
