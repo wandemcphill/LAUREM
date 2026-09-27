@@ -82,6 +82,6 @@ export function canAdvanceLauremVisaToSmsSubmission(input: {
   targetStatus: string;
   readiness: LauremVisaReadiness;
 }) {
-  return input.targetStatus !== 'submitted_to_sms'
+  return !['preparing_sms', 'submitted_to_sms'].includes(input.targetStatus)
     || input.readiness.readyForSmsSubmission;
 }
