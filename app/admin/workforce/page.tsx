@@ -109,7 +109,7 @@ export default function WorkforcePage() {
       params.set('page', String(page));
       params.set('limit', '50');
 
-      const [s, a, t, l, r, v] = await Promise.all([
+      const [s, a, t, l, r, v, rr, tr, c] = await Promise.all([
         fetch(`/api/admin/workforce/staff?${params.toString()}`, { cache: 'no-store' }),
         fetch('/api/admin/workforce/assignments', { cache: 'no-store' }),
         fetch('/api/admin/workforce/timesheets', { cache: 'no-store' }),
@@ -135,8 +135,8 @@ export default function WorkforcePage() {
       setWorkforceReadiness(r.ok ? rp : null);
       setVisaRequests(v.ok ? (vp.requests || []) : []);
       setVisaCounts(v.ok ? (vp.counts || {newRequests:0,processing:0,active:0}) : {newRequests:0,processing:0,active:0});
-      setRotaRequests(rp2.ok ? (rta.requests || []) : []);
-      setRotaCounts(rp2.ok ? (rta.counts || {requested:0,underReview:0,approved:0}) : {requested:0,underReview:0,approved:0});
+      setRotaRequests(rr.ok ? (rta.requests || []) : []);
+      setRotaCounts(rr.ok ? (rta.counts || {requested:0,underReview:0,approved:0}) : {requested:0,underReview:0,approved:0});
       setTrainingAssignments(tr.ok ? (trp.assignments || []) : []);
       setComplianceRequests(c.ok ? (cp.requests || []) : []);
       setComplianceCounts(c.ok ? (cp.counts || {open:0,unpaid:0,paid:0}) : {open:0,unpaid:0,paid:0});
