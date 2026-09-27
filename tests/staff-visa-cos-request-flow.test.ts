@@ -118,3 +118,4 @@ describe('LAUREM UK switch invoice terms', () => {
     expect(api).toContain("roleBasedPathway(role: string | null | undefined, application");
     expect(api).toContain("if (isInternationalNurseRole(role)) return 'international_sponsorship';");
   });
+});
