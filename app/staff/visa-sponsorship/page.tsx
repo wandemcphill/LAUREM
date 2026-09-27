@@ -130,7 +130,7 @@ export default function StaffVisaSponsorshipPage() {
           <div style={{...muted,marginTop:4}}>Issued {invoice.issue_date || 'today'}</div>
         </div>}
         <div style={{display:'flex',gap:9,flexWrap:'wrap',marginTop:14}}>
-          {data.cosStatus.canDownload && data.visaDocuments[0] && <a href={\`/api/staff/documents/\${encodeURIComponent(data.visaDocuments[0].id)}/download\`} download style={{...button(true),background:'#0f766e'}}>Download COS</a>}
+          {data.cosStatus.canDownload && data.visaDocuments[0] && <a href={'/api/staff/documents/' + encodeURIComponent(data.visaDocuments[0].id) + '/download'} download style={{...button(true),background:'#0f766e'}}>Download COS</a>}
           <button onClick={()=>router.push('/staff/messages')} style={button()}>Message Admin / HR</button>
         </div>
       </section><section style={{...card,marginTop:14}}>
