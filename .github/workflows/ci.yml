@@ -1,6 +1,6 @@
 name: CI
 
-# Keep the release gate explicit for every production merge and current workflow revision and tested UK switch invoice flow and final dashboard query and final payment-plan invariant tests.
+# Keep the release gate explicit for every production merge and current workflow revision and tested UK switch invoice flow and final dashboard query and final payment-plan assertions.
 
 on:
   push:
