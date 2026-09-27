@@ -51,6 +51,7 @@ export default function StaffPortalHome() {
   const [submittingLeave,setSubmittingLeave] = useState(false);
   const [loggingOut,setLoggingOut] = useState(false);
   const [photoFailed,setPhotoFailed] = useState(false);
+  const [visaSupport,setVisaSupport] = useState<VisaSupport|null>(null);
 
   async function load(showSpinner=true) {
     if(showSpinner) setLoading(true); else setRefreshing(true);
@@ -73,6 +74,7 @@ export default function StaffPortalHome() {
       setWorkforceReadiness(body.readiness||null);
       setOperationalState(body.operationalState||null);
       setPayroll(body.payroll?.entries||[]);
+      setVisaSupport(body.visaSupport || null);
       setOnboarding(body.onboarding ? { title:String(body.onboarding.package?.title||'Onboarding'), status:String(body.onboarding.package?.status||'active'), tasks:body.onboarding.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
@@ -119,14 +121,13 @@ export default function StaffPortalHome() {
     return required.length ? Math.round((done/required.length)*100) : onboarding ? 100 : 0;
   },[onboarding]);
 
-  const dashboardVisa = (arguments as any);
-  const bodyVisaStatusLabel = (dashboardVisa as any).cosStatus?.label || 'COS not requested';
-  const bodyVisaStatusKey = (dashboardVisa as any).cosStatus?.key || 'not_requested';
+  const bodyVisaStatusLabel = visaSupport?.cosStatus?.label || 'COS not requested';
+  const bodyVisaStatusKey = visaSupport?.cosStatus?.key || 'not_requested';
   const bodyVisaStatusColor = bodyVisaStatusKey;
-  const staffVisaAvailable = Boolean((dashboardVisa as any).available);
-  const staffVisaLabel = (dashboardVisa as any).label || 'Visa & Sponsorship';
-  const staffVisaDownload = (dashboardVisa as any).cosStatus?.canDownload ? (dashboardVisa as any).cosStatus.documentId : null;
-  const bodyVisaExplanation = (dashboardVisa as any).explanation || 'Visa support is available for eligible staff roles.';
+  const staffVisaAvailable = Boolean(visaSupport?.available);
+  const staffVisaLabel = visaSupport?.label || 'Visa & Sponsorship';
+  const staffVisaDownload = visaSupport?.cosStatus?.canDownload ? visaSupport.cosStatus.documentId : null;
+  const bodyVisaExplanation = visaSupport?.explanation || 'Visa support is available for eligible staff roles.';
 
   if(loading || !staff) return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}><div style={card}><strong>LAUREM STAFF PORTAL</strong><p style={muted}>Loading your workspace…</p></div></div></main>;
 
