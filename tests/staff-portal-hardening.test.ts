@@ -47,7 +47,7 @@ describe('LAUREM staff portal hardening', () => {
   });
 
   it('checks image magic bytes before storing staff photographs', () => {
-    const route = readFileSync('app/api/staff/me/photo/route.ts', 'utf8');
+    const route = readFileSync('app/api/staff/me/route.ts', 'utf8');
     expect(route).toContain('hasValidImageSignature');
     expect(route).toContain('file.slice(0, 12)');
     expect(route).toContain('The uploaded file is not a valid JPG, PNG or WebP image.');
