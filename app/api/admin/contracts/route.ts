@@ -10,6 +10,7 @@ import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
 import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
+import { calculateThreeYearContractEndDate } from '@/lib/laurem-contract-dates';
 
 function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
@@ -86,6 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     const internationalNurse = isInternationalNurseApplication(app);
+    const requiresSponsorship = typeof app.requires_sponsorship === 'string'
+      && ['yes','true','required'].includes(app.requires_sponsorship.trim().toLowerCase());
     const workLocations = Array.isArray(body?.workLocations)
       ? body.workLocations.filter((v): v is string => typeof v === 'string').map((v) => v.trim()).filter(Boolean)
       : [];
@@ -93,7 +96,11 @@ export async function POST(request: NextRequest) {
     const weeklyHours = typeof body?.weeklyHours === 'number' ? body.weeklyHours : 37.5;
     const annualSalary = typeof body?.annualSalary === 'number' ? body.annualSalary : null;
     const hourlyRate = typeof body?.hourlyRate === 'number' ? body.hourlyRate : null;
-    const contractEndDate = typeof body?.contractEndDate === 'string' ? body.contractEndDate : null;
+    const requestedContractEndDate = typeof body?.contractEndDate === 'string' ? body.contractEndDate.trim() : '';
+    const calculatedSponsoredEndDate = (internationalNurse || requiresSponsorship)
+      ? calculateThreeYearContractEndDate(typeof app.start_date === 'string' ? app.start_date : null)
+      : null;
+    const contractEndDate = calculatedSponsoredEndDate || (requestedContractEndDate || null);
     const noticePeriodEmployee = typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null;
     const noticePeriodEmployer = typeof body?.noticePeriodEmployer === 'string' ? body.noticePeriodEmployer : null;
     const holidayEntitlement = typeof body?.holidayEntitlement === 'string' ? body.holidayEntitlement : null;
