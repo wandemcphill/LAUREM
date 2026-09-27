@@ -101,7 +101,8 @@ describe('LAUREM UK switch invoice terms', () => {
     expect(migration).toContain("'weekly_deduction_pence', 11538");
     expect(migration).toContain("'final_weekly_deduction_pence', 11544");
     expect(staffApi).toContain("Request UK visa-switch support.");
-    expect(staffApi).toContain("International Nurses remain on the existing £2,000 arrangement.");
+    expect(migration).toContain('v_invoice_amount_pence := 200000');
+    expect(helper).toContain("return 'full_upfront';");
   });
 
   it('does not show Processing COS merely because an invoice is unpaid', () => {
