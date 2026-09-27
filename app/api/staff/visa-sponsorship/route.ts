@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
-import { determineLauremVisaPathway, visaPathwayLabel } from '@/lib/laurem-visa-sponsorship';
+import { determineLauremVisaPathway, visaPathwayLabel, type LauremVisaPathway } from '@/lib/laurem-visa-sponsorship';
 import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
