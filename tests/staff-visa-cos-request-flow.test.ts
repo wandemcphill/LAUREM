@@ -92,7 +92,8 @@ describe('LAUREM UK switch invoice terms', () => {
     expect(helper).toContain('UK_SWITCH_WEEK_COUNT = 13');
     expect(helper).toContain('UK_SWITCH_WEEKLY_AMOUNT_PENCE = 11_538');
     expect(helper).toContain('UK_SWITCH_FINAL_WEEK_AMOUNT_PENCE = 11_544');
-    expect(staffApi).toContain('The remaining £1,500 is not due now.');
+    expect(migration).toContain('The £500 initial payment is due immediately');
+    expect(migration).toContain('The remaining £1,500 is not due now.');
     expect(helper).toContain("value.includes('healthcare assistant') || value.includes('support worker')");
     expect(migration).toContain('v_invoice_amount_pence := 50000');
     expect(migration).toContain('v_invoice_due_date := current_date');
