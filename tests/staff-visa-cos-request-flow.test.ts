@@ -71,6 +71,8 @@ describe('LAUREM staff visa / COS request flow', () => {
     const route = source('app/api/staff/documents/[id]/download/route.ts');
     expect(route).toContain('getStaffSession(request)');
     expect(route).toContain(".eq('staff_id', session.staff_id)");
+    expect(route).toContain("document.category === 'visa_sponsorship'");
+    expect(route).toContain("!['cos_assigned', 'completed'].includes(visaCase.status)");
     expect(route).toContain("'private, no-store, max-age=0'");
   });
 });
