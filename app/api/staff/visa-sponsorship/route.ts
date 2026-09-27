@@ -3,6 +3,25 @@ import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { determineLauremVisaPathway, visaPathwayLabel } from '@/lib/laurem-visa-sponsorship';
 import { buildLauremVisaReadiness } from '@/lib/laurem-visa-readiness';
+import { sendLauremEmail } from '@/lib/laurem-email';
+import { lauremCompany } from '@/lib/laurem-company-config';
+
+
+
+function roleBasedPathway(role: string | null | undefined): LauremVisaPathway | null {
+  const value = (role || '').trim().toLowerCase();
+  if (value.includes('healthcare assistant')) return 'visa_switch';
+  if (value.includes('registered nurse') || value === 'nurse' || value.includes(' nurse')) return 'international_sponsorship';
+  return null;
+}
+
+function cosStatus(caseRow: any, visaDocuments: any[]) {
+  if (!caseRow) return { key: 'not_requested', label: 'COS not requested', canDownload: false };
+  if (['declined', 'withdrawn'].includes(caseRow.status)) return { key: 'closed', label: caseRow.status === 'declined' ? 'Declined' : 'Withdrawn', canDownload: false };
+  if (['preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(caseRow.status)) return { key: 'processing', label: 'Processing COS', canDownload: false };
+  if (['cos_assigned', 'completed'].includes(caseRow.status) && visaDocuments.length > 0) return { key: 'active', label: 'Active', canDownload: true };
+  return { key: 'invoice_requested', label: 'Invoice requested', canDownload: false };
+}
 
 async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   const { data: staff, error: staffError } = await client.from('staff_profiles')
@@ -23,6 +42,8 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     livingInUk: application.living_in_uk,
     currentCountry: application.current_country || application.country_of_residence,
   });
+
+  const rolePathway = roleBasedPathway(staff.job_title || application.role_applied);
 
   const { data: visaCase, error: caseError } = await client.from('staff_visa_cases')
     .select('*')
@@ -82,6 +103,17 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     events,
     readiness,
     visaDocuments: visaDocuments || [],
+    cosStatus: cosStatus(visaCase, visaDocuments || []),
+    request: {
+      available: Boolean(rolePathway),
+      pathway: rolePathway,
+      label: rolePathway === 'visa_switch' ? 'Apply for Visa Switch' : rolePathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
+      explanation: rolePathway === 'visa_switch'
+        ? 'Request a LAUREM visa-switch support case and generate the required £2,000 service invoice.'
+        : rolePathway === 'international_sponsorship'
+          ? 'Request a LAUREM international visa-sponsorship support case and generate the required £2,000 service invoice.'
+          : 'Visa support requests are currently available here for Healthcare Assistants and Registered Nurses.',
+    },
   };
 }
 
@@ -109,12 +141,45 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { data, error } = await db().rpc('laurem_request_staff_visa_sponsorship', {
+    const client = db();
+    const { data: staff, error: staffError } = await client.from('staff_profiles')
+      .select('id,application_id,full_name,email,job_title,employment_status')
+      .eq('id', session.staff_id)
+      .maybeSingle();
+    if (staffError) throw staffError;
+    if (!staff) return NextResponse.json({ error: 'Staff profile not found.' }, { status: 404 });
+    const rolePathway = roleBasedPathway(staff.job_title);
+    if (!rolePathway) return NextResponse.json({ error: 'Visa support requests are currently available for Healthcare Assistants and Registered Nurses.' }, { status: 409 });
+    if (pathway && pathway !== rolePathway) return NextResponse.json({ error: 'The available visa support route for your staff role does not match this request.' }, { status: 409 });
+
+    const requestedPathway = pathway || rolePathway;
+    const { data, error } = await client.rpc('laurem_request_staff_visa_sponsorship', {
       p_staff_id: session.staff_id,
-      p_requested_pathway: pathway,
+      p_requested_pathway: requestedPathway,
     });
     if (error) throw error;
+
+    if (!data?.already_exists && data?.case?.id && data?.invoice?.invoice_number) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
+      const adminUrl = appUrl + '/admin/workforce/' + encodeURIComponent(session.staff_id) + '/visa-sponsorship';
+      const invoiceAmount = Number(data.invoice.amount_pence || 200000) / 100;
+      await sendLauremEmail(client, {
+        eventType: 'staff.visa_request.admin',
+        entityId: String(data.case.id),
+        idempotencyKey: 'staff.visa_request.admin/' + String(data.case.id),
+        payload: {
+          from: process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>',
+          to: [lauremCompany.portalNotifications.internalRecipient],
+          reply_to: lauremCompany.publicEmails.manager,
+          subject: 'Staff visa support request: ' + staff.full_name,
+          text: 'A new LAUREM staff visa support request has been submitted.\n\nStaff: ' + staff.full_name + '\nRole: ' + staff.job_title + '\nLAUREM ID: ' + session.laurem_id + '\nRoute: ' + requestedPathway + '\nInvoice: ' + data.invoice.invoice_number + '\nAmount: £' + invoiceAmount.toFixed(2) + '\n\nOpen the admin case: ' + adminUrl,
+          html: '<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#173a31"><p style="color:#0f766e;font-weight:800">LAUREM CARE</p><h1>New staff visa support request</h1><p><strong>' + staff.full_name + '</strong> has requested visa support from the Staff Portal.</p><p><strong>Role:</strong> ' + staff.job_title + '<br><strong>LAUREM ID:</strong> ' + session.laurem_id + '<br><strong>Route:</strong> ' + requestedPathway + '<br><strong>Invoice:</strong> ' + data.invoice.invoice_number + '<br><strong>Amount:</strong> £' + invoiceAmount.toFixed(2) + '</p><p><a href="' + adminUrl + '" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Open admin case</a></p></div>',
+        },
+      });
+    }
+
     return NextResponse.json(data, { status: data?.already_exists ? 200 : 201 });
+
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const known: Record<string, number> = {
