@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { LAUREM_TRAINING_LOCATIONS } from '@/lib/laurem-staff-operations';
 
 type Manager = { id: string; full_name: string; job_title: string };
 type ComplianceSnapshot = {
@@ -93,6 +94,7 @@ export default function WorkforcePage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedStaff, setSelectedStaff] = useState('');
+  const [trainingStaffId, setTrainingStaffId] = useState('');
   const [clientName, setClientName] = useState('');
   const [location, setLocation] = useState('');
   const [scheduledStart, setScheduledStart] = useState(localInput(new Date()));
@@ -226,10 +228,10 @@ export default function WorkforcePage() {
 
   async function scheduleTraining(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedStaff || !trainingWeekStart) return;
+    if (!trainingStaffId || !trainingWeekStart || !trainingLocation) return;
     setBusy(true); setError('');
     try {
-      const r = await fetch('/api/admin/workforce/training', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({staffId:selectedStaff,weekStart:trainingWeekStart,location:trainingLocation,status:'scheduled'}) });
+      const r = await fetch('/api/admin/workforce/training', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({staffId:trainingStaffId,weekStart:trainingWeekStart,location:trainingLocation,status:'scheduled'}) });
       const p = await r.json(); if (!r.ok) throw new Error(p.error || 'Unable to schedule training.');
       setTrainingWeekStart(''); setTrainingLocation(''); await load(currentPage);
     } catch(e) { setError(e instanceof Error ? e.message : 'Unable to schedule training.'); }
@@ -510,12 +512,12 @@ export default function WorkforcePage() {
       </section>
 
       <section style={{ marginTop: 32 }}>
-        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><h2 style={{marginBottom:4}}>Training schedule</h2><p style={{color:'var(--muted)',marginTop:0}}>Mandatory one-week training is scheduled here and appears in the staff portal.</p></div></div>
+        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><h2 style={{marginBottom:4}}>Training schedule</h2><p style={{color:'var(--muted)',marginTop:0}}>Mandatory one-week training is scheduled here and appears in the staff portal. The selected staff member's preferred training city is preselected when available.</p></div></div>
         <div className="card" style={{padding:16,marginTop:12}}>
           <form onSubmit={scheduleTraining} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10,alignItems:'end'}}>
-            <select value={selectedStaff} onChange={e=>setSelectedStaff(e.target.value)} required style={{padding:10,border:'1px solid var(--line)',borderRadius:8}}><option value="">Select active staff</option>{activeStaff.map((s)=><option key={s.id} value={s.id}>{s.full_name} · {s.job_title}</option>)}</select>
+            <select value={trainingStaffId} onChange={e=>{const id=e.target.value;setTrainingStaffId(id);const pref=rotaRequests.find((x:any)=>x.staff_id===id)?.preferred_training_location;if(pref)setTrainingLocation(pref);}} required style={{padding:10,border:'1px solid var(--line)',borderRadius:8}}><option value="">Select active staff</option>{activeStaff.map((s)=><option key={s.id} value={s.id}>{s.full_name} · {s.job_title}</option>)}</select>
             <label style={{fontSize:12,color:'var(--muted)'}}>Training week starts<input type="date" value={trainingWeekStart} onChange={e=>setTrainingWeekStart(e.target.value)} required style={{width:'100%',marginTop:4,padding:9,border:'1px solid var(--line)',borderRadius:8}}/></label>
-            <input value={trainingLocation} onChange={e=>setTrainingLocation(e.target.value)} placeholder="Training location" style={{padding:10,border:'1px solid var(--line)',borderRadius:8}}/>
+            <label style={{fontSize:12,color:'var(--muted)'}}>Training location<select value={trainingLocation} onChange={e=>setTrainingLocation(e.target.value)} required style={{width:'100%',marginTop:4,padding:9,border:'1px solid var(--line)',borderRadius:8}}><option value="">Select city</option>{LAUREM_TRAINING_LOCATIONS.map((x)=><option key={x} value={x}>{x}</option>)}</select></label>
             <button disabled={busy} style={{padding:10,background:'var(--ink)',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Schedule one-week training</button>
           </form>
         </div>
