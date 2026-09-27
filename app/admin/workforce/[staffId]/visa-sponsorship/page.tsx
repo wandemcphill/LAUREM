@@ -12,6 +12,11 @@ const muted:React.CSSProperties={color:'var(--muted)'};
 const button=(primary=false):React.CSSProperties=>({border:primary?'0':'1px solid var(--line)',background:primary?'var(--ink)':'#fff',color:primary?'#fff':'var(--ink)',borderRadius:9,padding:'10px 13px',fontWeight:800,cursor:'pointer',textDecoration:'none'});
 const input:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:10,border:'1px solid var(--line)',borderRadius:9,font:'inherit'};
 function fmt(value:any){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});}
+function cosUserStatus(status:string, hasDocument:boolean) {
+  if (['cos_assigned','completed'].includes(status) && hasDocument) return 'Active';
+  if (['awaiting_payment','preparing_sms','submitted_to_sms','cos_pending'].includes(status)) return 'Processing COS';
+  return 'Invoice requested';
+}
 function badge(value:string){return <span style={{padding:'6px 9px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>{String(value||'Not set').replaceAll('_',' ')}</span>;}
 
 export default function AdminVisaSponsorshipPage(){
@@ -33,12 +38,14 @@ export default function AdminVisaSponsorshipPage(){
   <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'flex-start',flexWrap:'wrap',marginTop:12}}><div><div style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>VISA & SPONSORSHIP</div><h1 style={{margin:'5px 0'}}>{data.staff.full_name}</h1><div style={muted}>{data.staff.job_title} · {data.staff.employee_number}</div></div><a href={data.smsUrl} target='_blank' rel='noreferrer' style={button(true)}>Open Sponsor Management System</a></div>
  {error&&<div role='alert' className='card' style={{marginTop:16,padding:14,color:'#8a2323'}}>{error}</div>}
  {!c?<section className='card' style={{padding:20,marginTop:18}}><h2 style={{marginTop:0}}>No sponsorship request yet</h2><p style={muted}>The staff member has not requested visa support through the Staff Portal.</p></section>:<>
-  <section className='card' style={{padding:20,marginTop:18}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',alignItems:'center'}}><div><h2 style={{margin:'0 0 5px'}}>{visaPathwayLabel(c.pathway)}</h2><div style={muted}>Requested {fmt(c.requested_at)}</div></div>{badge(c.status)}</div><p style={{...muted,marginTop:8}}>{c.pathway_basis}</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12,marginTop:16}}>
+  <section className='card' style={{padding:20,marginTop:18}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',alignItems:'center'}}><div><h2 style={{margin:'0 0 5px'}}>{visaPathwayLabel(c.pathway)}</h2><div style={muted}>Requested {fmt(c.requested_at)}</div></div>{badge(cosUserStatus(c.status, data.visaDocuments.length > 0))}</div><p style={{...muted,marginTop:8}}>{c.pathway_basis}</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12,marginTop:16}}>
    <label style={{fontSize:12,fontWeight:800}}>Pathway<select value={pathway} onChange={e=>setPathway(e.target.value as LauremVisaPathway)} style={input}><option value='visa_switch'>Visa switch</option><option value='international_sponsorship'>International sponsorship</option></select></label>
    <label style={{fontSize:12,fontWeight:800}}>Case status<select value={status} onChange={e=>setStatus(e.target.value)} style={input}>{['requested','admin_review','awaiting_payment','preparing_sms','submitted_to_sms','cos_pending','cos_assigned','completed','declined','withdrawn'].map(s=><option key={s}>{s}</option>)}</select></label>
    <label style={{fontSize:12,fontWeight:800}}>SMS reference<input value={smsReference} onChange={e=>setSmsReference(e.target.value)} style={input}/></label>
    <label style={{fontSize:12,fontWeight:800}}>CoS number<input value={cosNumber} onChange={e=>setCosNumber(e.target.value)} style={input}/></label>
-  </div><label style={{display:'block',fontSize:12,fontWeight:800,marginTop:12}}>Admin notes<textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4} style={{...input,resize:'vertical',marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch()} style={{...button(true),marginTop:12}}>{busy?'Saving…':'Save case'}</button></section>
+  </div><label style={{display:'block',fontSize:12,fontWeight:800,marginTop:12}}>Admin notes<textarea value={adminNotes} onChange={e=>setAdminNotes(e.target.value)} rows={4} style={{...input,resize:'vertical',marginTop:6}}/></label><button disabled={busy} onClick={()=>void patch()} style={{...button(true),marginTop:12}}>{busy?'Saving…':'Save case'}</button>
+   {c.status !== 'preparing_sms' && c.status !== 'submitted_to_sms' && c.status !== 'cos_pending' && c.status !== 'cos_assigned' && c.status !== 'completed' && <button disabled={busy} onClick={()=>void patch({status:'awaiting_payment'})} style={{...button(true),marginTop:10,background:'#0f766e'}}>Mark Processing COS</button>}
+</section>
   <section className='card' style={{padding:20,marginTop:16}}>
    <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
     <div><h2 style={{margin:'0 0 5px'}}>Operational readiness</h2><p style={muted}>This checklist governs LAUREM's internal preparation/submission workflow. It does not determine UK immigration eligibility.</p></div>

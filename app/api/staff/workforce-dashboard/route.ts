@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       documentsResult,
       availabilityResult,
       payrollResult,
+      visaCaseResult,
+      visaInvoiceResult,
     ] = await Promise.all([
       client.from('staff_profiles')
         .select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
@@ -78,6 +80,19 @@ export async function GET(request: NextRequest) {
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(12),
+      client.from('staff_visa_cases')
+        .select('id,pathway,status,requested_at,updated_at')
+        .eq('staff_id', session.staff_id)
+        .not('status', 'in', '(declined,withdrawn)')
+        .order('requested_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      client.from('staff_visa_invoices')
+        .select('id,visa_case_id,invoice_number,status,amount_pence,issue_date')
+        .eq('staff_id', session.staff_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     const failed = [
@@ -90,6 +105,8 @@ export async function GET(request: NextRequest) {
       documentsResult,
       availabilityResult,
       payrollResult,
+      visaCaseResult,
+      visaInvoiceResult,
     ].find((result) => result.error);
 
     if (failed?.error || !staffResult.data) {
@@ -203,6 +220,19 @@ export async function GET(request: NextRequest) {
     const profileFields = [staff.phone, staff.address_line_1, staff.city, staff.postcode, staff.country, staff.profile_photo_path];
     const profileCompleteness = Math.round(profileFields.filter(Boolean).length / profileFields.length * 100);
 
+    const visaCase = visaCaseResult.data || null;
+    const visaInvoice = visaInvoiceResult.data || null;
+    const visaDocuments = (documentsResult.data || []).filter((document: any) => document.category === 'visa_sponsorship');
+    const roleValue = String(staff.job_title || '').trim().toLowerCase();
+    const visaPathway = roleValue.includes('healthcare assistant') ? 'visa_switch' : (roleValue.includes('registered nurse') || roleValue === 'nurse' || roleValue.includes(' nurse')) ? 'international_sponsorship' : null;
+    const cosStatus = !visaCase
+      ? { key: 'not_requested', label: 'COS not requested', canDownload: false, documentId: null }
+      : ['awaiting_payment', 'preparing_sms', 'submitted_to_sms', 'cos_pending'].includes(String(visaCase.status))
+        ? { key: 'processing', label: 'Processing COS', canDownload: false, documentId: null }
+        : ['cos_assigned', 'completed'].includes(String(visaCase.status)) && visaDocuments.length > 0
+          ? { key: 'active', label: 'Active', canDownload: true, documentId: visaDocuments[0].id }
+          : { key: 'invoice_requested', label: 'Invoice requested', canDownload: false, documentId: null };
+
     const currentPayroll = latestPayrollEntry
       ? {
           id: latestPayrollEntry.id,
@@ -235,6 +265,19 @@ export async function GET(request: NextRequest) {
       },
       readiness,
       operationalState,
+      visaSupport: {
+        available: Boolean(visaPathway),
+        pathway: visaPathway,
+        label: visaCase ? 'View Visa & COS' : visaPathway === 'visa_switch' ? 'Apply for Visa Switch' : visaPathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
+        explanation: visaPathway === 'visa_switch'
+          ? 'Generate the £2,000 LAUREM visa-switch support invoice and open your case.'
+          : visaPathway === 'international_sponsorship'
+            ? 'Generate the £2,000 LAUREM international sponsorship support invoice and open your case.'
+            : 'Visa support requests are currently available for Healthcare Assistants and Registered Nurses.',
+        cosStatus,
+        caseId: visaCase?.id || null,
+        invoice: visaInvoice ? { invoiceNumber: visaInvoice.invoice_number, status: visaInvoice.status, amountPence: visaInvoice.amount_pence, issueDate: visaInvoice.issue_date } : null,
+      },
       summary: {
         upcomingShifts: assignments.length,
         submittedTimesheets: countByStatus(timesheets, 'submitted'),

@@ -19,5 +19,21 @@ export async function GET(req: NextRequest) {
     .order('issued_at', { ascending: false });
   if (error) return NextResponse.json({ error: 'Unable to load employment documents.' }, { status: 500 });
 
-  return NextResponse.json({ documents: data || [] });
+  let documents = data || [];
+  const visaDocuments = documents.filter((document: any) => document.category === 'visa_sponsorship');
+  if (visaDocuments.length) {
+    const { data: visaCase } = await client.from('staff_visa_cases')
+      .select('status')
+      .eq('staff_id', session.staff_id)
+      .not('status', 'in', '(declined,withdrawn)')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const cosIsActive = Boolean(visaCase && ['cos_assigned', 'completed'].includes(visaCase.status));
+    if (!cosIsActive) {
+      documents = documents.filter((document: any) => document.category !== 'visa_sponsorship');
+    }
+  }
+
+  return NextResponse.json({ documents });
 }

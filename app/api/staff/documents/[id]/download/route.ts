@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const client = db();
   const { data: document, error } = await client
     .from('staff_documents')
-    .select('id,staff_id,title,original_filename,mime_type,storage_path,content_text,document_sha256,status,signature_status,signature_name,signed_at,issued_at')
+    .select('id,staff_id,title,category,original_filename,mime_type,storage_path,content_text,document_sha256,status,signature_status,signature_name,signed_at,issued_at')
     .eq('id', id)
     .eq('staff_id', session.staff_id)
     .maybeSingle();
@@ -42,6 +42,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return NextResponse.json({ error: 'Unable to load document.' }, { status: 500 });
   if (!document || document.status !== 'issued') {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+  }
+  if (document.category === 'visa_sponsorship') {
+    const { data: visaCase } = await client.from('staff_visa_cases')
+      .select('status')
+      .eq('staff_id', session.staff_id)
+      .not('status', 'in', '(declined,withdrawn)')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!visaCase || !['cos_assigned', 'completed'].includes(visaCase.status)) {
+      return NextResponse.json({ error: 'The Certificate of Sponsorship is not active for download yet.' }, { status: 409 });
+    }
   }
   if (!document.storage_path && typeof document.content_text !== 'string') {
     return NextResponse.json({ error: 'This document is not available for download.' }, { status: 409 });

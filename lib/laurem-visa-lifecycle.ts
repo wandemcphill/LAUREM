@@ -14,7 +14,7 @@ export const LAUREM_VISA_STATUSES = [
 export type LauremVisaStatus = (typeof LAUREM_VISA_STATUSES)[number];
 
 const NEXT_VISA_STATUSES: Record<LauremVisaStatus, readonly LauremVisaStatus[]> = {
-  requested: ['admin_review', 'declined', 'withdrawn'],
+  requested: ['admin_review', 'awaiting_payment', 'preparing_sms', 'declined', 'withdrawn'],
   admin_review: ['awaiting_payment', 'preparing_sms', 'declined', 'withdrawn'],
   awaiting_payment: ['preparing_sms', 'declined', 'withdrawn'],
   preparing_sms: ['submitted_to_sms', 'declined', 'withdrawn'],
@@ -46,7 +46,7 @@ export function isLauremVisaTerminalStatus(status: LauremVisaStatus) {
 }
 
 export function canAssignLauremVisaCoS(status: LauremVisaStatus) {
-  return status === 'submitted_to_sms' || status === 'cos_pending' || status === 'cos_assigned';
+  return status === 'awaiting_payment' || status === 'preparing_sms' || status === 'submitted_to_sms' || status === 'cos_pending' || status === 'cos_assigned';
 }
 
 export function assertLauremVisaCoSAssignment(status: LauremVisaStatus) {

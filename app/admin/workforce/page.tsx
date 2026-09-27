@@ -60,6 +60,7 @@ type WorkforceReadiness = {
   summary: { totalStaff: number; activeStaff: number; ready: number; attention: number; blocked: number; latestPayrollPeriod: any | null; generatedAt: string };
   staff: { id: string; full_name: string; employee_number: string; job_title: string; readiness: { overall: 'ready' | 'attention' | 'blocked'; nextAction: string | null } }[];
 };
+type VisaRequest = { id:string; staff_id:string; pathway:string; status:string; requested_at:string; staff:any; invoice:any; cosDocument:any };
 
 function localInput(date: Date) {
   const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -75,6 +76,8 @@ export default function WorkforcePage() {
   const [error, setError] = useState('');
   const [workforceReadiness, setWorkforceReadiness] = useState<WorkforceReadiness | null>(null);
   const [busy, setBusy] = useState(false);
+  const [visaRequests, setVisaRequests] = useState<VisaRequest[]>([]);
+  const [visaCounts, setVisaCounts] = useState({newRequests:0,processing:0,active:0});
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -99,15 +102,16 @@ export default function WorkforcePage() {
       params.set('page', String(page));
       params.set('limit', '50');
 
-      const [s, a, t, l, r] = await Promise.all([
+      const [s, a, t, l, r, v] = await Promise.all([
         fetch(`/api/admin/workforce/staff?${params.toString()}`, { cache: 'no-store' }),
         fetch('/api/admin/workforce/assignments', { cache: 'no-store' }),
         fetch('/api/admin/workforce/timesheets', { cache: 'no-store' }),
         fetch('/api/admin/workforce/leave', { cache: 'no-store' }),
         fetch('/api/admin/workforce/readiness', { cache: 'no-store' }),
+        fetch('/api/admin/workforce/visa-requests', { cache: 'no-store' }),
       ]);
 
-      const [sp, ap, tp, lp, rp] = await Promise.all([s.json(), a.json(), t.json(), l.json(), r.json()]);
+      const [sp, ap, tp, lp, rp, vp] = await Promise.all([s.json(), a.json(), t.json(), l.json(), r.json(), v.json()]);
 
       if (!s.ok || !a.ok || !t.ok || !l.ok) {
         throw new Error(sp.error || ap.error || tp.error || lp.error || 'Unable to load workforce data.');
@@ -119,6 +123,8 @@ export default function WorkforcePage() {
       setTimesheets(tp.timesheets || []);
       setLeave(lp.requests || lp.leaveRequests || []);
       setWorkforceReadiness(r.ok ? rp : null);
+      setVisaRequests(v.ok ? (vp.requests || []) : []);
+      setVisaCounts(v.ok ? (vp.counts || {newRequests:0,processing:0,active:0}) : {newRequests:0,processing:0,active:0});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load workforce data.');
     }
@@ -423,6 +429,39 @@ export default function WorkforcePage() {
               </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
+          <div><h2 style={{marginBottom:4}}>Visa & Sponsorship Requests</h2><p style={{color:'var(--muted)',marginTop:0}}>Staff requests for visa switch support or international sponsorship. £2,000 invoices and COS status are shown here.</p></div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>New {visaCounts.newRequests}</span>
+            <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>Processing {visaCounts.processing}</span>
+            <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>Active {visaCounts.active}</span>
+          </div>
+        </div>
+        <div style={{display:'grid',gap:10,marginTop:12}}>
+          {visaRequests.map((request) => {
+            const userStatus = request.cosDocument && ['cos_assigned','completed'].includes(request.status)
+              ? 'Active'
+              : ['awaiting_payment','preparing_sms','submitted_to_sms','cos_pending'].includes(request.status)
+                ? 'Processing COS'
+                : 'Invoice requested';
+            return <article className='card' key={request.id} style={{padding:16,display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap',alignItems:'center'}}>
+              <div>
+                <Link href={'/admin/workforce/'+encodeURIComponent(request.staff_id)+'/visa-sponsorship'} style={{fontSize:17,fontWeight:850,color:'var(--ink)',textDecoration:'none'}}>{request.staff?.full_name || 'Staff'}</Link>
+                <div style={{color:'var(--muted)',fontSize:13,marginTop:2}}>{request.staff?.employee_number || request.staff?.laurem_id || ''} · {request.staff?.job_title || ''} · {request.pathway === 'visa_switch' ? 'Visa switch' : 'International sponsorship'}</div>
+                <div style={{color:'var(--muted)',fontSize:12,marginTop:5}}>Invoice {request.invoice?.invoice_number || 'not issued'} · £{(Number(request.invoice?.amount_pence || 200000)/100).toFixed(2)} · {request.invoice?.status || 'issued'} · Requested {new Date(request.requested_at).toLocaleDateString('en-GB')}</div>
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                <span style={{padding:'7px 10px',borderRadius:999,background:userStatus==='Active'?'#e8f7ee':userStatus==='Processing COS'?'#fff4e5':'var(--soft)',color:userStatus==='Active'?'#166534':userStatus==='Processing COS'?'#9a3412':'var(--ink)',fontSize:12,fontWeight:900}}>{userStatus}</span>
+                {request.cosDocument && <span style={{padding:'7px 10px',borderRadius:999,background:'#e8f7ee',color:'#166534',fontSize:12,fontWeight:900}}>COS uploaded</span>}
+                <Link href={'/admin/workforce/'+encodeURIComponent(request.staff_id)+'/visa-sponsorship'} style={actionButton}>Open case</Link>
+              </div>
+            </article>;
+          })}
+          {!visaRequests.length && <div className='card' style={{padding:20,color:'var(--muted)'}}>No open visa support requests.</div>}
         </div>
       </section>
 

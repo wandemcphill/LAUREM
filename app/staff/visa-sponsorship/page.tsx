@@ -15,6 +15,8 @@ type Data = {
   events: any[];
   readiness: Readiness | null;
   visaDocuments: any[];
+  cosStatus: { key: string; label: string; canDownload: boolean };
+  request: { available: boolean; pathway: LauremVisaPathway | null; label: string | null; explanation: string };
 };
 
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -48,7 +50,7 @@ export default function StaffVisaSponsorshipPage() {
       const body=await response.json();
       if(!response.ok) throw new Error(body.error||'Unable to load visa sponsorship workspace.');
       setData(body);
-      setRouteChoice(body.recommendation.pathway);
+      setRouteChoice(body.request?.pathway || body.recommendation.pathway);
       const info=body.case?.additional_information||{};
       setCurrentVisaType(info.current_visa_type||'');
       setCurrentVisaExpiryDate(info.current_visa_expiry_date||'');
@@ -100,21 +102,38 @@ export default function StaffVisaSponsorshipPage() {
 
       {error&&<div role="alert" style={{...card,marginTop:14,color:'#8a2323'}}>{error}</div>}
 
-      {!c ? <section style={{...card,marginTop:14}}>
-        <h2 style={{marginTop:0}}>Request immigration support</h2>
-        <div style={{...muted,lineHeight:1.55}}>Based on your existing recruitment information, the portal recommends <strong style={{color:'#102a43'}}>{data.recommendation.label}</strong>.</div>
-        <label style={{display:'block',marginTop:16,fontWeight:800,fontSize:13}}>Support route
-          <select value={routeChoice} onChange={e=>setRouteChoice(e.target.value as LauremVisaPathway)} style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #cbd5e1',borderRadius:10,font:'inherit'}}>
-            <option value="visa_switch">UK visa switch support</option>
-            <option value="international_sponsorship">International visa sponsorship support</option>
-          </select>
-        </label>
-        <div style={{marginTop:12,padding:14,borderRadius:12,background:'#f7fafc',fontSize:13}}>
-          <strong>Your existing application</strong>
-          <div style={{...muted,marginTop:5}}>{data.application.role_applied||data.staff.job_title} · {data.application.current_country||data.application.country_of_residence||'Country not recorded'} · Living in UK: {data.application.living_in_uk||'Not recorded'} · Sponsorship need: {data.application.requires_sponsorship||'Not recorded'}</div>
+      {!c ? <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
+        <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>COS NOT REQUESTED</div>
+        <h2 style={{margin:'7px 0 6px'}}>{data.request.label || 'Visa & Sponsorship Support'}</h2>
+        <p style={{...muted,lineHeight:1.6,marginTop:0}}>{data.request.explanation}</p>
+        <div style={{marginTop:14,padding:15,borderRadius:12,background:'#f7fafc',lineHeight:1.6,fontSize:13}}>
+          <strong>Before you proceed</strong>
+          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below creates a £2,000 LAUREM service invoice for visa-switch or sponsorship support and opens your case. This is a LAUREM service charge, not a UK government visa fee. LAUREM will review the case and payment before COS processing.</p>
         </div>
-        <button disabled={busy} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Creating request…':'Request visa support & £2,000 invoice'}</button>
-      </section> : <><section style={{...card,marginTop:14}}>
+        <div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea'}}>
+          <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Your route</div>
+          <strong>{data.request.pathway === 'visa_switch' ? 'UK visa switch support' : 'International visa sponsorship support'}</strong>
+          <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
+        </div>
+        <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':'Request £2,000 Invoice'}</button>
+      </section> : <><section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>CERTIFICATE OF SPONSORSHIP</div>
+            <h2 style={{margin:'7px 0 4px'}}>COS Status</h2>
+            <div style={{...muted,fontSize:13}}>Requested {fmt(c.requested_at)}</div>
+          </div>
+          <span style={{padding:'8px 12px',borderRadius:999,background:data.cosStatus.key==='active'?'#e8f7ee':data.cosStatus.key==='processing'?'#fff4e5':'#edf2f7',color:data.cosStatus.key==='active'?'#166534':data.cosStatus.key==='processing'?'#9a3412':'#102a43',fontSize:13,fontWeight:900}}>{data.cosStatus.label}</span>
+        </div>
+        {invoice && <div style={{marginTop:14,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}>
+          <strong>£2,000 invoice</strong> · {invoice.invoice_number} · {invoice.status}
+          <div style={{...muted,marginTop:4}}>Issued {invoice.issue_date || 'today'}</div>
+        </div>}
+        <div style={{display:'flex',gap:9,flexWrap:'wrap',marginTop:14}}>
+          {data.cosStatus.canDownload && data.visaDocuments[0] && <a href={'/api/staff/documents/' + encodeURIComponent(data.visaDocuments[0].id) + '/download'} download style={{...button(true),background:'#0f766e'}}>Download COS</a>}
+          <button onClick={()=>router.push('/staff/messages')} style={button()}>Message Admin / HR</button>
+        </div>
+      </section><section style={{...card,marginTop:14}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>CASE</div><h2 style={{margin:'5px 0'}}>{visaPathwayLabel(c.pathway)}</h2><div style={muted}>Status: <strong style={{color:'#102a43'}}>{c.status.replaceAll('_',' ')}</strong> · Requested {fmt(c.requested_at)}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:'#edf2f7',fontSize:12,fontWeight:900}}>{c.pathway}</span></div><p style={{...muted,lineHeight:1.55}}>{c.pathway_basis}</p></section>
 
       <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:14,marginTop:14}}>

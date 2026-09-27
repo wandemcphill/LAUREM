@@ -16,6 +16,7 @@ type AvailabilitySummary = { id:string; effective_from:string; full_time:boolean
 type WorkforceReadiness = { overall:'ready'|'attention'|'blocked'; nextAction:string|null; lanes:{key:string;level:'ready'|'attention'|'blocked';label:string;detail:string;count:number}[] };
 type PayrollEntry = { id:string; payroll_period_id:string; approved_hours:number|null; hourly_rate:number|null; gross_amount:number|null; status:string; notes:string|null; created_at:string; updated_at:string; payroll_periods?:{period_start:string;period_end:string;pay_date:string|null;status:string}|null };
 type OperationalState = { level:'clear'|'active'|'attention'|'blocked'; status:string; label:string; detail:string; currentAssignmentId:string|null; upcomingAssignmentId:string|null; openAttendanceTimesheetId:string|null; counts:{upcomingAssignments:number;pendingTimesheets:number;rejectedTimesheets:number;pendingLeave:number;openPayrollEntries:number} };
+type VisaSupport = { available:boolean; pathway:'visa_switch'|'international_sponsorship'|null; label:string|null; explanation:string; cosStatus:{key:string;label:string;canDownload:boolean;documentId:string|null}; caseId:string|null; invoice:{invoiceNumber:string;status:string;amountPence:number;issueDate:string}|null };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
 const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
@@ -50,6 +51,7 @@ export default function StaffPortalHome() {
   const [submittingLeave,setSubmittingLeave] = useState(false);
   const [loggingOut,setLoggingOut] = useState(false);
   const [photoFailed,setPhotoFailed] = useState(false);
+  const [visaSupport,setVisaSupport] = useState<VisaSupport|null>(null);
 
   async function load(showSpinner=true) {
     if(showSpinner) setLoading(true); else setRefreshing(true);
@@ -72,6 +74,7 @@ export default function StaffPortalHome() {
       setWorkforceReadiness(body.readiness||null);
       setOperationalState(body.operationalState||null);
       setPayroll(body.payroll?.entries||[]);
+      setVisaSupport(body.visaSupport || null);
       setOnboarding(body.onboarding ? { title:String(body.onboarding.package?.title||'Onboarding'), status:String(body.onboarding.package?.status||'active'), tasks:body.onboarding.tasks||[] } : null);
     } catch(e) { setError(e instanceof Error?e.message:'Unable to load the staff dashboard.'); }
     finally { setLoading(false); setRefreshing(false); }
@@ -118,6 +121,14 @@ export default function StaffPortalHome() {
     return required.length ? Math.round((done/required.length)*100) : onboarding ? 100 : 0;
   },[onboarding]);
 
+  const bodyVisaStatusLabel = visaSupport?.cosStatus?.label || 'COS not requested';
+  const bodyVisaStatusKey = visaSupport?.cosStatus?.key || 'not_requested';
+  const bodyVisaStatusColor = bodyVisaStatusKey;
+  const staffVisaAvailable = Boolean(visaSupport?.available);
+  const staffVisaLabel = visaSupport?.label || 'Visa & Sponsorship';
+  const staffVisaDownload = visaSupport?.cosStatus?.canDownload ? visaSupport.cosStatus.documentId : null;
+  const bodyVisaExplanation = visaSupport?.explanation || 'Visa support is available for eligible staff roles.';
+
   if(loading || !staff) return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}><div style={card}><strong>LAUREM STAFF PORTAL</strong><p style={muted}>Loading your workspace…</p></div></div></main>;
 
   return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}>
@@ -133,6 +144,32 @@ export default function StaffPortalHome() {
 
     {error&&<div role="alert" style={{...card,marginTop:14,color:'#b42318'}}>{error}</div>}
 
+    <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(300px,.7fr)',gap:14,marginTop:14}}>
+      {<><article style={{...card,border:'2px solid #0f766e',boxShadow:'0 8px 24px rgba(15,118,110,.08)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>IMMIGRATION & COS</div>
+            <h2 style={{margin:'6px 0 5px'}}>Certificate of Sponsorship</h2>
+            <div style={muted}>Your COS status is kept visible here. Requesting visa support generates the £2,000 LAUREM service invoice.</div>
+          </div>
+          <span style={{padding:'8px 11px',borderRadius:999,background:bodyVisaStatusColor==='active'?'#e8f7ee':bodyVisaStatusColor==='processing'?'#fff4e5':'#edf2f7',color:bodyVisaStatusColor==='active'?'#166534':bodyVisaStatusColor==='processing'?'#9a3412':'#102a43',fontSize:12,fontWeight:900}}>{bodyVisaStatusLabel}</span>
+        </div>
+        <div style={{marginTop:14,display:'flex',gap:9,flexWrap:'wrap'}}>
+          {staffVisaAvailable && <button onClick={()=>router.push('/staff/visa-sponsorship')} style={{...btn(true)}}>{staffVisaLabel}</button>}
+          {staffVisaDownload && <a href={`/api/staff/documents/${encodeURIComponent(staffVisaDownload)}/download`} download style={{...btn(true),background:'#0f766e'}}>Download COS</a>}
+          <button onClick={()=>router.push('/staff/messages')} style={btn()}>Message Admin / HR</button>
+        </div>
+        <div style={{...muted,fontSize:12,marginTop:10}}>{bodyVisaExplanation}</div>
+      </article>
+      <article style={{...card,display:'flex',flexDirection:'column',justifyContent:'space-between'}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>STAFF SUPPORT</div>
+          <h2 style={{margin:'6px 0 5px'}}>Need help?</h2>
+          <p style={{...muted,lineHeight:1.5}}>Send a private message directly to LAUREM Admin / HR from your portal.</p>
+        </div>
+        <button onClick={()=>router.push('/staff/messages')} style={{...btn(true),marginTop:12}}>Open Messages</button>
+      </article></>}
+    </section>
     <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:10,marginTop:14}}>
       <Metric label="Upcoming shifts" value={metrics.upcoming}/><Metric label="Timesheets submitted" value={metrics.submitted}/><Metric label="Approved hours" value={metrics.approvedHours.toFixed(2)}/><Metric label="Pending leave" value={metrics.pendingLeave}/><Metric label="Open payroll" value={metrics.openPayroll}/>
     </section>
