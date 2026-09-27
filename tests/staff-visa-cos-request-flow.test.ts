@@ -42,7 +42,7 @@ describe('LAUREM staff visa / COS request flow', () => {
     const staffApi = source('app/api/staff/visa-sponsorship/route.ts');
     const readiness = source('lib/laurem-visa-readiness.ts');
     expect(lifecycle).toContain("requested: ['admin_review', 'awaiting_payment', 'preparing_sms'");
-    expect(lifecycle).toContain("status === 'awaiting_payment' || status === 'preparing_sms'");
+    expect(lifecycle).toContain("status === 'preparing_sms' || status === 'submitted_to_sms'");
     expect(staffApi).toContain("label: 'Processing COS'");
     expect(staffApi).toContain("label: 'Active'");
     expect(readiness).toContain("!['preparing_sms', 'submitted_to_sms'].includes(input.targetStatus)");
@@ -53,7 +53,7 @@ describe('LAUREM staff visa / COS request flow', () => {
     const page = source('app/admin/workforce/[staffId]/visa-sponsorship/page.tsx');
     const documentRoute = source('app/api/admin/workforce/staff/[staffId]/documents/route.ts');
     expect(page).toContain('Mark Processing COS');
-    expect(page).toContain("patch({status:'awaiting_payment'})");
+    expect(page).toContain("patch({status:'preparing_sms'})");
     expect(page).toContain('Upload CoS to staff portal');
     expect(page).toContain("form.set('category','visa_sponsorship')");
     expect(documentRoute).toContain("category === 'visa_sponsorship'");
