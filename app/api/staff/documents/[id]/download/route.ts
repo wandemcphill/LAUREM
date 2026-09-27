@@ -43,6 +43,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!document || document.status !== 'issued') {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
   }
+  if (document.category === 'visa_sponsorship') {
+    const { data: visaCase } = await client.from('staff_visa_cases')
+      .select('status')
+      .eq('staff_id', session.staff_id)
+      .not('status', 'in', '(declined,withdrawn)')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!visaCase || !['cos_assigned', 'completed'].includes(visaCase.status)) {
+      return NextResponse.json({ error: 'The Certificate of Sponsorship is not active for download yet.' }, { status: 409 });
+    }
+  }
   if (!document.storage_path && typeof document.content_text !== 'string') {
     return NextResponse.json({ error: 'This document is not available for download.' }, { status: 409 });
   }
