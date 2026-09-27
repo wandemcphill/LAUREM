@@ -268,7 +268,7 @@ export async function GET(request: NextRequest) {
       visaSupport: {
         available: Boolean(visaPathway),
         pathway: visaPathway,
-        label: visaPathway === 'visa_switch' ? 'Apply for Visa Switch' : visaPathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
+        label: visaCase ? 'View Visa & COS' : visaPathway === 'visa_switch' ? 'Apply for Visa Switch' : visaPathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
         explanation: visaPathway === 'visa_switch'
           ? 'Generate the £2,000 LAUREM visa-switch support invoice and open your case.'
           : visaPathway === 'international_sponsorship'
