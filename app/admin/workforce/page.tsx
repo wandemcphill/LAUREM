@@ -102,7 +102,7 @@ export default function WorkforcePage() {
       params.set('page', String(page));
       params.set('limit', '50');
 
-      const [s, a, t, l, r] = await Promise.all([
+      const [s, a, t, l, r, v] = await Promise.all([
         fetch(`/api/admin/workforce/staff?${params.toString()}`, { cache: 'no-store' }),
         fetch('/api/admin/workforce/assignments', { cache: 'no-store' }),
         fetch('/api/admin/workforce/timesheets', { cache: 'no-store' }),
