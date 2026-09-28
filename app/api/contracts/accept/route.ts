@@ -85,13 +85,6 @@ export async function POST(request: NextRequest) {
     if (!result?.ok) return rpcErrorResponse(result?.code || 'UNKNOWN');
 
     if (action === 'decline') {
-      const { error: revokeError } = await loaded.client
-        .from('laurem_candidate_document_packs')
-        .update({ status: 'revoked', updated_at: new Date().toISOString() })
-        .eq('application_id', loaded.contract.application_id)
-        .eq('status', 'pending');
-      if (revokeError) throw revokeError;
-
       const transition = await loaded.client.rpc('laurem_transition_application_status', {
         p_application_id: loaded.contract.application_id,
         p_to_status: 'Rejected',
@@ -100,9 +93,14 @@ export async function POST(request: NextRequest) {
         p_override: false,
         p_override_reason: null,
       });
-      if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED')) {
-        throw transition.error;
-      }
+      if (transition.error) throw transition.error;
+
+      const { error: revokeError } = await loaded.client
+        .from('laurem_candidate_document_packs')
+        .update({ status: 'revoked', updated_at: new Date().toISOString() })
+        .eq('application_id', loaded.contract.application_id)
+        .eq('status', 'pending');
+      if (revokeError) throw revokeError;
 
       return NextResponse.json({ ok: true, status: 'declined' });
     }
