@@ -15,6 +15,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq('id', id).eq('staff_id', session.staff_id).maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to load document.' }, { status: 500 });
   if (!document || document.status !== 'issued') return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+  if (document.category === 'visa_sponsorship') {
+    const { data: visaCase } = await client.from('staff_visa_cases')
+      .select('status')
+      .eq('staff_id', session.staff_id)
+      .not('status', 'in', '(declined,withdrawn)')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!visaCase || !['cos_assigned', 'completed'].includes(visaCase.status)) {
+      return NextResponse.json({ error: 'The Certificate of Sponsorship is not active yet.' }, { status: 409 });
+    }
+  }
 
   const now = new Date().toISOString();
   await client.from('staff_documents').update({ first_viewed_at: document.first_viewed_at || now, last_viewed_at: now, viewed_count: Number(document.viewed_count || 0) + 1, updated_at: now }).eq('id', id).eq('staff_id', session.staff_id);
