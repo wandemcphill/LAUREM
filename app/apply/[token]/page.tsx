@@ -87,6 +87,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ token: s
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -97,6 +98,46 @@ export default function ApplicationPage({ params }: { params: Promise<{ token: s
       active = false;
     };
   }, [params]);
+
+  useEffect(() => {
+    if (!token) return;
+    const key = `laurem:application-draft:${token.slice(0, 24)}`;
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      if (raw) {
+        const saved = JSON.parse(raw) as { draft?: Partial<Draft>; step?: number };
+        if (saved.draft && typeof saved.draft === 'object') {
+          setDraft((current) => ({ ...current, ...saved.draft }));
+        }
+        if (typeof saved.step === 'number' && Number.isFinite(saved.step)) {
+          setStep(Math.max(0, Math.min(Math.trunc(saved.step), steps.length - 1)));
+        }
+      }
+    } catch {
+      // Continue with an empty draft if session storage is unavailable or corrupted.
+    } finally {
+      setHydrated(true);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !hydrated || done) return;
+    const key = `laurem:application-draft:${token.slice(0, 24)}`;
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify({ draft, step }));
+    } catch {
+      // Continue without persistence if browser storage is unavailable.
+    }
+  }, [token, hydrated, done, draft, step]);
+
+  useEffect(() => {
+    if (!token || !done) return;
+    try {
+      window.sessionStorage.removeItem(`laurem:application-draft:${token.slice(0, 24)}`);
+    } catch {
+      // Continue if browser storage is unavailable.
+    }
+  }, [token, done]);
 
   const selectedRole = String(draft.role_applied || '');
   const isNurse = selectedRole === 'Registered Nurse';
@@ -271,7 +312,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ token: s
     <header style={{ marginBottom: 20 }}>
       <p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '.08em' }}>{lauremCompany.tradingName.toUpperCase()} RECRUITMENT</p>
       <h1 style={{ marginBottom: 8 }}>Candidate application</h1>
-      <p style={{ color: 'var(--muted)' }}>Complete your application carefully. Your progress stays on this device until you submit.</p>
+      <p style={{ color: 'var(--muted)' }}>Complete your application carefully. Your progress is kept in this browser tab until you submit.</p>
       <div style={{ height: 8, background: 'var(--line)', borderRadius: 99, overflow: 'hidden', marginTop: 18 }} aria-hidden="true"><div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)' }} /></div>
       <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8 }}>Step {step + 1} of {steps.length}: {steps[step]}</p>
     </header>
