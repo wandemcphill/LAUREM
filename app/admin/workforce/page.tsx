@@ -63,9 +63,47 @@ type WorkforceReadiness = {
 };
 type VisaRequest = { id:string; staff_id:string; pathway:string; status:string; requested_at:string; staff:any; invoice:any; cosDocument:any };
 
-function localInput(date: Date) {
-  const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return d.toISOString().slice(0, 16);
+function londonInput(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return values.year + '-' + values.month + '-' + values.day + 'T' + values.hour + ':' + values.minute;
+}
+
+function londonLocalToIso(value: string) {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(value);
+  if (!match) return null;
+  const [year, month, day, hour, minute] = match.slice(1).map(Number);
+  const localAsUtc = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  const londonParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(localAsUtc);
+  const values = Object.fromEntries(londonParts.map((part) => [part.type, part.value]));
+  const projectedUtc = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+  );
+  const offsetMs = projectedUtc - localAsUtc.getTime();
+  const instant = new Date(localAsUtc.getTime() - offsetMs);
+  const check = londonInput(instant);
+  if (check !== value) return null;
+  return instant.toISOString();
 }
 
 export default function WorkforcePage() {
@@ -97,8 +135,8 @@ export default function WorkforcePage() {
   const [trainingStaffId, setTrainingStaffId] = useState('');
   const [clientName, setClientName] = useState('');
   const [location, setLocation] = useState('');
-  const [scheduledStart, setScheduledStart] = useState(localInput(new Date()));
-  const [scheduledEnd, setScheduledEnd] = useState(localInput(new Date(Date.now() + 4 * 3600000)));
+  const [scheduledStart, setScheduledStart] = useState(londonInput(new Date()));
+  const [scheduledEnd, setScheduledEnd] = useState(londonInput(new Date(Date.now() + 4 * 3600000)));
 
   async function load(page = currentPage) {
     setError('');
@@ -181,6 +219,12 @@ export default function WorkforcePage() {
   async function addAssignment(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedStaff) return;
+    const scheduledStartIso = londonLocalToIso(scheduledStart);
+    const scheduledEndIso = londonLocalToIso(scheduledEnd);
+    if (!scheduledStartIso || !scheduledEndIso || new Date(scheduledEndIso).getTime() <= new Date(scheduledStartIso).getTime()) {
+      setError('Enter valid UK time values for the shift, with the end after the start.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -191,8 +235,8 @@ export default function WorkforcePage() {
           staffId: selectedStaff,
           clientName,
           location,
-          scheduledStart: new Date(scheduledStart).toISOString(),
-          scheduledEnd: new Date(scheduledEnd).toISOString(),
+          scheduledStart: londonLocalToIso(scheduledStart),
+          scheduledEnd: londonLocalToIso(scheduledEnd),
         }),
       });
       const p = await r.json();
