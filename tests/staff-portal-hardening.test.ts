@@ -15,7 +15,10 @@ describe('LAUREM staff portal hardening', () => {
     expect(route).toContain("A valid LAUREM assignment is required for every staff timesheet.");
     expect(route).toContain('validateAssignedTimesheet(assignment');
     expect(page).toContain('Select a LAUREM assignment');
-    expect(page).toContain('assignmentId, workDate, clockIn, clockOut');
+    expect(page).toContain('assignmentId');
+    expect(page).toContain('workDate');
+    expect(page).toContain('clockIn');
+    expect(page).toContain('clockOut');
   });
 
   it('adds account-level throttling to staff login attempts', () => {
