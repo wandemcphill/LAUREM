@@ -61,8 +61,9 @@ describe('LAUREM staff portal follow-up hardening', () => {
     const route = readFileSync('app/api/staff/compliance/route.ts', 'utf8');
     const page = readFileSync('app/staff/compliance/page.tsx', 'utf8');
     expect(route).toContain("const allowed=['missing','expiring_soon','expired','pending',''];");
-    expect(route).not.toContain("'current'");
-    expect(route).not.toContain("'under_review'");
+    expect(route).toContain("preservedVerifiedStatus=['current','under_review'].includes(status)&&currentResult.data.dbs_pvg_status===status");
+    expect(page).toContain('<option value="current" disabled>Current (LAUREM verified)</option>');
+    expect(page).toContain('<option value="under_review" disabled>Under review (LAUREM verified)</option>');
     expect(page).toContain('This is your self-reported record');
     expect(page).toContain('Current');
   });
