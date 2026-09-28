@@ -62,6 +62,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (signatureData && signatureData.length > 300000) return NextResponse.json({ error: 'Signature drawing is too large.' }, { status: 400 });
   try {
     const client = db();
+    const { data: document } = await client.from('staff_documents')
+      .select('category,status')
+      .eq('id', id)
+      .eq('staff_id', session.staff_id)
+      .maybeSingle();
+    if (!document || document.status !== 'issued') return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+    if (document.category === 'visa_sponsorship') {
+      const { data: visaCase } = await client.from('staff_visa_cases')
+        .select('status')
+        .eq('staff_id', session.staff_id)
+        .not('status', 'in', '(declined,withdrawn)')
+        .order('requested_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!visaCase || !['cos_assigned', 'completed'].includes(visaCase.status)) {
+        return NextResponse.json({ error: 'The Certificate of Sponsorship is not active yet.' }, { status: 409 });
+      }
+    }
     const { data, error } = await client.rpc('laurem_sign_staff_document', {
       p_document_id: id, p_staff_id: session.staff_id, p_signed_name: signedName, p_signature_data: signatureData || null, p_attestation: attestation, p_ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null, p_user_agent: request.headers.get('user-agent') || null,
     });
