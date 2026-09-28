@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 describe('LAUREM staff portal hardening', () => {
   it('marks every staff API response private and non-cacheable', () => {
