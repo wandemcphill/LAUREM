@@ -71,4 +71,11 @@ describe('LAUREM staff portal follow-up hardening', () => {
   it('retires the legacy recruitment-document download route', () => {
     expect(existsSync('app/api/staff/documents/download/route.ts')).toBe(false);
   });
+
+  it('does not let staff overwrite a reviewed rota request', () => {
+    const route = readFileSync('app/api/staff/rota/route.ts', 'utf8');
+    expect(route).toContain("select('id,status')");
+    expect(route).toContain("ex.data.status!=='requested'");
+    expect(route).toContain('This effective date has already been reviewed by LAUREM.');
+  });
 });
