@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 describe('LAUREM staff portal hardening', () => {
   it('marks every staff API response private and non-cacheable', () => {
@@ -51,5 +51,24 @@ describe('LAUREM staff portal hardening', () => {
     expect(route).toContain('hasValidImageSignature');
     expect(route).toContain('file.slice(0, 12)');
     expect(route).toContain('The uploaded file is not a valid JPG, PNG or WebP image.');
+  });
+});
+
+
+
+describe('LAUREM staff portal follow-up hardening', () => {
+  it('does not let staff self-service mark DBS/PVG as LAUREM-verified', () => {
+    const route = readFileSync('app/api/staff/compliance/route.ts', 'utf8');
+    const page = readFileSync('app/staff/compliance/page.tsx', 'utf8');
+    expect(route).toContain("const allowed=['missing','expiring_soon','expired','pending',''];");
+    expect(route).toContain("preservedVerifiedStatus=['current','under_review'].includes(status)&&currentResult.data.dbs_pvg_status===status");
+    expect(page).toContain('<option value="current" disabled>Current (LAUREM verified)</option>');
+    expect(page).toContain('<option value="under_review" disabled>Under review (LAUREM verified)</option>');
+    expect(page).toContain('This is your self-reported record');
+    expect(page).toContain('Current');
+  });
+
+  it('retires the legacy recruitment-document download route', () => {
+    expect(existsSync('app/api/staff/documents/download/route.ts')).toBe(false);
   });
 });
