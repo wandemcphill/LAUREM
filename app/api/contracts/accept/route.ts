@@ -91,6 +91,20 @@ export async function POST(request: NextRequest) {
         .eq('application_id', loaded.contract.application_id)
         .eq('status', 'pending');
       if (revokeError) throw revokeError;
+
+      const transition = await loaded.client.rpc('laurem_transition_application_status', {
+        p_application_id: loaded.contract.application_id,
+        p_to_status: 'Rejected',
+        p_actor: 'candidate.contract.decline',
+        p_note: 'Candidate declined the employment offer electronically.',
+        p_override: false,
+        p_override_reason: null,
+      });
+      if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED')) {
+        throw transition.error;
+      }
+
+      return NextResponse.json({ ok: true, status: 'declined' });
     }
 
     const { data: application, error: applicationError } = await loaded.client
