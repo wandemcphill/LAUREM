@@ -7,8 +7,8 @@ describe('admin weekly schedule UK timezone', () => {
     expect(page).toContain("timeZone:'Europe/London'");
     expect(page).toContain('function londonToday');
     expect(page).toContain('function londonInputToIso');
-    expect(page).toContain('const startIso=londonInputToIso(selectedDay+'T'+start);');
-    expect(page).toContain('const endIso=londonInputToIso(selectedDay+'T'+end);');
+    expect(page).toContain("const startIso=londonInputToIso(selectedDay+'T'+start);");
+    expect(page).toContain("const endIso=londonInputToIso(selectedDay+'T'+end);");
     expect(page).not.toContain("new Date(selectedDay+'T'+start)");
     expect(page).not.toContain("new Date(selectedDay+'T'+end)");
   });
