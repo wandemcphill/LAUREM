@@ -10,10 +10,33 @@ type Availability={id:string;staff_id:string;effective_from:string;full_time:boo
 const card:React.CSSProperties={background:'#fff',border:'1px solid var(--line)',borderRadius:16};
 const input:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'10px 11px',border:'1px solid var(--line)',borderRadius:9,font:'inherit',background:'#fff'};
 const button=(primary=false):React.CSSProperties=>({border:primary?'0':'1px solid var(--line)',background:primary?'var(--ink)':'#fff',color:primary?'#fff':'var(--ink)',padding:'9px 12px',borderRadius:9,fontWeight:800,cursor:'pointer',textDecoration:'none'});
-function mondayOf(value:Date){const d=new Date(value);const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day));d.setHours(0,0,0,0);return d;}
+function londonToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London'}).format(new Date());}
+function mondayOf(value:Date){
+  const d=new Date(Date.UTC(value.getUTCFullYear(),value.getUTCMonth(),value.getUTCDate()));
+  const day=d.getUTCDay();
+  d.setUTCDate(d.getUTCDate()+(day===0?-6:1-day));
+  return d;
+}
 function isoDate(d:Date){return d.toISOString().slice(0,10);}
-function displayDate(d:Date){return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
-function displayTime(v:string){return new Date(v).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function displayDate(d:Date){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'short',day:'numeric',month:'short'}).format(d);}
+function displayTime(v:string){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(v));}
+function londonInputToIso(value:string){
+  const match=/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(value);
+  if(!match)return null;
+  const [year,month,day,hour,minute]=match.slice(1).map(Number);
+  const localAsUtc=new Date(Date.UTC(year,month-1,day,hour,minute));
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(localAsUtc);
+  const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+  const projectedUtc=Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day),Number(values.hour),Number(values.minute));
+  const instant=new Date(localAsUtc.getTime()-(projectedUtc-localAsUtc.getTime()));
+  if(displayLocalInput(instant)!==value)return null;
+  return instant.toISOString();
+}
+function displayLocalInput(date:Date){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
+  const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+  return values.year+'-'+values.month+'-'+values.day+'T'+values.hour+':'+values.minute;
+}
 function statusPill(value:string){return <span style={{padding:'5px 8px',borderRadius:999,background:'var(--soft)',fontSize:11,fontWeight:800,textTransform:'capitalize'}}>{value.replaceAll('_',' ')}</span>;}
 function availabilityLabel(item:Availability|undefined){if(!item)return 'No availability';return [item.full_time?'FT':item.part_time?'PT':null,item.days?'Days':null,item.nights?'Nights':null,item.weekends?'Weekends':null].filter(Boolean).join(' · ')||'Preferences recorded';}
 
@@ -21,13 +44,13 @@ export default function WorkforceSchedulePage(){
   const [staff,setStaff]=useState<Staff[]>([]);
   const [assignments,setAssignments]=useState<Assignment[]>([]);
   const [availability,setAvailability]=useState<Record<string,Availability>>({});
-  const [week,setWeek]=useState(()=>mondayOf(new Date()));
+  const [week,setWeek]=useState(()=>mondayOf(new Date(londonToday()+'T00:00:00Z')));
   const [selectedStaff,setSelectedStaff]=useState('');
   const [clientName,setClientName]=useState('');
   const [location,setLocation]=useState('');
   const [start,setStart]=useState('09:00');
   const [end,setEnd]=useState('17:00');
-  const [selectedDay,setSelectedDay]=useState(isoDate(new Date()));
+  const [selectedDay,setSelectedDay]=useState(londonToday());
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -55,16 +78,16 @@ export default function WorkforceSchedulePage(){
 
   async function createShift(event:FormEvent){
     event.preventDefault();if(!selectedStaff||!location)return;
-    const startDate=new Date(selectedDay+'T'+start);const endDate=new Date(selectedDay+'T'+end);
-    if(!Number.isFinite(startDate.getTime())||!Number.isFinite(endDate.getTime())||endDate<=startDate){setError('End time must be later than start time.');return;}
+    const startIso=londonInputToIso(selectedDay+'T'+start);const endIso=londonInputToIso(selectedDay+'T'+end);
+    if(!startIso||!endIso||new Date(endIso).getTime()<=new Date(startIso).getTime()){setError('Enter valid UK times with the end after the start.');return;}
     setBusy(true);setError('');
-    try{const response=await fetch('/api/admin/workforce/assignments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({staffId:selectedStaff,clientName,location,scheduledStart:startDate.toISOString(),scheduledEnd:endDate.toISOString()})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Unable to schedule shift.');setClientName('');setLocation('');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to schedule shift.');}finally{setBusy(false);}
+    try{const response=await fetch('/api/admin/workforce/assignments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({staffId:selectedStaff,clientName,location,scheduledStart:startIso,scheduledEnd:endIso})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Unable to schedule shift.');setClientName('');setLocation('');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to schedule shift.');}finally{setBusy(false);}
   }
 
   async function changeStatus(id:string,status:string){setBusy(true);setError('');try{const response=await fetch('/api/admin/workforce/assignments?id='+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Unable to update assignment.');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to update assignment.');}finally{setBusy(false);}}
 
   return <main className='wrap' style={{padding:'30px 0 80px',maxWidth:1250}}>
-    <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'flex-end',flexWrap:'wrap'}}><div><Link href='/admin/workforce' style={{color:'var(--muted)',textDecoration:'none'}}>← Workforce operations</Link><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em',margin:'18px 0 5px'}}>WORKFORCE SCHEDULE</p><h1 style={{fontSize:40,margin:'0 0 5px'}}>Weekly operations board</h1><p style={{color:'var(--muted)',margin:0}}>Plan active staff coverage, review availability preferences, and manage assignments.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href='/admin/workforce' style={button()}>Operations dashboard</Link><button onClick={()=>moveWeek(-1)} style={button()}>← Week</button><button onClick={()=>{setWeek(mondayOf(new Date()));setSelectedDay(isoDate(new Date()));}} style={button()}>Today</button><button onClick={()=>moveWeek(1)} style={button()}>Week →</button></div></div>
+    <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'flex-end',flexWrap:'wrap'}}><div><Link href='/admin/workforce' style={{color:'var(--muted)',textDecoration:'none'}}>← Workforce operations</Link><p style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em',margin:'18px 0 5px'}}>WORKFORCE SCHEDULE</p><h1 style={{fontSize:40,margin:'0 0 5px'}}>Weekly operations board</h1><p style={{color:'var(--muted)',margin:0}}>Plan active staff coverage, review availability preferences, and manage assignments.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link href='/admin/workforce' style={button()}>Operations dashboard</Link><button onClick={()=>moveWeek(-1)} style={button()}>← Week</button><button onClick={()=>{setWeek(mondayOf(new Date()));setSelectedDay(londonToday());}} style={button()}>Today</button><button onClick={()=>moveWeek(1)} style={button()}>Week →</button></div></div>
     {error&&<div role='alert' className='card' style={{padding:14,marginTop:16,color:'#8a2323'}}>{error}</div>}
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 350px',gap:16,marginTop:20,alignItems:'start'}}>
       <article style={{...card,overflow:'hidden'}}>
