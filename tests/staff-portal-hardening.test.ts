@@ -53,3 +53,21 @@ describe('LAUREM staff portal hardening', () => {
     expect(route).toContain('The uploaded file is not a valid JPG, PNG or WebP image.');
   });
 });
+
+
+
+describe('LAUREM staff portal follow-up hardening', () => {
+  it('does not let staff self-service mark DBS/PVG as LAUREM-verified', () => {
+    const route = readFileSync('app/api/staff/compliance/route.ts', 'utf8');
+    const page = readFileSync('app/staff/compliance/page.tsx', 'utf8');
+    expect(route).toContain("const allowed=['missing','expiring_soon','expired','pending',''];");
+    expect(route).not.toContain("'current'");
+    expect(route).not.toContain("'under_review'");
+    expect(page).toContain('This is your self-reported record');
+    expect(page).toContain('Current');
+  });
+
+  it('retires the legacy recruitment-document download route', () => {
+    expect(existsSync('app/api/staff/documents/download/route.ts')).toBe(false);
+  });
+});
