@@ -46,6 +46,7 @@ describe('LAUREM staff employment documents', () => {
     expect(previewRoute).toContain("document.category === 'visa_sponsorship'");
     expect(previewRoute).toContain("['cos_assigned', 'completed'].includes(visaCase.status)");
     expect(previewRoute).toContain('The Certificate of Sponsorship is not active yet.');
+    expect(previewRoute).toContain("const { data, error } = await client.rpc('laurem_sign_staff_document'");
     const contract = readFileSync('app/contracts/accept/[token]/page.tsx', 'utf8');
     expect(contract).toContain('Sign contract electronically');
     expect(contract).toContain('signatureData');
