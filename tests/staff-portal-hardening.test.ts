@@ -80,5 +80,9 @@ describe('LAUREM staff portal follow-up hardening', () => {
     expect(route).toContain("select('id,status')");
     expect(route).toContain("ex.data.status!=='requested'");
     expect(route).toContain('This effective date has already been reviewed by LAUREM.');
+    const page = readFileSync('app/staff/availability/page.tsx', 'utf8');
+    expect(page).toContain('const reviewedCurrent=Boolean(current&&current.status!==\'requested\');');
+    expect(page).toContain('Create new rota request');
+    expect(page).toContain('min={localDate()}');
   });
 });
