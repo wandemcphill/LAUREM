@@ -42,6 +42,10 @@ describe('LAUREM staff employment documents', () => {
     expect(downloadRoute).toContain("'laurem-private-documents'");
     expect(downloadRoute).toContain('Content-Disposition');
     expect(downloadRoute).toContain('downloaded_at');
+    const previewRoute = readFileSync('app/api/staff/documents/[id]/route.ts', 'utf8');
+    expect(previewRoute).toContain("document.category === 'visa_sponsorship'");
+    expect(previewRoute).toContain("['cos_assigned', 'completed'].includes(visaCase.status)");
+    expect(previewRoute).toContain('The Certificate of Sponsorship is not active yet.');
     const contract = readFileSync('app/contracts/accept/[token]/page.tsx', 'utf8');
     expect(contract).toContain('Sign contract electronically');
     expect(contract).toContain('signatureData');
