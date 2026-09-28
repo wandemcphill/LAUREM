@@ -58,7 +58,15 @@ export async function GET(request:NextRequest){
       const {data:created,error:createError}=await client.from('interview_attempts').insert({application_id:application.id,invite_id:invite.id,round:1,role,pathway,question_ids:selected.map(q=>q.id),question_snapshot:snapshot,status:'in_progress'}).select('id,question_ids,question_snapshot,status,score,total_questions,percent,pass_percent').single();
       if(createError) throw createError;
       attempt=created;
-      await client.from('recruitment_applications').update({status:'Interview',updated_at:new Date().toISOString()}).eq('id',application.id).eq('status','Application');
+      const transition = await client.rpc('laurem_transition_application_status', {
+        p_application_id: application.id,
+        p_to_status: 'Interview',
+        p_actor: 'candidate.interview1.open',
+        p_note: 'Candidate opened the Round 1 assessment.',
+        p_override: false,
+        p_override_reason: null,
+      });
+      if (transition.error) throw transition.error;
       void bank;
     }
     const snapshot=Array.isArray(attempt.question_snapshot)?attempt.question_snapshot:[];
