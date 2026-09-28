@@ -61,14 +61,24 @@ describe('LAUREM staff portal follow-up hardening', () => {
     const route = readFileSync('app/api/staff/compliance/route.ts', 'utf8');
     const page = readFileSync('app/staff/compliance/page.tsx', 'utf8');
     expect(route).toContain("const allowed=['missing','expiring_soon','expired','pending',''];");
-    expect(route).toContain("preservedVerifiedStatus=['current','under_review'].includes(status)&&currentResult.data.dbs_pvg_status===status");
+    expect(route).toContain("Verified compliance details can only be changed by LAUREM.");
     expect(page).toContain('<option value="current" disabled>Current (LAUREM verified)</option>');
     expect(page).toContain('<option value="under_review" disabled>Under review (LAUREM verified)</option>');
     expect(page).toContain('This is your self-reported record');
     expect(page).toContain('Current');
+    expect(page).toContain("const verified= status==='current'||status==='under_review';");
+    expect(page).toContain('disabled={verified}');
+    expect(page).toContain('busy||verified');
   });
 
   it('retires the legacy recruitment-document download route', () => {
     expect(existsSync('app/api/staff/documents/download/route.ts')).toBe(false);
+  });
+
+  it('does not let staff overwrite a reviewed rota request', () => {
+    const route = readFileSync('app/api/staff/rota/route.ts', 'utf8');
+    expect(route).toContain("select('id,status')");
+    expect(route).toContain("ex.data.status!=='requested'");
+    expect(route).toContain('This effective date has already been reviewed by LAUREM.');
   });
 });
