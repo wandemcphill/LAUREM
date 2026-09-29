@@ -45,7 +45,7 @@ describe('LAUREM document lifecycle isolation', () => {
     const route = readFileSync('app/api/contracts/accept/route.ts', 'utf8');
     expect(route).toContain('contractAlreadyAccepted: true');
     expect(route).toContain('documentPackIssued');
-    expect(route).toContain('lifecycle_transition_failed');
+    expect(route).toContain("if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED'))");
     expect(route).toContain('if (packResult.error) throw packResult.error;');
     expect(route).toContain('catch (documentPackError)');
     expect(route).toContain('contractAlreadyAccepted: true');
