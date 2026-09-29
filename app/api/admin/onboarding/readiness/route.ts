@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
-import { ensureLauremOnboardingReadiness, getLauremOnboardingReadiness } from '@/lib/laurem-onboarding-readiness';
+import { ensureLauremOnboardingReadiness, getLauremOnboardingReadiness, LAUREM_STAFF_LIFECYCLE_READINESS_KEYS } from '@/lib/laurem-onboarding-readiness';
 import { readinessKeyForEvidenceType } from '@/lib/laurem-evidence';
 
 export async function GET(request: NextRequest) {
@@ -43,6 +43,9 @@ export async function PATCH(request: NextRequest) {
     const { data: item, error: itemError } = await client.from('recruitment_onboarding_checklist').select('id,required,status').eq('application_id', applicationId).eq('item_key', itemKey).maybeSingle();
     if (itemError) throw itemError;
     if (!item) return NextResponse.json({ error: 'Readiness item not found.' }, { status: 404 });
+    if (!LAUREM_STAFF_LIFECYCLE_READINESS_KEYS.has(itemKey)) {
+      return NextResponse.json({ error: 'This checklist item is informational and cannot block staff contract or portal lifecycle operations.' }, { status: 400 });
+    }
     if (status === 'waived' && !item.required) return NextResponse.json({ error: 'Optional readiness items cannot be waived.' }, { status: 400 });
 
     const { data: evidenceRows, error: evidenceError } = await client.from('recruitment_evidence_reviews').select('id,evidence_type,status,created_at').eq('application_id', applicationId).in('status', ['pending', 'approved', 'waived']).order('created_at', { ascending: false });
