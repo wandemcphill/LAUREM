@@ -46,7 +46,9 @@ describe('LAUREM document lifecycle isolation', () => {
     expect(route).toContain('contractAlreadyAccepted: true');
     expect(route).toContain('documentPackIssued');
     expect(route).toContain('lifecycle_transition_failed');
-    expect(route).not.toContain('if (packResult.error) throw packResult.error;');
+    expect(route).toContain('if (packResult.error) throw packResult.error;');
+    expect(route).toContain('catch (documentPackError)');
+    expect(route).toContain('contractAlreadyAccepted: true');
   });
 
   it('makes noncanonical readiness rows informational in the application readiness layer', () => {
