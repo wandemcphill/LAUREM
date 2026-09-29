@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
     if (existingPackError) throw existingPackError;
 
     let documentPackUrl: string | null = null;
+    let documentPackId: string | null = existingPack?.id || null;
     let documentPackIssued = Boolean(existingPack);
     if (!existingPack) {
       const rawDocumentToken = makeToken();
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       if (documentPackUrl) await sendLauremEmail(loaded.client, {
         eventType: 'candidate_document_pack_issued',
         entityId: application.id,
-        idempotencyKey: 'candidate-document-pack:' + application.id + ':' + String((packResult.data && packResult.data.pack && packResult.data.pack.id) || 'pack'),
+        idempotencyKey: 'candidate-document-pack:' + application.id + ':' + String(documentPackId || 'pack'),
         payload: {
           from: lauremCompany.candidateCommunications.senderAddress,
           to: [application.email],
