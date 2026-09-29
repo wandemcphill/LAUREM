@@ -56,3 +56,17 @@ describe('LAUREM document lifecycle isolation', () => {
     expect(source).toContain('does not block the staff lifecycle');
   });
 });
+
+
+  it('keeps supplemental signed candidate-document attachment non-fatal during atomic hire', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260929123000_staff_hire_supplemental_documents_nonblocking.sql',
+      'utf8',
+    );
+
+    expect(migration).toContain('when others then');
+    expect(migration).toContain("'staff.candidate_documents.attach_failed'");
+    expect(migration).toContain("'core_hire_continues', true");
+    expect(migration).toContain("'skipped', true");
+    expect(migration).toContain('laurem_attach_signed_candidate_documents_to_staff');
+  });
