@@ -137,6 +137,8 @@ export async function POST(request: NextRequest) {
     if (existingPackError) throw existingPackError;
 
     let documentPackUrl: string | null = null;
+    let documentPackId: string | null = existingPack?.id || null;
+    let documentPackIssued = Boolean(existingPack);
     if (!existingPack) {
       const rawDocumentToken = makeToken();
       const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -148,24 +150,37 @@ export async function POST(request: NextRequest) {
       const jobHash = createHash('sha256').update(documents.jobDescription, 'utf8').digest('hex');
       const handbookHash = createHash('sha256').update(documents.handbookContent, 'utf8').digest('hex');
 
-      const packResult = await loaded.client.rpc('laurem_issue_candidate_document_pack', {
-        p_application_id: application.id,
-        p_token_hash: hashToken(rawDocumentToken),
-        p_expires_at: documentPackExpiresAt,
-        p_job_description: documents.jobDescription,
-        p_job_description_sha256: jobHash,
-        p_handbook_title: documents.handbookTitle,
-        p_handbook_content: documents.handbookContent,
-        p_handbook_sha256: handbookHash,
-        p_actor: 'candidate.contract.acceptance',
-      });
-      if (packResult.error) throw packResult.error;
+      try {
+        const packResult = await loaded.client.rpc('laurem_issue_candidate_document_pack', {
+          p_application_id: application.id,
+          p_token_hash: hashToken(rawDocumentToken),
+          p_expires_at: documentPackExpiresAt,
+          p_job_description: documents.jobDescription,
+          p_job_description_sha256: jobHash,
+          p_handbook_title: documents.handbookTitle,
+          p_handbook_content: documents.handbookContent,
+          p_handbook_sha256: handbookHash,
+          p_actor: 'candidate.contract.acceptance',
+        });
+        if (packResult.error) throw packResult.error;
 
-      documentPackUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/candidate-documents/' + rawDocumentToken;
-      await sendLauremEmail(loaded.client, {
+        documentPackUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '') + '/candidate-documents/' + rawDocumentToken;
+        documentPackIssued = true;
+      } catch (documentPackError) {
+        console.error(JSON.stringify({
+          level: 'error',
+          event: 'contract.acceptance.document_pack_failed',
+          reason: documentPackError instanceof Error ? documentPackError.message : 'unknown',
+          applicationId: application.id,
+          contractId: loaded.contract.id,
+          contractAlreadyAccepted: true,
+        }));
+      }
+
+      if (documentPackUrl) await sendLauremEmail(loaded.client, {
         eventType: 'candidate_document_pack_issued',
         entityId: application.id,
-        idempotencyKey: 'candidate-document-pack:' + application.id + ':' + String((packResult.data && packResult.data.pack && packResult.data.pack.id) || 'pack'),
+        idempotencyKey: 'candidate-document-pack:' + application.id + ':' + String(documentPackId || 'pack'),
         payload: {
           from: lauremCompany.candidateCommunications.senderAddress,
           to: [application.email],
@@ -177,7 +192,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ok: true, status: result.status, documentPackUrl });
+    return NextResponse.json({
+      ok: true,
+      status: result.status,
+      documentPackUrl,
+      documentPackIssued,
+    });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.acceptance_failed', reason: error instanceof Error ? error.message : 'unknown' }));
     return NextResponse.json({ error: 'Unable to process contract acceptance.' }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readAdminSession } from '@/lib/admin-auth';
 import { db } from '@/lib/db';
 import { lauremRoleSlug } from '@/lib/laurem-role-policy';
+import { LAUREM_STAFF_LIFECYCLE_READINESS_KEYS } from '@/lib/laurem-onboarding-readiness';
 import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
 
 function describeError(error: unknown) {
@@ -140,7 +141,11 @@ export async function GET(
         acceptedContractId: acceptedContract?.id || null,
         contractAccepted: Boolean(acceptedContract),
         contractRoleMatches,
-        requiredReadinessOpen: (readinessResult.data || []).filter((item: any) => item.required && !['completed', 'waived'].includes(item.status)).length,
+        requiredReadinessOpen: (readinessResult.data || []).filter((item: any) =>
+          item.required
+          && LAUREM_STAFF_LIFECYCLE_READINESS_KEYS.has(item.item_key)
+          && !['completed', 'waived'].includes(item.status)
+        ).length,
         staffExists: Boolean(staffResult.data),
         staffContractBound: Boolean(staffResult.data && acceptedContract && (!staffResult.data.contract_id || staffResult.data.contract_id === acceptedContract.id)),
         staffStatus: staffResult.data?.employment_status || null,

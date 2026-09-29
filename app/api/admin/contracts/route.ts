@@ -256,36 +256,53 @@ export async function PATCH(request: NextRequest) {
   const updated = atomicResult.contract;
   const link = appUrl() + '/contracts/accept/' + token;
 
-  // Issue the candidate's complete offer document pack at the same handoff.
-  // Contract acceptance remains separate, and the Job Description + Handbook are each signed once.
-  const rawDocumentToken = makeToken();
-  const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-  const documents = getLauremRecruitmentDocumentPack({
-    role: app.role_applied,
-    staffName: app.full_name,
-    livingInUk: app.living_in_uk,
-  });
-  const jobHash = createHash('sha256').update(documents.jobDescription, 'utf8').digest('hex');
-  const handbookHash = createHash('sha256').update(documents.handbookContent, 'utf8').digest('hex');
-  const packResult = await client.rpc('laurem_issue_candidate_document_pack', {
-    p_application_id: app.id,
-    p_token_hash: hashToken(rawDocumentToken),
-    p_expires_at: documentPackExpiresAt,
-    p_job_description: documents.jobDescription,
-    p_job_description_sha256: jobHash,
-    p_handbook_title: documents.handbookTitle,
-    p_handbook_content: documents.handbookContent,
-    p_handbook_sha256: handbookHash,
-    p_actor: session.email,
-  });
-  if (packResult.error) {
-    logOperationalError({ requestId, event: 'admin.contract.document_pack_failed', actor: session.email, reason: packResult.error, metadata: { applicationId: app.id, contractId: id } });
-    return operationalError(requestId, 'Unable to issue the candidate offer document package.', 500, 'DOCUMENT_PACK_ISSUE_FAILED');
+  // The signed employment contract is the lifecycle authority. The optional
+  // Job Description + Handbook pack is downstream and must never make an
+  // otherwise successful contract issue fail.
+  let documentPackLink: string | null = null;
+  try {
+    const rawDocumentToken = makeToken();
+    const documentPackExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const documents = getLauremRecruitmentDocumentPack({
+      role: app.role_applied,
+      staffName: app.full_name,
+      livingInUk: app.living_in_uk,
+    });
+    const jobHash = createHash('sha256').update(documents.jobDescription, 'utf8').digest('hex');
+    const handbookHash = createHash('sha256').update(documents.handbookContent, 'utf8').digest('hex');
+    const packResult = await client.rpc('laurem_issue_candidate_document_pack', {
+      p_application_id: app.id,
+      p_token_hash: hashToken(rawDocumentToken),
+      p_expires_at: documentPackExpiresAt,
+      p_job_description: documents.jobDescription,
+      p_job_description_sha256: jobHash,
+      p_handbook_title: documents.handbookTitle,
+      p_handbook_content: documents.handbookContent,
+      p_handbook_sha256: handbookHash,
+      p_actor: session.email,
+    });
+    if (packResult.error) throw packResult.error;
+    documentPackLink = appUrl() + '/candidate-documents/' + rawDocumentToken;
+  } catch (documentPackError) {
+    logOperationalError({
+      requestId,
+      event: 'admin.contract.document_pack_failed',
+      actor: session.email,
+      reason: documentPackError,
+      metadata: { applicationId: app.id, contractId: id, contractAlreadyIssued: true },
+    });
   }
-  const documentPackLink = appUrl() + '/candidate-documents/' + rawDocumentToken;
+
   const safeName = escapeHtml(app.full_name);
   const safeLink = escapeHtml(link);
-  const safeDocumentPackLink = escapeHtml(documentPackLink);
+  const safeDocumentPackLink = documentPackLink ? escapeHtml(documentPackLink) : '';
+  const documentPackText = documentPackLink
+    ? '\\n\\nReview your Job Description and Handbook:\\n' + documentPackLink
+    : '\\n\\nYour Job Description and Handbook will be made available through your LAUREM onboarding process.';
+  const documentPackHtml = documentPackLink
+    ? '<p><a href="' + safeDocumentPackLink + '" style="display:inline-block;border:1px solid #173a31;color:#173a31;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Open Job Description & Handbook</a></p>'
+    : '<p>Your Job Description and Handbook will be made available through your LAUREM onboarding process.</p>';
+
   const email = await sendLauremEmail(client, {
     eventType: 'contract_issued',
     entityId: id,
@@ -295,8 +312,8 @@ export async function PATCH(request: NextRequest) {
       to: [app.email],
       reply_to: lauremCompany.candidateCommunications.replyToAddress,
       subject: 'Your LAUREM employment offer package from ' + lauremCompany.tradingName,
-      text: 'Dear ' + app.full_name + ',\n\nYour LAUREM employment offer package is ready. It includes your Employment Contract, Job Description, Handbook and onboarding preparation information.\n\nSign or decline your contract:\n' + link + '\n\nReview your Job Description and Handbook:\n' + documentPackLink + '\n\nThese documents are completed online. You will not be asked to sign the Contract, Job Description or Handbook again during onboarding.\n\nKind regards,\n' + lauremCompany.tradingName + ' Recruitment',
-      html: '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">' + escapeHtml(lauremCompany.tradingName.toUpperCase()) + ' RECRUITMENT</p><h1 style="font-size:28px">Your employment offer package is ready</h1><p>Dear ' + safeName + ',</p><p>Your <strong>' + escapeHtml(current.job_title) + '</strong> employment offer package is ready. It contains your Employment Contract, Job Description, Handbook and onboarding preparation information.</p><p><a href="' + safeLink + '" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Review & sign contract</a></p><p><a href="' + safeDocumentPackLink + '" style="display:inline-block;border:1px solid #173a31;color:#173a31;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Open Job Description & Handbook</a></p><p>All signing is completed online. You will not be asked to sign these three employment documents again during onboarding.</p><p>Kind regards,<br>' + escapeHtml(lauremCompany.tradingName) + ' Recruitment</p></div>',
+      text: 'Dear ' + app.full_name + ',\n\nYour LAUREM employment offer package is ready. It includes your Employment Contract and onboarding preparation information.' + documentPackText + '\n\nSign or decline your contract:\n' + link + '\n\nThese documents are completed online. You will not be asked to sign the Contract, Job Description or Handbook again during onboarding.\n\nKind regards,\n' + lauremCompany.tradingName + ' Recruitment',
+      html: '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#173a31;max-width:620px;margin:0 auto"><p style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#1f705e">' + escapeHtml(lauremCompany.tradingName.toUpperCase()) + ' RECRUITMENT</p><h1 style="font-size:28px">Your employment offer package is ready</h1><p>Dear ' + safeName + ',</p><p>Your <strong>' + escapeHtml(current.job_title) + '</strong> employment offer package is ready. It contains your Employment Contract and onboarding preparation information.</p><p><a href="' + safeLink + '" style="display:inline-block;background:#173a31;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Review & sign contract</a></p>' + documentPackHtml + '<p>All signing is completed online. You will not be asked to sign these employment documents again during onboarding.</p><p>Kind regards,<br>' + escapeHtml(lauremCompany.tradingName) + ' Recruitment</p></div>',
     },
   });
 
@@ -304,6 +321,7 @@ export async function PATCH(request: NextRequest) {
     contract: updated,
     acceptanceLink: link,
     documentPackLink,
+    documentPackIssued: Boolean(documentPackLink),
     email: { status: email.status, attempts: email.attempts, providerId: 'providerId' in email ? email.providerId : null, deliveryId: email.deliveryId, ...(email.status === 'failed' ? { error: email.error } : {}) },
   }), requestId);
 }

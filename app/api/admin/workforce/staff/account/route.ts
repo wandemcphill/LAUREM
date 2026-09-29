@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
-import { provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
+import { completePendingLauremHireAndIssueActivation, provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 function accountState(staff: { employment_status: string; activated_at: string | null; activation_expires_at: string | null }) {
@@ -58,8 +58,24 @@ export async function POST(request: NextRequest) {
   }
   if (!staff.application_id) return NextResponse.json({ error: 'This staff record is not linked to a recruitment application.' }, { status: 409 });
 
+  const { data: application, error: applicationError } = await client
+    .from('recruitment_applications')
+    .select('id,status')
+    .eq('id', staff.application_id)
+    .maybeSingle();
+
+  if (applicationError) return NextResponse.json({ error: 'Unable to load the linked recruitment application.' }, { status: 500 });
+  if (!application) return NextResponse.json({ error: 'The linked recruitment application could not be found.' }, { status: 409 });
+
   try {
-    const portal = await provisionLauremStaffPortal(staff.application_id, session.email);
+    // A pending staff profile left behind while the application is still
+    // Onboarding is a stale hire boundary, not a normal token-reissue case.
+    // Finish the canonical atomic Hired transition so documents, mailbox,
+    // activation credential and employment status remain consistent.
+    const portal = application.status === 'Onboarding'
+      ? await completePendingLauremHireAndIssueActivation(staff.application_id, session.email)
+      : await provisionLauremStaffPortal(staff.application_id, session.email);
+
     await recordLauremAuditEvent({
       lifecycleArea: 'staff_account',
       entityType: 'staff_profile',
@@ -70,7 +86,12 @@ export async function POST(request: NextRequest) {
       actor: session.email,
       action: 'activation_reissued',
       reason,
-      metadata: { deliveryStatus: portal.activation.status, replacementDeliveryId: portal.activation.deliveryId },
+      metadata: {
+        deliveryStatus: portal.activation.status,
+        replacementDeliveryId: portal.activation.deliveryId,
+        recoveryMode: application.status === 'Onboarding' ? 'onboarding_to_hired' : 'activation_reissue',
+        applicationStatusBefore: application.status,
+      },
     });
 
     return NextResponse.json({
@@ -87,6 +108,7 @@ export async function POST(request: NextRequest) {
         deliveryId: portal.activation.deliveryId,
         expiresAt: portal.expiresAt,
       },
+      recovery: application.status === 'Onboarding' ? 'hire_completed' : 'activation_reissued',
     });
   } catch (caught) {
     console.error(JSON.stringify({
