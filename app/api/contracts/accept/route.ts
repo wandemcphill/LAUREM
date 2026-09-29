@@ -113,9 +113,6 @@ export async function POST(request: NextRequest) {
     if (applicationError) throw applicationError;
     if (!application) throw new Error('APPLICATION_NOT_FOUND');
 
-    // Acceptance is the contract authority. Moving the application to
-    // Documents is a downstream lifecycle update and must not undo a
-    // successfully recorded contract acceptance.
     const transition = await loaded.client.rpc('laurem_transition_application_status', {
       p_application_id: application.id,
       p_to_status: 'Documents',
@@ -124,13 +121,8 @@ export async function POST(request: NextRequest) {
       p_override: false,
       p_override_reason: null,
     });
-    if (transition.error) {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'contract.acceptance.lifecycle_transition_failed',
-        reason: transition.error.message || 'unknown',
-        applicationId: application.id,
-      }));
+    if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED')) {
+      throw transition.error;
     }
 
     // The offer package is normally issued together with the contract. Reuse it after
