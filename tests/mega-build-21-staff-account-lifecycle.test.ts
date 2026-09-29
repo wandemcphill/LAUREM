@@ -39,9 +39,22 @@ describe('Mega-Build 21 staff account lifecycle', () => {
     const route = readFileSync('app/api/admin/workforce/staff/account/route.ts', 'utf8');
     expect(route).toContain("action !== 'reissue_activation'");
     expect(route).toContain('reason.length < 5');
+    expect(route).toContain('completePendingLauremHireAndIssueActivation');
     expect(route).toContain('provisionLauremStaffPortal');
+    expect(route).toContain('application.status === \'Onboarding\'');
     expect(route).toContain('activation_reissued');
     expect(route).not.toContain('rawToken');
+  });
+
+  it('repairs a stale Onboarding pending account through the canonical atomic hire boundary', () => {
+    const provision = readFileSync('lib/laurem-staff-provision.ts', 'utf8');
+    expect(provision).toContain('completePendingLauremHireAndIssueActivation');
+    expect(provision).toContain("applicationId,");
+    expect(provision).toContain("client.rpc('laurem_hire_application_atomic'");
+    expect(provision).toContain("staff.employment_status !== 'pending'");
+    expect(provision).toContain('staff.activated_at');
+    expect(provision).toContain('staff.password_hash');
+    expect(provision).toContain('sendLauremStaffActivation');
   });
 
   it('invalidates all persisted sessions when credentials change', () => {
