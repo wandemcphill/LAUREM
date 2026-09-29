@@ -1,3 +1,12 @@
+const LAUREM_STAFF_LIFECYCLE_READINESS_KEYS = new Set([
+  'identity_verified',
+  'qualification_evidence_verified',
+  'references_verified',
+  'right_to_work_verified',
+  'international_work_permission_verified',
+  'professional_registration_verified',
+]);
+
 export type RecruiterLifecyclePolicy = {
   ok: boolean;
   code?: string;
