@@ -17,8 +17,8 @@ describe('LAUREM document lifecycle isolation', () => {
     expect(migration).toContain('professional_registration_verified');
     expect(migration).toContain('not required');
     expect(migration).toContain('required_key_check');
-    expect(migration).toContain("when 'dbs'");
-    expect(migration).toContain("when 'svg'");
+    expect(migration).not.toContain("when 'dbs' then");
+    expect(migration).not.toContain("when 'svg' then");
   });
 
   it('does not let unknown evidence types claim readiness', () => {
