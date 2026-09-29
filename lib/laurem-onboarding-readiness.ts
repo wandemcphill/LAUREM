@@ -17,6 +17,15 @@ type ChecklistSeed = {
   required: boolean;
 };
 
+export const LAUREM_STAFF_LIFECYCLE_READINESS_KEYS = new Set([
+  'identity_verified',
+  'qualification_evidence_verified',
+  'references_verified',
+  'right_to_work_verified',
+  'international_work_permission_verified',
+  'professional_registration_verified',
+]);
+
 const BASE_ITEMS: ChecklistSeed[] = [
   { item_key: 'identity_verified', title: 'Identity verified', description: 'Identity evidence has been reviewed and verified.', required: true },
   { item_key: 'qualification_evidence_verified', title: 'Qualification evidence verified', description: 'Required qualification and training evidence has been reviewed for the applied role.', required: true },
@@ -88,11 +97,21 @@ export async function getLauremOnboardingReadiness(client: SupabaseClient, appli
     };
   });
 
-  const required = items.filter((item) => item.required);
+  const lifecycleItems = items.map((item) => {
+    if (!LAUREM_STAFF_LIFECYCLE_READINESS_KEYS.has(item.item_key)) {
+      return {
+        ...item,
+        required: false,
+        notes: `${item.notes || ''}${item.notes ? ' ' : ''}This checklist item is informational and does not block the staff lifecycle.`.trim(),
+      };
+    }
+    return item;
+  });
+  const required = lifecycleItems.filter((item) => item.required);
   const incomplete = required.filter((item) => item.status !== 'completed' && item.status !== 'waived');
   return {
     ready: incomplete.length === 0,
-    items,
+    items: lifecycleItems,
     missing: incomplete.map((item) => ({ item_key: item.item_key, title: item.title })),
   };
 }
