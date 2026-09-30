@@ -37,7 +37,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
   it('provides the staff-facing invoice and persistent CoS download', () => {
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     expect(page).toContain('LAUREM invoice');
-    expect(page).toContain('£500 is due immediately');
+    expect(page).toContain('£500 is due within 3 days of the invoice issue date');
     expect(page).toContain('£1,500');
     expect(page).toContain('£2,000');
     expect(page).toContain('/api/staff/documents/');
