@@ -40,6 +40,7 @@ export type StaffComplianceSnapshot = {
   documentsComplete: boolean;
   onboardingComplete: boolean;
   attentionItems: string[];
+  complianceFollowUps: string[];
 };
 
 export type StaffProfileRow = {
@@ -289,14 +290,15 @@ export function buildStaffComplianceSnapshot(
   const onboardingComplete = options?.onboardingComplete ?? true;
 
   const attentionItems: string[] = [];
+  const complianceFollowUps: string[] = [];
   if (rtw.statusCategory !== 'Current') attentionItems.push(`Right to work: ${rtw.detail}`);
-  if (dbs.statusCategory !== 'Current') attentionItems.push(`DBS/PVG: ${dbs.detail}`);
+  if (dbs.statusCategory !== 'Current') complianceFollowUps.push(`DBS/PVG: ${dbs.detail}`);
   if (nmc.isNurse && nmc.statusCategory !== 'Current') attentionItems.push(`NMC Nurse Registration: ${nmc.detail}`);
   if (!documentsComplete) attentionItems.push('Workforce documents: Required documents incomplete or signature pending.');
   if (!onboardingComplete) attentionItems.push('Onboarding: Required onboarding tasks incomplete.');
 
   let overallStatus: ComplianceStateCategory = 'Current';
-  const categories = [rtw.statusCategory, dbs.statusCategory, ...(nmc.isNurse ? [nmc.statusCategory] : [])];
+  const categories = [rtw.statusCategory, ...(nmc.isNurse ? [nmc.statusCategory] : [])];
   if (!documentsComplete || !onboardingComplete) {
     categories.push('Under Review');
   }
@@ -314,6 +316,7 @@ export function buildStaffComplianceSnapshot(
     documentsComplete,
     onboardingComplete,
     attentionItems,
+    complianceFollowUps,
   };
 }
 
