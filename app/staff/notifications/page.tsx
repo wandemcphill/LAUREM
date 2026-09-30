@@ -71,7 +71,7 @@ export default function StaffNotificationsPage(){
           <button className={'staff-action'+(filter==='all'?' is-selected':'')} onClick={()=>setFilter('all')}>All {items.length?'('+items.length+')':''}</button>
           <button className={'staff-action'+(filter==='unread'?' is-selected':'')} onClick={()=>setFilter('unread')}>Unread {unread.length?'('+unread.length+')':''}</button>
           <button className="staff-action" onClick={()=>void load(false)} disabled={refreshing}>{refreshing?'Refreshing...':'Refresh'}</button>
-          {unread.length>0&&<button className="staff-action-primary" onClick={()=>void markAllRead()} disabled={busy==='all'}>{busy==='all'?'Saving...':'Mark all read'}</button>}
+          {unread.length>0&&<button className="staff-action-primary" onClick={()=>void markAllRead()} disabled={busy==='all'}>{busy==='all'?'Saving...':'Mark all as read'}</button>}
         </div>
       </header>
 
