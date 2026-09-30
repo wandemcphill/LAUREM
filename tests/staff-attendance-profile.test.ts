@@ -6,8 +6,8 @@ describe('LAUREM staff attendance and profile', () => {
     const route = readFileSync('app/api/staff/attendance/route.ts', 'utf8');
     expect(route).toContain('getStaffSession(request)');
     expect(route).toContain("eq('staff_id', session.staff_id)");
-    expect(route).toContain("from('staff_assignments')");
-    expect(route).toContain("from('staff_timesheets')");
+    expect(route).toContain("from('laurem_staff_assignments')");
+    expect(route).toContain("from('laurem_staff_timesheets')");
     expect(route).toContain(".eq('id', assignmentId)");
     expect(route).toContain(".eq('staff_id', session.staff_id)");
   });
