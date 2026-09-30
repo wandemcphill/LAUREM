@@ -7,6 +7,7 @@ export type StaffCommand={href:string;label:string;keywords?:string[];section?:s
 
 const commands:StaffCommand[]=[
  {href:'/staff',label:'Staff Home',keywords:['dashboard','overview'],section:'Workspace'},
+ {href:'/staff/week',label:'My Week',keywords:['week','schedule','overview','timesheets','leave'],section:'Workspace'},
  {href:'/staff/shifts',label:'My Shifts',keywords:['schedule','calendar','rota'],section:'Work'},
  {href:'/staff/attendance',label:'Attendance',keywords:['clock in','clock out','break'],section:'Work'},
  {href:'/staff/timesheets',label:'Timesheets',keywords:['hours','submit','resubmit'],section:'Work'},
