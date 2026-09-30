@@ -1,9 +1,42 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
+type DocumentRow = { id:string; category:string; title:string; description:string|null; signature_status:string; issuer_name:string; issuer_title:string; issued_at:string };
+function issued(v:string){ return new Date(v).toLocaleDateString('en-GB',{dateStyle:'medium'}); }
 export default function StaffDocumentsPage(){
- const router=useRouter(); const [rows,setRows]=useState<any[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
- useEffect(()=>{fetch('/api/staff/documents',{cache:'no-store'}).then(async r=>{if(r.status===401){router.replace('/staff/login');return;}const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Unable to load documents.');setRows(b.documents||[]);setLoading(false);}).catch(e=>{setError(e instanceof Error?e.message:'Unable to load documents.');setLoading(false);});},[router]);
- return <main style={{minHeight:'100vh',background:'#f4f7fb',fontFamily:'system-ui',padding:'24px 18px 60px',color:'#102a43'}}><div style={{maxWidth:1050,margin:'0 auto'}}><button onClick={()=>router.push('/staff')} style={{border:0,background:'transparent',padding:0,color:'#0f766e',fontWeight:800}}>← Staff Portal</button><header style={{margin:'18px 0 20px'}}><div style={{fontSize:12,fontWeight:900,letterSpacing:1.4,color:'#0f766e'}}>EMPLOYMENT RECORDS</div><h1 style={{margin:'7px 0 4px'}}>My Documents</h1><p style={{color:'#627d98',margin:0}}>Contracts, job descriptions, policies and other documents issued to you by LAUREM Care.</p></header>{error&&<div style={{background:'#fff4f4',border:'1px solid #f3cccc',padding:14,borderRadius:12,color:'#8a2323'}}>{error}</div>}{loading?<div style={{background:'#fff',padding:22,borderRadius:14,border:'1px solid #e5eaf0'}}>Loading documents…</div>:!rows.length?<div style={{background:'#fff',padding:22,borderRadius:14,border:'1px solid #e5eaf0'}}>No employment documents have been issued to your portal yet.</div>:<section style={{display:'grid',gap:12}}>{rows.map((row)=><article key={row.id} style={{background:'#fff',padding:18,borderRadius:14,border:'1px solid #e5eaf0'}}><div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><div><strong style={{fontSize:18}}>{row.title}</strong><div style={{color:'#627d98',fontSize:13,marginTop:4}}>{row.category.replaceAll('_',' ')} · Issued {new Date(row.issued_at).toLocaleDateString('en-GB')}</div></div><span style={{padding:'6px 9px',borderRadius:999,background:row.signature_status==='signed'?'#e7f8ef':row.signature_status==='pending'?'#fff4d8':'#edf2f7',fontSize:12,fontWeight:900}}>{row.signature_status==='pending'?'SIGNATURE REQUIRED':row.signature_status==='signed'?'SIGNED ONLINE':'AVAILABLE'}</span></div>{row.description&&<p style={{color:'#627d98',lineHeight:1.55}}>{row.description}</p>}<div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',marginTop:14,flexWrap:'wrap'}}><div style={{color:'#627d98',fontSize:12}}>Issued by {row.issuer_name}, {row.issuer_title}, for {row.employer_name}</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button onClick={()=>router.push(`/staff/documents/${row.id}`)} style={{background:'#102a43',color:'#fff',border:0,padding:'10px 14px',borderRadius:9,fontWeight:900}}>{row.signature_status==='pending'?'Review & sign online':'Open document'}</button>{row.signature_status==='signed'&&<a href={`/api/staff/documents/${encodeURIComponent(row.id)}/download`} download style={{background:'#0f766e',color:'#fff',padding:'10px 14px',borderRadius:9,textDecoration:'none',fontWeight:900}}>Download signed copy</a>}</div></div></article>)}</section>}</div></main>;
+  const router=useRouter();
+  const [rows,setRows]=useState<DocumentRow[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  async function load(){
+    setLoading(true); setError('');
+    try{
+      const r=await fetch('/api/staff/documents',{cache:'no-store'});
+      if(r.status===401){router.replace('/staff/login');return;}
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(b.error||'Unable to load documents.');
+      setRows(b.documents||[]);
+    }catch(e){setError(e instanceof Error?e.message:'Unable to load documents.');}
+    finally{setLoading(false);}
+  }
+  useEffect(()=>{void load();},[router]);
+  const pending=useMemo(()=>rows.filter(x=>x.signature_status==='pending').length,[rows]);
+  const signed=useMemo(()=>rows.filter(x=>x.signature_status==='signed').length,[rows]);
+  if(loading) return <StaffLoading label="Loading employment documents…"/>;
+  return <StaffPage className="staff-page--documents"><StaffPageInner>
+    <StaffPageHeader eyebrow="Employment records" title="My Documents" subtitle="Contracts, job descriptions, policies and other records issued to your staff account." actions={<><StaffAction onClick={()=>void load()}>Refresh</StaffAction><StaffAction href="/staff/onboarding" primary>Onboarding</StaffAction></>}/>
+    {error && <StaffNotice tone="danger"><strong>Documents unavailable</strong><p>{error}</p><StaffAction onClick={()=>void load()}>Try again</StaffAction></StaffNotice>}
+    {!error && <>
+      <div className="staff-stat-grid staff-document-stats"><div className="staff-stat"><div className="staff-stat-value">{rows.length}</div><div className="staff-stat-label">Documents available</div></div><div className="staff-stat"><div className="staff-stat-value">{pending}</div><div className="staff-stat-label">Signatures required</div></div><div className="staff-stat"><div className="staff-stat-value">{signed}</div><div className="staff-stat-label">Signed copies</div></div></div>
+      {!rows.length ? <StaffPanel><StaffSectionHeader title="Your document centre is ready" copy="No employment documents have been issued to your portal yet. Newly issued records will appear here."/><div className="staff-empty">There is nothing you need to download right now.</div></StaffPanel> :
+      <StaffPanel><StaffSectionHeader title="Employment record" copy="Open a document to review its contents. Documents needing your signature are brought to the front of your workflow."/><div className="staff-document-list">
+        {rows.map(row=><article className="staff-document-card" key={row.id}>
+          <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">{row.category==='employment_contract'?'C':row.category==='job_description'?'J':'D'}</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{row.category.replaceAll('_',' ')}</span><StaffBadge tone={row.signature_status==='pending'?'attention':row.signature_status==='signed'?'live':'neutral'}>{row.signature_status==='pending'?'Signature required':row.signature_status==='signed'?'Signed':'Available'}</StaffBadge></div><h3>{row.title}</h3>{row.description&&<p>{row.description}</p>}<div className="staff-document-meta">Issued {issued(row.issued_at)} · {row.issuer_name}, {row.issuer_title}</div></div></div>
+          <div className="staff-document-actions"><StaffAction href={'/staff/documents/' + encodeURIComponent(row.id)}>{row.signature_status==='pending'?'Review & sign online':'Open document'}</StaffAction>{row.signature_status==='signed'&&<StaffAction href={'/api/staff/documents/' + encodeURIComponent(row.id) + '/download'}>Download signed copy</StaffAction>}</div>
+        </article>)}
+      </div></StaffPanel>}
+    </>}
+  </StaffPageInner></StaffPage>;
 }
