@@ -16,7 +16,7 @@ describe('LAUREM staff notification centre', () => {
   it('exposes authenticated staff-only read and mark-read operations', () => {
     const route = readFileSync('app/api/staff/notifications/route.ts', 'utf8');
     expect(route).toContain('getStaffSession(request)');
-    expect(route).toContain("from('staff_notifications')");
+    expect(route).toContain("from('laurem_staff_notifications')");
     expect(route).toContain(".eq('staff_id', session.staff_id)");
     expect(route).toContain("body?.all");
     expect(route).toContain(".eq('id', id)");
@@ -46,7 +46,7 @@ describe('LAUREM staff notification centre', () => {
 
   it('keeps notification creation server-side', () => {
     const helper = readFileSync('lib/laurem-staff-notifications.ts', 'utf8');
-    expect(helper).toContain("from('staff_notifications')");
+    expect(helper).toContain("from('laurem_staff_notifications')");
     expect(helper).not.toContain('NEXT_PUBLIC_');
   });
 });
