@@ -7,6 +7,7 @@ import LauremContractDocument from '@/components/LauremContractDocument';
 import { calculateThreeYearContractEndDate, enforceMinimumLauremContractStartDate } from '@/lib/laurem-contract-dates';
 import { LAUREM_MINIMUM_CONTRACT_START_DATE } from '@/lib/laurem-role-policy';
 import { getLauremSponsorshipOccupation } from '@/lib/laurem-sponsorship-occupation';
+import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; requires_sponsorship?:string|null; start_date?:string|null; address?:string|null };
 type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null;contract_end_date?:string|null;start_date?:string|null} };
@@ -63,6 +64,14 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   },[id]);
 
   const isEligible=useMemo(()=>eligible(application),[application]);
+  const isInternationalNurse = useMemo(
+    () => Boolean(
+      application
+      && normalizeLauremRole(application.role_applied) === 'Registered Nurse'
+      && application.living_in_uk === 'No',
+    ),
+    [application],
+  );
   function setField(name:keyof typeof form,value:string){setForm((current)=>({...current,[name]:value}));}
 
   async function generate(){
@@ -71,7 +80,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     try{
       const response=await fetch('/api/admin/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
         applicationId:application.id,startDate:form.startDate,weeklyHours:Number(form.weeklyHours),annualSalary:Number(form.annualSalary),hourlyRate:form.hourlyRate?Number(form.hourlyRate):undefined,postRegistrationSalary:Number(form.postRegistrationSalary),preRegistrationSalary:form.preRegistrationSalary?Number(form.preRegistrationSalary):undefined,
-        visaRoute:form.visaRoute,sponsorshipOccupationCode:form.sponsorshipOccupationCode,nmcStatus:form.nmcStatus,registrationDeadline:form.registrationDeadline,probation:form.probation,
+        visaRoute:isInternationalNurse ? form.visaRoute : undefined,sponsorshipOccupationCode:form.sponsorshipOccupationCode,nmcStatus:isInternationalNurse ? form.nmcStatus : undefined,registrationDeadline:isInternationalNurse ? form.registrationDeadline : undefined,probation:form.probation,
         noticePeriodEmployee:form.noticePeriodEmployee,noticePeriodEmployer:form.noticePeriodEmployer,holidayEntitlement:form.holidayEntitlement,pensionScheme:form.pensionScheme,
         workLocations:form.workLocations.split(',').map(v=>v.trim()).filter(Boolean),relocationSupport:form.relocationSupport,repayableCosts:form.repayableCosts,repaymentSchedule:form.repaymentSchedule,
       })});
@@ -123,13 +132,15 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Weekly contracted hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
       <Field label="Annual salary (£, where applicable)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
       <Field label="Hourly rate (£, where applicable)" value={form.hourlyRate} onChange={(v)=>setField('hourlyRate',v)} type="number" />
-      <Field label="Post-registration salary (£)" value={form.postRegistrationSalary} onChange={(v)=>setField('postRegistrationSalary',v)} type="number" />
-      <Field label="Pre-registration salary (£, if applicable)" value={form.preRegistrationSalary} onChange={(v)=>setField('preRegistrationSalary',v)} type="number" />
       <Field label="Probation" value={form.probation} onChange={(v)=>setField('probation',v)} />
-      <Field label="Visa route" value={form.visaRoute} onChange={(v)=>setField('visaRoute',v)} />
       <Field label="Sponsorship occupation code (role-derived)" value={form.sponsorshipOccupationCode} onChange={(v)=>setField('sponsorshipOccupationCode',v)} readOnly />
-      <Field label="NMC status" value={form.nmcStatus} onChange={(v)=>setField('nmcStatus',v)} />
-      <Field label="Registration deadline" value={form.registrationDeadline} onChange={(v)=>setField('registrationDeadline',v)} />
+      {isInternationalNurse && <>
+        <Field label="Post-registration salary (£)" value={form.postRegistrationSalary} onChange={(v)=>setField('postRegistrationSalary',v)} type="number" />
+        <Field label="Pre-registration salary (£, if applicable)" value={form.preRegistrationSalary} onChange={(v)=>setField('preRegistrationSalary',v)} type="number" />
+        <Field label="Visa route" value={form.visaRoute} onChange={(v)=>setField('visaRoute',v)} />
+        <Field label="NMC status" value={form.nmcStatus} onChange={(v)=>setField('nmcStatus',v)} />
+        <Field label="Registration deadline" value={form.registrationDeadline} onChange={(v)=>setField('registrationDeadline',v)} />
+      </>}
       <Field label="Work locations" value={form.workLocations} onChange={(v)=>setField('workLocations',v)} />
     </div></section>
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Leave, pension and notice</h2><div style={grid}>
