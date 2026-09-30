@@ -66,7 +66,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
 
   const rolePathway = roleBasedPathway(staff.job_title || application.role_applied, application);
 
-  const { data: visaCase, error: caseError } = await client.from('staff_visa_cases')
+  const { data: visaCase, error: caseError } = await client.from('laurem_staff_visa_cases')
     .select('*')
     .eq('staff_id', staffId)
     .not('status','in','(declined,withdrawn)')
@@ -78,7 +78,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   let invoice = null;
   let events: any[] = [];
   if (visaCase) {
-    const invoiceResult = await client.from('staff_visa_invoices')
+    const invoiceResult = await client.from('laurem_staff_visa_invoices')
       .select('*')
       .eq('visa_case_id', visaCase.id)
       .order('created_at',{ascending:false})
@@ -87,7 +87,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     if (invoiceResult.error) throw invoiceResult.error;
     invoice = invoiceResult.data;
 
-    const eventsResult = await client.from('staff_visa_case_events')
+    const eventsResult = await client.from('laurem_staff_visa_case_events')
       .select('id,event_type,actor_type,actor,metadata,created_at')
       .eq('visa_case_id', visaCase.id)
       .order('created_at',{ascending:false})
@@ -96,7 +96,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     events = eventsResult.data || [];
   }
 
-  const { data: visaDocuments, error: documentError } = await client.from('staff_documents')
+  const { data: visaDocuments, error: documentError } = await client.from('laurem_staff_documents')
     .select('id,title,description,original_filename,mime_type,file_size_bytes,status,category,issued_at,signature_status')
     .eq('staff_id', staffId)
     .eq('category','visa_sponsorship')
@@ -239,7 +239,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const client = db();
-    const { data: currentCase, error: caseError } = await client.from('staff_visa_cases')
+    const { data: currentCase, error: caseError } = await client.from('laurem_staff_visa_cases')
       .select('id,staff_id,application_id,pathway,additional_information,status')
       .eq('staff_id', session.staff_id)
       .not('status','in','(declined,withdrawn)')
@@ -260,7 +260,7 @@ export async function PATCH(request: NextRequest) {
       last_updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await client.from('staff_visa_cases')
+    const { data, error } = await client.from('laurem_staff_visa_cases')
       .update({ additional_information: additional, updated_at: new Date().toISOString() })
       .eq('id', currentCase.id)
       .eq('staff_id', session.staff_id)
@@ -268,7 +268,7 @@ export async function PATCH(request: NextRequest) {
       .single();
     if (error || !data) throw error || new Error('Unable to update visa information.');
 
-    await client.from('staff_visa_case_events').insert({
+    await client.from('laurem_staff_visa_case_events').insert({
       visa_case_id: currentCase.id,
       staff_id: session.staff_id,
       event_type: 'candidate_information_updated',
@@ -277,7 +277,7 @@ export async function PATCH(request: NextRequest) {
       metadata: { action: 'candidate_information_updated' },
     });
 
-    const { data: currentInvoice, error: invoiceError } = await client.from('staff_visa_invoices')
+    const { data: currentInvoice, error: invoiceError } = await client.from('laurem_staff_visa_invoices')
       .select('status')
       .eq('visa_case_id', currentCase.id)
       .order('created_at',{ascending:false})
