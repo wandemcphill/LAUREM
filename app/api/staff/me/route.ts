@@ -90,7 +90,7 @@ export async function PATCH(req: NextRequest) {
 
   if (error || !data) return NextResponse.json({ error: 'Unable to update your profile.' }, { status: 500 });
 
-  await client.from('workforce_audit_events').insert({
+  await client.from('laurem_workforce_audit_events').insert({
     staff_id: session.staff_id,
     entity_type: 'staff_profile',
     entity_id: session.staff_id,
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
     await client.storage.from(PHOTO_BUCKET).remove([current.profile_photo_path]);
   }
 
-  await client.from('workforce_audit_events').insert({
+  await client.from('laurem_workforce_audit_events').insert({
     staff_id: session.staff_id,
     entity_type: 'staff_profile',
     entity_id: session.staff_id,
