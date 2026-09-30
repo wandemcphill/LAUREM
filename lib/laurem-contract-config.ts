@@ -43,6 +43,8 @@ export const lauremEmploymentContract = {
     'noticePeriodEmployer',
     'holidayEntitlement',
     'pensionScheme',
+    'sponsorshipOccupationCode',
+    'sponsorshipOccupationTitle',
   ] as const,
 } as const;
 
