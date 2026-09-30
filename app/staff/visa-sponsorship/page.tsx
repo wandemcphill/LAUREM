@@ -3,202 +3,46 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { moneyGbp, visaPathwayLabel, type LauremVisaPathway } from '@/lib/laurem-visa-sponsorship';
+import { StaffAction, StaffBadge, StaffLoading, StaffMetric, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
-type Readiness = { ready: boolean; readyForSmsSubmission: boolean; items: { key: string; label: string; ready: boolean }[]; missing: string[] };
+type Readiness={ready:boolean;readyForSmsSubmission:boolean;items:{key:string;label:string;ready:boolean}[];missing:string[]};
+type Data={staff:any;application:any;recommendation:{pathway:LauremVisaPathway;basis:string;label:string};case:any;invoice:any;events:any[];readiness:Readiness|null;visaDocuments:any[];cosStatus:{key:string;label:string;canDownload:boolean};request:{available:boolean;pathway:LauremVisaPathway|null;paymentPlanKind:'uk_switch_split'|'full_upfront';label:string|null;explanation:string};sponsorshipOccupation:{code:string;title:string}|null;sponsorshipTermEndDate:string|null;sponsorshipTermEndDateLabel:string|null};
 
-type Data = {
-  staff: any;
-  application: any;
-  recommendation: { pathway: LauremVisaPathway; basis: string; label: string };
-  case: any;
-  invoice: any;
-  events: any[];
-  readiness: Readiness | null;
-  visaDocuments: any[];
-  cosStatus: { key: string; label: string; canDownload: boolean };
-  request: { available: boolean; pathway: LauremVisaPathway | null; paymentPlanKind: 'uk_switch_split' | 'full_upfront'; label: string | null; explanation: string };
-  sponsorshipOccupation: { code:string; title:string } | null;
-  sponsorshipTermEndDate: string | null;
-  sponsorshipTermEndDateLabel: string | null;
-};
+function fmt(v:any){if(!v)return'Not set';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});}
+function tone(status:string){return status==='active'||status==='completed'||status==='paid'?'live':status==='declined'||status==='withdrawn'||status==='failed'?'danger':status==='processing'||status==='pending'?'attention':'neutral';}
+function Info({label,value}:{label:string;value:any}){return <div className="staff-visa-info"><span>{label}</span><strong>{value||'Not recorded'}</strong></div>;}
 
-const card: React.CSSProperties = { background:'#fff', border:'1px solid #e5eaf0', borderRadius:16, padding:20 };
-const muted: React.CSSProperties = { color:'#627d98' };
-const button = (primary=false): React.CSSProperties => ({ border:primary?'0':'1px solid #dbe5ea', background:primary?'#102a43':'#fff', color:primary?'#fff':'#102a43', borderRadius:10, padding:'10px 13px', fontWeight:800, cursor:'pointer', textDecoration:'none' });
-
-function fmt(value:any) {
-  if (!value) return 'Not set';
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});
+export default function StaffVisaSponsorshipPage(){
+ const router=useRouter();const[data,setData]=useState<Data|null>(null);const[loading,setLoading]=useState(true);const[busy,setBusy]=useState(false);const[error,setError]=useState('');const[routeChoice,setRouteChoice]=useState<LauremVisaPathway>('visa_switch');const[currentVisaType,setCurrentVisaType]=useState('');const[currentVisaExpiryDate,setCurrentVisaExpiryDate]=useState('');const[passportNumber,setPassportNumber]=useState('');const[passportExpiryDate,setPassportExpiryDate]=useState('');const[passportCountry,setPassportCountry]=useState('');
+ async function load(){setLoading(true);setError('');try{const r=await fetch('/api/staff/visa-sponsorship',{cache:'no-store'});if(r.status===401){router.replace('/staff/login');return;}const b=await r.json();if(!r.ok)throw new Error(b.error||'Unable to load visa sponsorship workspace.');setData(b);setRouteChoice(b.request?.pathway||b.recommendation.pathway);const info=b.case?.additional_information||{};setCurrentVisaType(info.current_visa_type||'');setCurrentVisaExpiryDate(info.current_visa_expiry_date||'');setPassportNumber(info.passport_number||'');setPassportExpiryDate(info.passport_expiry_date||'');setPassportCountry(info.passport_country||b.application?.nationality||'');}catch(e){setError(e instanceof Error?e.message:'Unable to load visa sponsorship workspace.');}finally{setLoading(false);}}
+ useEffect(()=>{void load();},[router]);
+ async function requestSupport(){setBusy(true);setError('');try{const r=await fetch('/api/staff/visa-sponsorship',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pathway:routeChoice})});const b=await r.json();if(!r.ok)throw new Error(b.error||'Unable to create visa support request.');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to create visa support request.');}finally{setBusy(false);}}
+ async function saveInfo(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');try{const r=await fetch('/api/staff/visa-sponsorship',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({currentVisaType,currentVisaExpiryDate,passportNumber,passportExpiryDate,passportCountry})});const b=await r.json();if(!r.ok)throw new Error(b.error||'Unable to save visa information.');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to save visa information.');}finally{setBusy(false);}}
+ if(loading)return <StaffLoading label="Loading visa support workspace…"/>;
+ if(!data)return <StaffPage><StaffPageInner><StaffNotice tone="danger"><strong>Visa support workspace unavailable</strong><p>{error||'Unable to load visa support workspace.'}</p><StaffAction onClick={()=>void load()}>Try again</StaffAction></StaffNotice></StaffPageInner></StaffPage>;
+ const c=data.case;const invoice=data.invoice;const splitPayment=data.request.paymentPlanKind==='uk_switch_split'||Number(invoice?.amount_pence)===50000;const paymentUrl=splitPayment&&typeof invoice?.payment_url==='string'?invoice.payment_url:null;const upfrontAmount=splitPayment?500:2000;
+ return <StaffPage className="staff-page--visa"><StaffPageInner>
+  <StaffPageHeader eyebrow="Immigration support" title="Visa Switch & Sponsorship" subtitle="Your LAUREM sponsorship workspace, case status, payment information, readiness and CoS records." actions={<><StaffAction onClick={()=>void load()}>Refresh</StaffAction><StaffAction href="/staff/messages">Message LAUREM</StaffAction></>}/>
+  {error&&<StaffNotice tone="danger"><strong>Visa support update failed</strong><p>{error}</p></StaffNotice>}
+  {data.sponsorshipOccupation&&<StaffPanel className="staff-visa-occupation"><div><p className="staff-eyebrow">Sponsored occupation</p><div className="staff-visa-occupation-main"><strong>{data.sponsorshipOccupation.code}</strong><span>{data.sponsorshipOccupation.title}</span></div><p className="staff-card-copy">This occupation code is derived from your LAUREM role and is used consistently across sponsorship and contract records. Final sponsorship remains subject to the applicable UK rules and the actual duties of the job.</p></div></StaffPanel>}
+  <div className="staff-stat-grid"><StaffMetric label="Case" value={c?c.status.replaceAll('_',' '):'Not requested'}/><StaffMetric label="Route" value={c?visaPathwayLabel(c.pathway):data.request.label||'Not selected'}/><StaffMetric label="Occupation" value={data.sponsorshipOccupation?.code||'Not set'}/><StaffMetric label="Term" value={data.sponsorshipTermEndDateLabel||'Not calculated'}/></div>
+  {!c?<StaffPanel className="staff-visa-request-panel">
+    <StaffSectionHeader title="Request sponsorship support" copy={data.request.explanation}/>
+    <StaffNotice><strong>Before you proceed</strong><p>Pressing the button below will create the applicable LAUREM service invoice and open your visa-switch case. For UK visa switches involving Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, the initial service invoice is £500 and must be paid within 3 days of the invoice issue date before LAUREM begins the visa sponsorship process. The remaining £1,500 is not payable now and is recovered through weekly salary deductions during the first three months of employment, following successful visa approval and commencement of employment. International Nurses remain subject to the existing £2,000 arrangement.</p></StaffNotice>
+    <div className="staff-visa-request-grid"><div><p className="staff-document-category">Planned LAUREM sponsorship term</p><h3>{data.sponsorshipTermEndDateLabel?'Three-year term ends '+data.sponsorshipTermEndDateLabel:'End date will be calculated when a commencement date is recorded'}</h3><p className="staff-card-copy">The planned sponsorship term is three years for LAUREM employment and sponsorship documentation. The final Certificate of Sponsorship (CoS) end date will be based on the approved sponsorship record.</p></div><div><p className="staff-document-category">Your route</p><h3>{routeChoice==='visa_switch'?'UK Visa Switch Support':'International Visa Sponsorship Support'}</h3><p className="staff-card-copy">{data.application.role_applied||data.staff.job_title}</p></div></div>
+    <div className="staff-visa-request-actions"><StaffAction primary disabled={busy||!data.request.available} onClick={()=>void requestSupport()}>{busy?'Generating invoice…':'Request £'+upfrontAmount.toLocaleString('en-GB')+' Invoice'}</StaffAction><StaffAction href="/staff/documents">View documents</StaffAction></div>
+  </StaffPanel>:<>
+    <StaffPanel className="staff-visa-status-panel"><div className="staff-visa-status-top"><div><p className="staff-eyebrow">Certificate of Sponsorship</p><h2 className="staff-card-heading">CoS Status</h2><p className="staff-card-copy">Requested {fmt(c.requested_at)}</p></div><StaffBadge tone={tone(data.cosStatus.key)}>{data.cosStatus.label}</StaffBadge></div>
+      {invoice&&<div className="staff-visa-invoice-strip"><strong>{moneyGbp(Number(invoice.amount_pence||200000))} invoice</strong><span>{invoice.invoice_number} · {invoice.status}</span><small>Issued {invoice.issue_date||'today'}{invoice.due_date?' · Due '+invoice.due_date:''}</small>{paymentUrl&&<a href={paymentUrl} target="_blank" rel="noreferrer" className="staff-action-primary">Pay £500 invoice securely</a>}</div>}
+      <div className="staff-visa-actions">{data.cosStatus.canDownload&&data.visaDocuments[0]&&<a href={'/api/staff/documents/'+encodeURIComponent(data.visaDocuments[0].id)+'/download'} download className="staff-action-primary">Download COS</a>}<StaffAction href="/staff/messages">Message Admin / HR</StaffAction></div>
+    </StaffPanel>
+    <StaffPanel><StaffSectionHeader title={visaPathwayLabel(c.pathway)} copy={c.pathway_basis}/><div className="staff-visa-case-row"><StaffBadge tone={tone(c.status)}>{c.status.replaceAll('_',' ')}</StaffBadge><span>Requested {fmt(c.requested_at)}</span></div></StaffPanel>
+    <div className="staff-workforce-grid"><StaffPanel><StaffSectionHeader title="Information already held" copy="These details come from your recruitment record and case information."/><div className="staff-visa-info-grid"><Info label="Full name" value={data.application.full_name}/><Info label="Date of birth" value={data.application.date_of_birth}/><Info label="Nationality" value={data.application.nationality}/><Info label="Current country" value={data.application.current_country||data.application.country_of_residence}/><Info label="Role applied for" value={data.application.role_applied||data.staff.job_title}/><Info label="Start date" value={data.application.start_date||data.staff.start_date}/><Info label="Living in UK" value={data.application.living_in_uk}/><Info label="Work permission" value={data.application.work_permission}/><Info label="Requires sponsorship" value={data.application.requires_sponsorship}/><Info label="Phone" value={data.application.phone}/><Info label="Email" value={data.application.email}/><Info label="Address" value={data.application.address}/></div></StaffPanel>
+      <StaffPanel><StaffSectionHeader title="LAUREM invoice" copy="This is a LAUREM service invoice, not a UK government visa fee."/><div className="staff-visa-invoice-amount">{moneyGbp(Number(invoice?.amount_pence||200000))}</div><div className="staff-card-copy">{invoice?.invoice_number||'Invoice being prepared'} · Status {invoice?.status||'issued'} · Issued {invoice?.issue_date||'today'}{invoice?.due_date?' · Due '+invoice.due_date:''}</div>{splitPayment?<div className="staff-visa-payment-plan"><strong>UK visa switch payment plan</strong><p>£500 is due within 3 days of the invoice issue date. The remaining £1,500 is recovered after successful visa approval and commencement of employment through weekly salary deductions during the first three months, beginning with the first training week.</p><div><span>Weeks 1-12: <strong>£115.38 per week</strong></span><span>Week 13: <strong>£115.44 final deduction</strong></span><span>Total deferred: <strong>£1,500.00</strong></span></div></div>:<p className="staff-card-copy">This is the existing LAUREM service invoice arrangement. It is not presented as a UK government visa fee.</p>}<StaffAction onClick={()=>window.print()}>Print / Save invoice</StaffAction></StaffPanel></div>
+    <StaffPanel><StaffSectionHeader title="Case readiness" copy="LAUREM uses this operational checklist before the case can move into SMS preparation/submission. It is not a statement of UK immigration eligibility."/><div className="staff-readiness-list">{(data.readiness?.items||[]).map(item=><div key={item.key}><StaffBadge tone={item.ready?'live':'attention'}>{item.ready?'Ready':'Action needed'}</StaffBadge><span>{item.label}</span></div>)}</div>{!!data.readiness?.missing.length&&<StaffNotice tone="warning"><p>Complete the highlighted items, then LAUREM staff can continue the case.</p></StaffNotice>}</StaffPanel>
+    <StaffPanel><StaffSectionHeader title="Additional information" copy="Only add information that was not already collected during recruitment. LAUREM will use the existing recruitment record plus these details when preparing the case."/><form className="staff-modern-form" onSubmit={saveInfo}><div className="staff-form-grid"><label className="staff-form-field"><span className="staff-form-label">Current visa type</span><input className="staff-form-input" value={currentVisaType} onChange={e=>setCurrentVisaType(e.target.value)} placeholder="e.g. Student, Graduate"/></label><label className="staff-form-field"><span className="staff-form-label">Current visa expiry</span><input className="staff-form-input" type="date" value={currentVisaExpiryDate} onChange={e=>setCurrentVisaExpiryDate(e.target.value)}/></label><label className="staff-form-field"><span className="staff-form-label">Passport number</span><input className="staff-form-input" value={passportNumber} onChange={e=>setPassportNumber(e.target.value)}/></label><label className="staff-form-field"><span className="staff-form-label">Passport expiry</span><input className="staff-form-input" type="date" value={passportExpiryDate} onChange={e=>setPassportExpiryDate(e.target.value)}/></label><label className="staff-form-field"><span className="staff-form-label">Passport country</span><input className="staff-form-input" value={passportCountry} onChange={e=>setPassportCountry(e.target.value)}/></label></div><StaffAction primary type="submit" disabled={busy}>{busy?'Saving…':'Save additional information'}</StaffAction></form></StaffPanel>
+    <StaffPanel><StaffSectionHeader title="Certificate of Sponsorship" copy="Your CoS will appear here when LAUREM has uploaded it to your private Staff Portal."/><div className="staff-cos-list">{data.visaDocuments.length===0?<div className="staff-empty">No CoS document is currently available.</div>:data.visaDocuments.map((doc:any)=><article key={doc.id}><div><strong>{doc.title}</strong><span>{doc.original_filename||doc.mime_type} · Uploaded {fmt(doc.issued_at)}</span></div><a href={'/api/staff/documents/'+encodeURIComponent(doc.id)+'/download'} download className="staff-action-primary">Download</a></article>)}</div>{c.sms_reference&&<p className="staff-card-copy">SMS reference: <strong>{c.sms_reference}</strong></p>}{c.cos_number&&<p className="staff-card-copy">CoS number: <strong>{c.cos_number}</strong></p>}</StaffPanel>
+    <StaffPanel><StaffSectionHeader title="Case timeline"/>{!data.events.length?<div className="staff-empty">No case events yet.</div>:<div className="staff-timeline">{data.events.map((event:any)=><article key={event.id}><div className="staff-timeline-dot" aria-hidden="true"/><div><strong>{event.event_type.replaceAll('_',' ')}</strong><span>{fmt(event.created_at)} · {event.actor_type}</span></div></article>)}</div>}</StaffPanel>
+  </>}
+ </StaffPageInner></StaffPage>;
 }
-
-export default function StaffVisaSponsorshipPage() {
-  const router = useRouter();
-  const [data,setData] = useState<Data|null>(null);
-  const [loading,setLoading] = useState(true);
-  const [busy,setBusy] = useState(false);
-  const [error,setError] = useState('');
-  const [routeChoice,setRouteChoice] = useState<LauremVisaPathway>('visa_switch');
-  const [currentVisaType,setCurrentVisaType] = useState('');
-  const [currentVisaExpiryDate,setCurrentVisaExpiryDate] = useState('');
-  const [passportNumber,setPassportNumber] = useState('');
-  const [passportExpiryDate,setPassportExpiryDate] = useState('');
-  const [passportCountry,setPassportCountry] = useState('');
-
-  async function load() {
-    setLoading(true); setError('');
-    try {
-      const response = await fetch('/api/staff/visa-sponsorship',{cache:'no-store'});
-      if(response.status===401){router.replace('/staff/login');return;}
-      const body=await response.json();
-      if(!response.ok) throw new Error(body.error||'Unable to load visa sponsorship workspace.');
-      setData(body);
-      setRouteChoice(body.request?.pathway || body.recommendation.pathway);
-      const info=body.case?.additional_information||{};
-      setCurrentVisaType(info.current_visa_type||'');
-      setCurrentVisaExpiryDate(info.current_visa_expiry_date||'');
-      setPassportNumber(info.passport_number||'');
-      setPassportExpiryDate(info.passport_expiry_date||'');
-      setPassportCountry(info.passport_country||body.application?.nationality||'');
-    } catch(e){setError(e instanceof Error?e.message:'Unable to load visa sponsorship workspace.');}
-    finally{setLoading(false);}
-  }
-
-  useEffect(()=>{void load();},[]);
-
-  async function requestSupport() {
-    setBusy(true); setError('');
-    try {
-      const response=await fetch('/api/staff/visa-sponsorship',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pathway:routeChoice})});
-      const body=await response.json();
-      if(!response.ok) throw new Error(body.error||'Unable to create visa support request.');
-      await load();
-    } catch(e){setError(e instanceof Error?e.message:'Unable to create visa support request.');}
-    finally{setBusy(false);}
-  }
-
-  async function saveInfo(e:React.FormEvent) {
-    e.preventDefault(); setBusy(true); setError('');
-    try {
-      const response=await fetch('/api/staff/visa-sponsorship',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({currentVisaType,currentVisaExpiryDate,passportNumber,passportExpiryDate,passportCountry})});
-      const body=await response.json();
-      if(!response.ok) throw new Error(body.error||'Unable to save visa information.');
-      await load();
-    } catch(e){setError(e instanceof Error?e.message:'Unable to save visa information.');}
-    finally{setBusy(false);}
-  }
-
-  if(loading) return <main style={{minHeight:'100vh',background:'#f4f7fb',padding:24,fontFamily:'system-ui'}}><div style={{maxWidth:1100,margin:'0 auto',...card}}>Loading visa support workspace…</div></main>;
-
-  if(!data) return <main style={{minHeight:'100vh',background:'#f4f7fb',padding:24,fontFamily:'system-ui'}}><div style={{maxWidth:1100,margin:'0 auto',...card}}><button onClick={()=>router.push('/staff')} style={button()}>← Staff Portal</button><p style={{color:'#b42318'}}>{error||'Unable to load visa support workspace.'}</p></div></main>;
-
-  const c=data.case;
-  const invoice=data.invoice;
-  const splitPayment = data.request.paymentPlanKind === 'uk_switch_split' || Number(invoice?.amount_pence) === 50000;
-  const paymentUrl = splitPayment && typeof invoice?.payment_url === 'string' ? invoice.payment_url : null;
-  const upfrontAmount = splitPayment ? 500 : 2000;
-  return <main style={{minHeight:'100vh',background:'#f4f7fb',padding:'24px 18px 70px',fontFamily:'system-ui',color:'#102a43'}}>
-    <div style={{maxWidth:1100,margin:'0 auto'}}>
-      <button onClick={()=>router.push('/staff')} style={button()}>← Staff Portal</button>
-      <header style={{...card,marginTop:16}}>
-        <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>IMMIGRATION SUPPORT</div>
-        <h1 style={{margin:'7px 0 5px'}}>Visa Switch & Sponsorship</h1>
-        <p style={{...muted,margin:0}}>LAUREM can prepare your sponsorship support case using information already held in your recruitment record. Immigration eligibility and final submission remain subject to the relevant UK rules and LAUREM administrative review.</p>
-      </header>
-
-      {error&&<div role="alert" style={{...card,marginTop:14,color:'#8a2323'}}>{error}</div>}
-
-      {data.sponsorshipOccupation && <section style={{...card,marginTop:14}}><div style={{fontSize:12,fontWeight:900,letterSpacing:1.1,color:'#0f766e'}}>SPONSORED OCCUPATION</div><div style={{display:'flex',gap:12,alignItems:'baseline',flexWrap:'wrap',marginTop:6}}><strong style={{fontSize:24}}>{data.sponsorshipOccupation.code}</strong><span style={{...muted}}>{data.sponsorshipOccupation.title}</span></div><p style={{...muted,fontSize:12,lineHeight:1.5,marginBottom:0}}>This occupation code is derived from your LAUREM role and is used consistently across sponsorship and contract records. Final sponsorship remains subject to the applicable UK rules and the actual duties of the job.</p></section>}
-
-      {!c ? <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
-        <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>COS NOT REQUESTED</div>
-        <h2 style={{margin:'7px 0 6px'}}>{data.request.label || 'Visa & Sponsorship Support'}</h2>
-        <p style={{...muted,lineHeight:1.6,marginTop:0}}>{data.request.explanation}</p>
-        <div style={{marginTop:14,padding:15,borderRadius:12,background:'#f7fafc',lineHeight:1.6,fontSize:13}}>
-          <strong>Before you proceed</strong>
-          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below will create the applicable LAUREM service invoice and open your visa-switch case. For UK visa switches involving Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, the initial invoice is £500 and must be paid within 3 days of the invoice issue date before LAUREM begins the visa sponsorship process. The remaining £1,500 is deferred and recovered through weekly salary deductions during the first three months of employment, following successful visa approval and commencement of employment. International Nurses remain subject to the existing £2,000 arrangement.</p>
-        </div>
-        <div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea'}}><div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea',background:'#fbfefd'}}>
-          <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Planned LAUREM sponsorship term</div>
-          <strong>{data.sponsorshipTermEndDateLabel ? 'Three-year term ends '+data.sponsorshipTermEndDateLabel : 'End date will be calculated when a commencement date is recorded'}</strong>
-          <div style={{...muted,fontSize:12,marginTop:4}}>The planned sponsorship term is three years for LAUREM employment and sponsorship documentation. The final Certificate of Sponsorship (CoS) end date will be based on the approved sponsorship record.</div>
-        </div>
-        
-          <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Your route</div>
-          <strong>{data.request.pathway === 'visa_switch' ? 'UK Visa Switch Support' : 'International Visa Sponsorship Support'}</strong>
-          <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
-        </div>
-        <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':`Request £${upfrontAmount.toLocaleString('en-GB')} Invoice`}</button>
-      </section> : <><section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
-        <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>CERTIFICATE OF SPONSORSHIP</div>
-            <h2 style={{margin:'7px 0 4px'}}>COS Status</h2>
-            <div style={{...muted,fontSize:13}}>Requested {fmt(c.requested_at)}</div>
-          </div>
-          <span style={{padding:'8px 12px',borderRadius:999,background:data.cosStatus.key==='active'?'#e8f7ee':data.cosStatus.key==='processing'?'#fff4e5':'#edf2f7',color:data.cosStatus.key==='active'?'#166534':data.cosStatus.key==='processing'?'#9a3412':'#102a43',fontSize:13,fontWeight:900}}>{data.cosStatus.label}</span>
-        </div>
-        {invoice && <div style={{marginTop:14,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}>
-          <strong>£{(Number(invoice.amount_pence || 200000)/100).toFixed(2)} invoice</strong> · {invoice.invoice_number} · {invoice.status}
-          <div style={{...muted,marginTop:4}}>Issued {invoice.issue_date || 'today'}</div>
-        </div>}
-        <div style={{display:'flex',gap:9,flexWrap:'wrap',marginTop:14}}>
-          {data.cosStatus.canDownload && data.visaDocuments[0] && <a href={'/api/staff/documents/' + encodeURIComponent(data.visaDocuments[0].id) + '/download'} download style={{...button(true),background:'#0f766e'}}>Download COS</a>}
-          <button onClick={()=>router.push('/staff/messages')} style={button()}>Message Admin / HR</button>
-        </div>
-      </section><section style={{...card,marginTop:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>CASE</div><h2 style={{margin:'5px 0'}}>{visaPathwayLabel(c.pathway)}</h2><div style={muted}>Status: <strong style={{color:'#102a43'}}>{c.status.replaceAll('_',' ')}</strong> · Requested {fmt(c.requested_at)}</div></div><span style={{padding:'7px 10px',borderRadius:999,background:'#edf2f7',fontSize:12,fontWeight:900}}>{c.pathway}</span></div><p style={{...muted,lineHeight:1.55}}>{c.pathway_basis}</p></section>
-
-      <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.2fr) minmax(300px,.8fr)',gap:14,marginTop:14}}>
-        <article style={card}><h2 style={{marginTop:0}}>Information already held</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14}}><Info label="Full name" value={data.application.full_name}/><Info label="Date of birth" value={data.application.date_of_birth}/><Info label="Nationality" value={data.application.nationality}/><Info label="Current country" value={data.application.current_country||data.application.country_of_residence}/><Info label="Role applied for" value={data.application.role_applied||data.staff.job_title}/><Info label="Start date" value={data.application.start_date||data.staff.start_date}/><Info label="Living in UK" value={data.application.living_in_uk}/><Info label="Work permission" value={data.application.work_permission}/><Info label="Requires sponsorship" value={data.application.requires_sponsorship}/><Info label="Phone" value={data.application.phone}/><Info label="Email" value={data.application.email}/><Info label="Address" value={data.application.address}/></div></article>
-        <article style={card}><h2 style={{marginTop:0}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)} LAUREM invoice</h2><div style={{fontSize:30,fontWeight:900}}>£{(Number(invoice?.amount_pence||200000)/100).toFixed(2)}</div><div style={{...muted,marginTop:4}}>{invoice?.invoice_number||'Invoice being prepared'}</div><div style={{marginTop:15,padding:13,borderRadius:11,background:'#f7fafc',fontSize:13}}><strong>{invoice?.description}</strong><p style={{...muted,margin:'7px 0 0'}}>Status: {invoice?.status||'issued'} · Issued {invoice?.issue_date||'today'}{invoice?.due_date ? ' · Due ' + invoice.due_date : ''}</p>{paymentUrl&&<a href={paymentUrl} target='_blank' rel='noreferrer' style={{...button(true),display:'inline-block',marginTop:12,textDecoration:'none'}}>Pay £500 invoice securely</a>}{splitPayment ? <div style={{marginTop:12,padding:14,borderRadius:11,border:'1px solid #dbe5ea',fontSize:13,lineHeight:1.55}}><strong>UK visa switch payment plan</strong><p style={{...muted,margin:'7px 0'}}>£500 is due within 3 days of the invoice issue date. The remaining £1,500 is recovered after successful visa approval and commencement of employment through weekly salary deductions during the first three months, beginning with the first training week.</p><div style={{display:'grid',gap:5,marginTop:8}}><span>Weeks 1-12: <strong>£115.38 per week</strong></span><span>Week 13: <strong>£115.44 final deduction</strong></span><span>Total deferred: <strong>£1,500.00</strong></span></div></div> : <p style={{...muted,fontSize:12,lineHeight:1.5}}>This is the existing LAUREM service invoice arrangement. It is not presented as a UK government visa fee.</p>}</div><button onClick={()=>window.print()} style={{...button(),marginTop:10}}>Print / Save invoice</button></article>
-      </section>
-
-      <section style={{...card,marginTop:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-          <div>
-            <h2 style={{margin:'0 0 5px'}}>Case readiness</h2>
-            <p style={{...muted,margin:0}}>LAUREM uses this operational checklist before the case can move into SMS preparation/submission. It is not a statement of UK immigration eligibility.</p>
-          </div>
-          <span style={{padding:'7px 10px',borderRadius:999,background:data.readiness?.ready?'#e8f7ee':'#fff4e5',color:data.readiness?.ready?'#166534':'#9a3412',fontSize:12,fontWeight:900}}>{data.readiness?.ready?'READY FOR SMS':'ACTION NEEDED'}</span>
-        </div>
-        <div style={{display:'grid',gap:9,marginTop:14}}>
-          {(data.readiness?.items||[]).map(item=><div key={item.key} style={{display:'flex',gap:10,alignItems:'center',padding:'9px 0',borderTop:'1px solid #edf2f7'}}>
-            <span aria-hidden="true" style={{width:22,height:22,borderRadius:999,display:'grid',placeItems:'center',background:item.ready?'#e8f7ee':'#fff4e5',color:item.ready?'#166534':'#9a3412',fontWeight:900}}>{item.ready?'✓':'!'}</span>
-            <span style={{fontWeight:700,fontSize:13}}>{item.label}</span>
-          </div>)}
-        </div>
-        {!!data.readiness?.missing.length && <p style={{...muted,fontSize:12,marginBottom:0}}>Complete the highlighted items, then LAUREM staff can continue the case.</p>}
-      </section>
-
-      <section style={{...card,marginTop:14}}>
-        <h2 style={{marginTop:0}}>Additional information</h2>
-        <p style={{...muted,lineHeight:1.55}}>Only add information that was not already collected during recruitment. LAUREM will use the existing recruitment record plus these details when preparing the case.</p>
-        <form onSubmit={saveInfo} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:12}}>
-          <label style={{fontSize:13,fontWeight:800}}>Current visa type<input value={currentVisaType} onChange={e=>setCurrentVisaType(e.target.value)} placeholder="e.g. Student, Graduate" style={input}/></label>
-          <label style={{fontSize:13,fontWeight:800}}>Current visa expiry<input type="date" value={currentVisaExpiryDate} onChange={e=>setCurrentVisaExpiryDate(e.target.value)} style={input}/></label>
-          <label style={{fontSize:13,fontWeight:800}}>Passport number<input value={passportNumber} onChange={e=>setPassportNumber(e.target.value)} style={input}/></label>
-          <label style={{fontSize:13,fontWeight:800}}>Passport expiry<input type="date" value={passportExpiryDate} onChange={e=>setPassportExpiryDate(e.target.value)} style={input}/></label>
-          <label style={{fontSize:13,fontWeight:800}}>Passport country<input value={passportCountry} onChange={e=>setPassportCountry(e.target.value)} style={input}/></label>
-          <div style={{display:'flex',alignItems:'end'}}><button disabled={busy} style={{...button(true),width:'100%'}}>Save additional information</button></div>
-        </form>
-      </section>
-
-      <section style={{...card,marginTop:14}}>
-        <h2 style={{marginTop:0}}>Certificate of Sponsorship</h2>
-        {data.visaDocuments.length===0?<p style={muted}>Your CoS will appear here when LAUREM has uploaded it to your private Staff Portal.</p>:<div style={{display:'grid',gap:9}}>{data.visaDocuments.map((doc:any)=><div key={doc.id} style={{padding:14,border:'1px solid #edf2f7',borderRadius:11,display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap'}}><div><strong>{doc.title}</strong><div style={{...muted,fontSize:12}}>{doc.original_filename||doc.mime_type} · Uploaded {fmt(doc.issued_at)}</div></div><a href={`/api/staff/documents/${encodeURIComponent(doc.id)}/download`} download style={{...button(true),display:'inline-block'}}>Download</a></div>)}</div>}
-        {c.sms_reference&&<div style={{...muted,fontSize:13,marginTop:12}}>SMS reference: <strong style={{color:'#102a43'}}>{c.sms_reference}</strong></div>}
-        {c.cos_number&&<div style={{...muted,fontSize:13,marginTop:5}}>CoS number: <strong style={{color:'#102a43'}}>{c.cos_number}</strong></div>}
-      </section>
-
-      <section style={{...card,marginTop:14}}>
-        <h2 style={{marginTop:0}}>Case timeline</h2>
-        {!data.events.length?<p style={muted}>No case events yet.</p>:<div style={{display:'grid',gap:8}}>{data.events.map((event:any)=><div key={event.id} style={{padding:'10px 0',borderTop:'1px solid #edf2f7'}}><strong>{event.event_type.replaceAll('_',' ')}</strong><div style={{...muted,fontSize:12}}>{fmt(event.created_at)} · {event.actor_type}</div></div>)}</div>}
-      </section>
-      </>}
-    </div>
-  </main>;
-}
-
-function Info({label,value}:{label:string;value:any}) { return <div><div style={{fontSize:12,color:'#627d98'}}>{label}</div><div style={{fontWeight:800,marginTop:4,wordBreak:'break-word'}}>{value||'Not recorded'}</div></div>; }
-const input:React.CSSProperties={display:'block',width:'100%',boxSizing:'border-box',marginTop:7,padding:11,border:'1px solid #cbd5e1',borderRadius:10,font:'inherit'};
