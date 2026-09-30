@@ -34,6 +34,21 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(page).toContain('Only add information that was not already collected during recruitment.');
   });
 
+  it('makes sponsorship passport and visa details candidate-entered and required', () => {
+    const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
+    const route = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
+    expect(page).toContain('These details are completed by you, the new hire.');
+    expect(page).toContain('Passport number *');
+    expect(page).toContain('Passport expiry *');
+    expect(page).toContain('Passport country *');
+    expect(page).toContain("required={c.pathway==='visa_switch'}");
+    expect(page).toContain("setPassportCountry(info.passport_country||'');");
+    expect(page).not.toContain("setPassportCountry(info.passport_country||b.application?.nationality||'');");
+    expect(route).toContain('missingCandidateFields');
+    expect(route).toContain('Please complete the required sponsorship details:');
+    expect(route).toContain("currentCase.pathway === 'visa_switch'");
+  });
+
   it('provides the staff-facing invoice and persistent CoS download', () => {
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     expect(page).toContain('LAUREM invoice');
