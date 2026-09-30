@@ -45,7 +45,7 @@ function cosStatus(caseRow: any, visaDocuments: any[]) {
 }
 
 async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
-  const { data: staff, error: staffError } = await client.from('staff_profiles')
+  const { data: staff, error: staffError } = await client.from('laurem_staff_profiles')
     .select('id,application_id,full_name,job_title,start_date')
     .eq('id', staffId)
     .maybeSingle();
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const client = db();
-    const { data: staff, error: staffError } = await client.from('staff_profiles')
+    const { data: staff, error: staffError } = await client.from('laurem_staff_profiles')
       .select('id,application_id,full_name,email,job_title,employment_status')
       .eq('id', session.staff_id)
       .maybeSingle();
