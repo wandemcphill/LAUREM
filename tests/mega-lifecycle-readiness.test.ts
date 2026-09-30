@@ -39,8 +39,8 @@ describe('LAUREM mega lifecycle readiness contract', () => {
     expect(route).toContain('getStaffSession(request)');
     expect(route).toContain("db().rpc('laurem_request_staff_visa_sponsorship'");
     expect(route).toContain("['visa_switch','international_sponsorship']");
-    expect(route).toContain("from('staff_visa_cases')");
-    expect(route).toContain("from('staff_visa_case_events')");
+    expect(route).toContain("from('laurem_staff_visa_cases')");
+    expect(route).toContain("from('laurem_staff_visa_case_events')");
   });
 
   it('keeps every core staff workforce surface session-bound', () => {
