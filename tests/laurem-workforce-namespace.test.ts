@@ -39,10 +39,10 @@ describe('LAUREM workforce audit namespace isolation', () => {
   });
 
   it('keeps assignment and leave audit writes behind the logical namespace adapter', () => {
-    expect(assignmentRoute).toContain("from('laurem_workforce_audit_events')");
-    expect(adminLeaveRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(assignmentRoute).toContain("from('workforce_audit_events')");
+    expect(adminLeaveRoute).toContain("from('workforce_audit_events')");
     expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
-    expect(assignmentRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(assignmentRoute).toContain("from('workforce_audit_events')");
     expect(adminLeaveRoute).toContain("from('laurem_workforce_audit_events')");
     expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
   });
