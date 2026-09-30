@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     const [staffResult, assignmentsResult, timesheetsResult, leaveResult, payrollResult, notificationsResult, documentsResult] =
       await Promise.all([
         client.from('laurem_staff_profiles').select('id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at').eq('id', session.staff_id).maybeSingle(),
-        client.from('laurem_staff_assignments').select('id,client_name,location,scheduled_start,scheduled_end,status,notes').eq('staff_id', session.staff_id).in('status', ['scheduled', 'confirmed']).gte('scheduled_end', now.toISOString()).order('scheduled_start', { ascending: true }).limit(7),
-        client.from('laurem_staff_timesheets').select('id,status,total_hours,work_date').eq('staff_id', session.staff_id).order('work_date', { ascending: false }).limit(30),
+        client.from('laurem_staff_assignments').select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes').eq('staff_id', session.staff_id).in('status', ['scheduled', 'confirmed']).gte('scheduled_end', now.toISOString()).order('scheduled_start', { ascending: true }).limit(7),
+        client.from('laurem_staff_timesheets').select('id,assignment_id,status,total_hours,work_date,clock_in,clock_out').eq('staff_id', session.staff_id).order('work_date', { ascending: false }).limit(30),
         client.from('laurem_staff_leave_requests').select('id,status,start_date,end_date,total_days').eq('staff_id', session.staff_id).order('start_date', { ascending: false }).limit(20),
         client.from('laurem_payroll_entries').select('id,status,approved_hours,hourly_rate,gross_amount').eq('staff_id', session.staff_id).order('created_at', { ascending: false }).limit(12),
         client.from('laurem_staff_notifications').select('id,title,body,read_at,action_url,created_at').eq('staff_id', session.staff_id).order('created_at', { ascending: false }).limit(6),

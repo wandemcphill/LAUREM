@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { StaffAction, StaffBadge, StaffMetric, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
 type Staff = { laurem_id:string|null; employee_number:string; full_name:string; email:string; phone:string|null; job_title:string; employment_status:string; start_date:string|null; location:string|null; portal_address:string|null; address_line_1:string|null; city:string|null; postcode:string|null; country:string|null; profile_photo_path:string|null; profile_photo_url?:string|null };
 type Shift = { id:string; client_name:string|null; location:string; scheduled_start:string; scheduled_end:string; status:string; notes:string|null };
