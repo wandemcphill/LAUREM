@@ -4,6 +4,7 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { assertLauremVisaCoSAssignment, assertLauremVisaStatusTransition, isLauremVisaStatus, type LauremVisaStatus } from '@/lib/laurem-visa-lifecycle';
 import { buildLauremVisaReadiness, canAdvanceLauremVisaToSmsSubmission } from '@/lib/laurem-visa-readiness';
+import { getLauremSponsorshipOccupation } from '@/lib/laurem-sponsorship-occupation';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ staffId: string }> }) {
   const session = readAdminSession(request);
@@ -42,8 +43,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq('staff_id', staffId).eq('category','visa_sponsorship').order('issued_at',{ascending:false});
     if (documentError) throw documentError;
 
+    const sponsorshipOccupation = getLauremSponsorshipOccupation(application?.role_applied || staff.job_title);
     const readiness = visaCase ? buildLauremVisaReadiness({ pathway: visaCase.pathway, staff: staff as Record<string, unknown>, application: application as Record<string, unknown>, additionalInformation: (visaCase.additional_information || {}) as Record<string, unknown>, invoiceStatus: invoice?.status || null }) : null;
-    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], readiness, smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
+    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], readiness, sponsorshipOccupation, smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
   } catch (error) {
     console.error(JSON.stringify({ level:'error', event:'admin.staff.visa.load_failed', reason:error instanceof Error?error.message:String(error) }));
     return NextResponse.json({ error: 'Unable to load the visa sponsorship case.' }, { status: 500 });
