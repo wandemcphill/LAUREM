@@ -107,3 +107,34 @@ describe('LAUREM staff portal follow-up hardening', () => {
     expect(page).toContain('min={localDate()}');
   });
 });
+
+describe('LAUREM activation recovery regression coverage', () => {
+  it('documents the atomic hire RPC repair so it cannot reintroduce stale staff-id and composite assignment bugs', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260930183000_fix_atomic_hire_portal_provisioning.sql',
+      'utf8',
+    );
+    expect(migration).toContain('staff_row.id,');
+    expect(migration).toContain('select *\\n    into transitioned\\n    from public.laurem_transition_application_status(');
+    expect(migration).not.toContain('p_staff_id,');
+    expect(migration).toContain('application_status_before');
+  });
+
+  it('keeps DBS/PVG visible as a follow-up without making it a blocking compliance status', () => {
+    const source = readFileSync('lib/laurem-hr-workforce.ts', 'utf8');
+    const page = readFileSync('app/admin/workforce/[staffId]/page.tsx', 'utf8');
+    expect(source).toContain('complianceFollowUps');
+    expect(source).toContain('DBS/PVG: ${dbs.detail}');
+    expect(source).not.toContain('if (dbs.statusCategory !== \'Current\') attentionItems.push');
+    expect(source).toContain('const categories = [rtw.statusCategory');
+    expect(page).toContain('Non-blocking compliance follow-up:');
+    expect(page).toContain('do not block contract issuance, Hired status, portal provisioning, or staff activation');
+  });
+
+  it('surfaces structured Supabase activation errors instead of hiding them behind a generic message', () => {
+    const route = readFileSync('app/api/admin/workforce/staff/account/route.ts', 'utf8');
+    expect(route).toContain('function describeError(value: unknown)');
+    expect(route).toContain('candidate.message');
+    expect(route).toContain('return NextResponse.json({ error: describeError(caught) }');
+  });
+});
