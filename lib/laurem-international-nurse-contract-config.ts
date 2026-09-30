@@ -5,7 +5,6 @@ export const lauremInternationalNurseContractConfig = {
   defaultWeeklyHours: 37.5,
   defaultAnnualSalaryBenchmark: 34544,
   defaultVisaRoute: 'Health and Care Worker visa',
-  defaultOccupationCode: '2237',
   repaymentPrinciples: ['transparency', 'proportionate costs', 'timing', 'flexibility'] as const,
   excludedRecruitmentCosts: [
     'agency/recruitment fees charged by the employer',
