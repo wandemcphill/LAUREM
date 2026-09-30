@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, context: Context) {
 
   const otherId = (participants || []).map((p: any) => p.staff_id).find((staffId: string) => staffId !== session.staff_id);
   const [{ data: other }, { data: otherMailbox }] = await Promise.all([
-    otherId ? client.from('staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
+    otherId ? client.from('laurem_staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
     otherId ? client.from('staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, context: Context) {
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
   const client = db();
-  const { data: me } = await client.from('staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
+  const { data: me } = await client.from('laurem_staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
   if (!me || !['pending', 'active'].includes(me.employment_status)) return NextResponse.json({ error: 'Messaging unavailable.' }, { status: 403 });
 
   const ids = await participantConversationIds(client, session.staff_id);
