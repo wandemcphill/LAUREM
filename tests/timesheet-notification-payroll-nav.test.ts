@@ -23,7 +23,7 @@ describe('timesheet review notifications', () => {
   });
 
   it('keeps payroll available from the main staff workspace', () => {
-    const source = readFileSync('app/staff/page.tsx', 'utf8');
+    const source = readFileSync('components/StaffHomeDashboard.tsx', 'utf8');
     expect(source).toContain("['Payroll','/staff/payroll']");
     expect(source).toContain("['Attendance','/staff/attendance']");
     expect(source).toContain("['My Profile','/staff/profile']");
