@@ -22,7 +22,9 @@ describe('staff workforce daily hub contract', () => {
     expect(route).toContain("from('laurem_payroll_entries')");
     expect(route).toContain("from('laurem_staff_notifications')");
     expect(route).toContain("from('laurem_staff_documents')");
-    expect(route).toContain("from('laurem_staff_message_conversations')");
+    expect(route).toContain('getStaffConversationSummaries');
+    const messaging = readFileSync('lib/laurem-messaging.ts', 'utf8');
+    expect(messaging).toContain("from('laurem_staff_message_conversations')");
   });
 
   it('keeps payroll and workforce state staff-scoped at the query boundary', async () => {
