@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const client = db();
   const now = new Date().toISOString();
-  const { data, error } = await client.from('staff_assignments')
+  const { data, error } = await client.from('laurem_staff_assignments')
     .select('id,client_name,location,scheduled_start,scheduled_end,status,notes')
     .eq('staff_id', session.staff_id)
     .neq('status', 'cancelled')
