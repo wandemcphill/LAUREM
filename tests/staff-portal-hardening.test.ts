@@ -60,6 +60,24 @@ describe('LAUREM staff portal hardening', () => {
 
 
 describe('LAUREM staff portal follow-up hardening', () => {
+  it('keeps DBS/PVG outside the staff lifecycle gate', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260930170000_dbs_pvg_nonblocking_staff_activation.sql',
+      'utf8',
+    );
+    const readiness = readFileSync('lib/laurem-onboarding-readiness.ts', 'utf8');
+    const lifecycle = readFileSync(
+      'supabase/migrations/20260929120000_staff_lifecycle_document_gate_hardening.sql',
+      'utf8',
+    );
+
+    expect(migration).toContain('DBS/PVG is a workforce compliance item, not a staff portal lifecycle gate');
+    expect(migration).toContain("in ('dbs', 'dbs_pvg', 'dbs_pvg_verified', 'dbs_pvg_check', 'dbs_pvg_check_verified')");
+    expect(readiness).not.toContain("'dbs_pvg_verified'");
+    expect(lifecycle).toContain('public.laurem_is_staff_lifecycle_readiness_key(item_key)');
+    expect(lifecycle).not.toContain("when 'dbs' then 'dbs_pvg_verified'");
+  });
+
   it('does not let staff self-service mark DBS/PVG as LAUREM-verified', () => {
     const route = readFileSync('app/api/staff/compliance/route.ts', 'utf8');
     const page = readFileSync('app/staff/compliance/page.tsx', 'utf8');
