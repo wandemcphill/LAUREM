@@ -4,6 +4,21 @@ import { readAdminSession } from '@/lib/admin-auth';
 import { completePendingLauremHireAndIssueActivation, provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
+
+function describeError(value: unknown): string {
+  if (value instanceof Error && value.message) return value.message;
+  if (value && typeof value === 'object') {
+    const candidate = value as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    if (typeof candidate.message === 'string' && candidate.message.trim()) return candidate.message;
+    const parts = [candidate.details, candidate.hint, candidate.code]
+      .filter((part) => typeof part === 'string' && part.trim())
+      .map(String);
+    if (parts.length) return parts.join(' ');
+  }
+  if (typeof value === 'string' && value.trim()) return value;
+  return 'Unable to reissue the activation link.';
+}
+
 function accountState(staff: { employment_status: string; activated_at: string | null; activation_expires_at: string | null }) {
   if (staff.employment_status === 'active' && staff.activated_at) return 'active';
   if (staff.employment_status === 'suspended' && staff.activated_at) return 'suspended';
@@ -116,8 +131,8 @@ export async function POST(request: NextRequest) {
       event: 'admin.staff.activation_recovery_failed',
       actor: session.email,
       staffId,
-      reason: caught instanceof Error ? caught.message : String(caught),
+      reason: describeError(caught),
     }));
-    return NextResponse.json({ error: caught instanceof Error ? caught.message : 'Unable to reissue the activation link.' }, { status: 409 });
+    return NextResponse.json({ error: describeError(caught) }, { status: 409 });
   }
 }
