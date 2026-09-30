@@ -144,6 +144,28 @@ export default function StaffPortalHome() {
 
     {error&&<div role="alert" style={{...card,marginTop:14,color:'#b42318'}}>{error}</div>}
 
+    <section className="staff-command-bar" style={{...card,marginTop:14,background:'linear-gradient(135deg,#173a31,#245b4d)',color:'#fff',border:0}}>
+      <div style={{display:'flex',justifyContent:'space-between',gap:18,alignItems:'center',flexWrap:'wrap'}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:11,fontWeight:900,letterSpacing:1.4,color:'#b9e1d2'}}>MY DAY</div>
+          <h2 style={{margin:'6px 0 5px',fontSize:24}}>What needs your attention</h2>
+          <div style={{color:'#d9ece5',lineHeight:1.5}}>{operationalState?.detail || 'Your staff workspace is ready. Review your next shift, messages and outstanding tasks.'}</div>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {operationalState?.status==='on_shift'
+            ? <button onClick={()=>router.push('/staff/attendance')} style={{...btn(true),background:'#fff',color:'#173a31'}}>Open attendance</button>
+            : operationalState?.status==='awaiting_timesheet_review' || operationalState?.status==='timesheet_resubmission'
+              ? <button onClick={()=>router.push('/staff/timesheets')} style={{...btn(true),background:'#fff',color:'#173a31'}}>Review timesheets</button>
+              : operationalState?.status==='leave_pending'
+                ? <button onClick={()=>router.push('/staff/leave')} style={{...btn(true),background:'#fff',color:'#173a31'}}>View leave</button>
+                : operationalState?.status==='payroll_open'
+                  ? <button onClick={()=>router.push('/staff/payroll')} style={{...btn(true),background:'#fff',color:'#173a31'}}>View payroll</button>
+                  : <button onClick={()=>router.push('/staff/shifts')} style={{...btn(true),background:'#fff',color:'#173a31'}}>View my shifts</button>}
+          <button onClick={()=>router.push('/staff/messages')} style={{...btn(),background:'rgba(255,255,255,.08)',color:'#fff',borderColor:'rgba(255,255,255,.22)'}}>Messages {metrics.unreadMessages ? '('+metrics.unreadMessages+')' : ''}</button>
+        </div>
+      </div>
+    </section>
+
     <section style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(300px,.7fr)',gap:14,marginTop:14}}>
       {<><article style={{...card,border:'2px solid #0f766e',boxShadow:'0 8px 24px rgba(15,118,110,.08)'}}>
         <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'center',flexWrap:'wrap'}}>
