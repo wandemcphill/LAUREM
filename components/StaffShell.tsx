@@ -28,6 +28,8 @@ function isActive(pathname:string, href:string) {
 
 export default function StaffShell({ children }:{ children:React.ReactNode }) {
   const pathname = usePathname();
+  const publicStaffPaths = ['/staff/login', '/staff/activate', '/staff/password-reset'];
+  if (publicStaffPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))) return <>{children}</>;
   return (
     <div className="staff-app">
       <aside className="staff-sidebar" aria-label="Staff portal navigation">
