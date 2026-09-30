@@ -249,6 +249,21 @@ export async function PATCH(request: NextRequest) {
     if (caseError) throw caseError;
     if (!currentCase) return NextResponse.json({ error: 'Create your visa support request first.' }, { status: 404 });
 
+    const missingCandidateFields: string[] = [];
+    if (!passportNumber) missingCandidateFields.push('Passport number');
+    if (!passportExpiryDate) missingCandidateFields.push('Passport expiry');
+    if (!passportCountry) missingCandidateFields.push('Passport country');
+    if (currentCase.pathway === 'visa_switch') {
+      if (!currentVisaType) missingCandidateFields.push('Current UK visa type');
+      if (!currentVisaExpiryDate) missingCandidateFields.push('Current UK visa expiry');
+    }
+    if (missingCandidateFields.length > 0) {
+      return NextResponse.json({
+        error: 'Please complete the required sponsorship details: ' + missingCandidateFields.join(', ') + '.',
+        missing: missingCandidateFields,
+      }, { status: 422 });
+    }
+
     const additional = {
       ...(currentCase.additional_information || {}),
       current_visa_type: currentVisaType || null,
