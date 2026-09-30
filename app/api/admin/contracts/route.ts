@@ -154,6 +154,8 @@ export async function POST(request: NextRequest) {
           noticePeriodEmployer,
           holidayEntitlement,
           pensionScheme,
+          sponsorshipOccupationCode,
+          sponsorshipOccupationTitle,
         });
 
     const nextVersion = Number(existingContract?.version || 0) + 1;
