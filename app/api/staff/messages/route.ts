@@ -22,20 +22,20 @@ export async function GET(req: NextRequest) {
 
   if (!ids.length) return NextResponse.json({ ...base, conversations: [] });
 
-  const { data: conversations } = await client.from('staff_message_conversations')
+  const { data: conversations } = await client.from('laurem_staff_message_conversations')
     .select('id,updated_at,last_message_at')
     .in('id', ids)
     .order('last_message_at', { ascending: false, nullsFirst: false });
 
   const out: any[] = [];
   for (const conversation of conversations || []) {
-    const { data: participants } = await client.from('staff_message_participants').select('staff_id,last_read_at').eq('conversation_id', conversation.id);
+    const { data: participants } = await client.from('laurem_staff_message_participants').select('staff_id,last_read_at').eq('conversation_id', conversation.id);
     const otherId = (participants || []).map((p: any) => p.staff_id).find((id: string) => id !== session.staff_id);
     const [{ data: other }, { data: latest }] = await Promise.all([
       otherId ? client.from('laurem_staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
-      client.from('staff_messages').select('id,body,sender_staff_id,sender_admin_email,created_at').eq('conversation_id', conversation.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      client.from('laurem_staff_messages').select('id,body,sender_staff_id,sender_admin_email,created_at').eq('conversation_id', conversation.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
-    const { data: otherMailbox } = otherId ? await client.from('staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : { data: null };
+    const { data: otherMailbox } = otherId ? await client.from('laurem_staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : { data: null };
     const ownParticipant = (participants || []).find((p: any) => p.staff_id === session.staff_id);
     const isAdminThread = (participants || []).length === 1;
 
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     conversation = await getOrCreateConversation(client, session.staff_id, recipient.id);
   }
 
-  const { data: duplicate } = await client.from('staff_messages')
+  const { data: duplicate } = await client.from('laurem_staff_messages')
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at')
     .eq('sender_staff_id', session.staff_id)
     .eq('idempotency_key', idempotencyKey)
@@ -96,14 +96,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ conversation, message: duplicate }, { status: 200 });
   }
 
-  const { data: created, error } = await client.from('staff_messages')
+  const { data: created, error } = await client.from('laurem_staff_messages')
     .insert({ conversation_id: conversation.id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
     .single();
 
   if (error) {
     if (error.code === '23505') {
-      const { data: retry } = await client.from('staff_messages')
+      const { data: retry } = await client.from('laurem_staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)
         .eq('idempotency_key', idempotencyKey)
@@ -119,8 +119,8 @@ export async function POST(req: NextRequest) {
   }
   if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
-  await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
-  await client.from('staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
+  await client.from('laurem_staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
+  await client.from('laurem_staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
 
   await recordLauremAuditEvent({
     lifecycleArea: 'messaging', entityType: 'staff_message', entityId: created.id, staffId: session.staff_id,
