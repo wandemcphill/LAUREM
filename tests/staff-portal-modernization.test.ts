@@ -76,7 +76,7 @@ describe('LAUREM modern staff portal foundation',()=>{
     expect(messages).toContain('Send message');
     expect(messages).toContain('staff-message-stream');
     expect(notifications).toContain('/api/staff/notifications');
-    expect(notifications).toContain('Mark all read');
+    expect(notifications).toContain('Mark all as read');
     expect(notifications).toContain('Unread');
     expect(notifications).toContain('staff-notification-list');
   });
