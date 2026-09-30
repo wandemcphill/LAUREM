@@ -251,7 +251,7 @@ export async function GET(request: NextRequest) {
           approvedHours: latestPayrollEntry.approved_hours,
           hourlyRate: latestPayrollEntry.hourly_rate,
           grossAmount: latestPayrollEntry.gross_amount,
-          period: latestPayrollEntry.payroll_periods || null,
+          period: latestPayrollEntry.laurem_payroll_periods || null,
         }
       : null;
 
