@@ -1,4 +1,5 @@
 export const LAUREM_DEFAULT_START_DATE = '2027-01-11';
+export const LAUREM_MINIMUM_CONTRACT_START_DATE = '2026-11-23';
 export const LAUREM_DEFAULT_PROBATION = '3 months';
 export const LAUREM_DEFAULT_PAY_FREQUENCY = 'monthly';
 
