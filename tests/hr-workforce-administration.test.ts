@@ -218,3 +218,25 @@ describe('HR / Workforce Administration integration guards', () => {
     expect(staffRecordRoute).not.toContain("job_title.toLowerCase().includes('sponsor')");
   });
 });
+
+
+describe('LAUREM £500 visa-switch invoice payment link', () => {
+  it('sets the Stripe payment link and a three-day due date for the £500 invoice', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260930191000_add_stripe_link_to_500_pound_invoice.sql',
+      'utf8',
+    );
+    expect(migration).toContain("v_payment_url := 'https://buy.stripe.com/4gMcN63sc39823A6OYbAs0m';");
+    expect(migration).toContain('v_invoice_due_date := current_date + 3;');
+    expect(migration).toContain('payment_url');
+  });
+
+  it('shows the £500 payment action in both staff and admin invoice views', () => {
+    const staff = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
+    const admin = readFileSync('app/admin/workforce/[staffId]/visa-sponsorship/page.tsx', 'utf8');
+    expect(staff).toContain('Pay £500 invoice securely');
+    expect(admin).toContain('Pay £500 invoice');
+    expect(staff).toContain('invoice?.payment_url');
+    expect(admin).toContain('invoice?.payment_url');
+  });
+});
