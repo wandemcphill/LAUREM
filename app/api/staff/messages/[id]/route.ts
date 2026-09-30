@@ -17,17 +17,17 @@ export async function GET(req: NextRequest, context: Context) {
   if (!ids.includes(id)) return NextResponse.json({ error: 'Conversation not found.' }, { status: 404 });
 
   const [{ data: messages }, { data: participants }] = await Promise.all([
-    client.from('staff_messages').select('id,sender_staff_id,sender_admin_email,body,created_at').eq('conversation_id', id).is('deleted_at', null).order('created_at', { ascending: true }),
-    client.from('staff_message_participants').select('staff_id').eq('conversation_id', id),
+    client.from('laurem_staff_messages').select('id,sender_staff_id,sender_admin_email,body,created_at').eq('conversation_id', id).is('deleted_at', null).order('created_at', { ascending: true }),
+    client.from('laurem_staff_message_participants').select('staff_id').eq('conversation_id', id),
   ]);
 
   const otherId = (participants || []).map((p: any) => p.staff_id).find((staffId: string) => staffId !== session.staff_id);
   const [{ data: other }, { data: otherMailbox }] = await Promise.all([
     otherId ? client.from('laurem_staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
-    otherId ? client.from('staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : Promise.resolve({ data: null }),
+    otherId ? client.from('laurem_staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
-  await client.from('staff_message_participants').update({ last_read_at: new Date().toISOString() }).eq('conversation_id', id).eq('staff_id', session.staff_id);
+  await client.from('laurem_staff_message_participants').update({ last_read_at: new Date().toISOString() }).eq('conversation_id', id).eq('staff_id', session.staff_id);
 
   return NextResponse.json({
     conversation: {
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, context: Context) {
   if (limiterError) return NextResponse.json({ error: 'Unable to process message.' }, { status: 503 });
   if (!limiter?.allowed) return NextResponse.json({ error: 'Messaging rate limit reached. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(limiter.retry_after || 300) } });
 
-  const { data: duplicate } = await client.from('staff_messages')
+  const { data: duplicate } = await client.from('laurem_staff_messages')
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
     .eq('sender_staff_id', session.staff_id)
     .eq('idempotency_key', idempotencyKey)
@@ -76,11 +76,11 @@ export async function POST(req: NextRequest, context: Context) {
     return NextResponse.json({ message: duplicate }, { status: 200 });
   }
 
-  const { data: created, error } = await client.from('staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
+  const { data: created, error } = await client.from('laurem_staff_messages').insert({ conversation_id: id, sender_staff_id: session.staff_id, body: message, idempotency_key: idempotencyKey })
     .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key').single();
   if (error) {
     if (error.code === '23505') {
-      const { data: retry } = await client.from('staff_messages')
+      const { data: retry } = await client.from('laurem_staff_messages')
         .select('id,conversation_id,sender_staff_id,sender_admin_email,body,created_at,idempotency_key')
         .eq('sender_staff_id', session.staff_id)
         .eq('idempotency_key', idempotencyKey)
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, context: Context) {
   }
   if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
-  await client.from('staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
+  await client.from('laurem_staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', id);
 
   await recordLauremAuditEvent({
     lifecycleArea: 'messaging', entityType: 'staff_message', entityId: created.id, staffId: session.staff_id,
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest, context: Context) {
     metadata: { conversationId: id },
   });
 
-  const { data: participants } = await client.from('staff_message_participants').select('staff_id').eq('conversation_id', id);
+  const { data: participants } = await client.from('laurem_staff_message_participants').select('staff_id').eq('conversation_id', id);
   const recipientStaffId = (participants || []).map((p: any) => p.staff_id).find((staffId: string) => staffId !== session.staff_id);
 
   if (recipientStaffId) {
