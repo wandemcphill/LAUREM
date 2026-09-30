@@ -17,6 +17,7 @@ type Data = {
   visaDocuments: any[];
   cosStatus: { key: string; label: string; canDownload: boolean };
   request: { available: boolean; pathway: LauremVisaPathway | null; paymentPlanKind: 'uk_switch_split' | 'full_upfront'; label: string | null; explanation: string };
+  sponsorshipOccupation: { code:string; title:string } | null;
   sponsorshipTermEndDate: string | null;
   sponsorshipTermEndDateLabel: string | null;
 };
@@ -106,6 +107,8 @@ export default function StaffVisaSponsorshipPage() {
       </header>
 
       {error&&<div role="alert" style={{...card,marginTop:14,color:'#8a2323'}}>{error}</div>}
+
+      {data.sponsorshipOccupation && <section style={{...card,marginTop:14}}><div style={{fontSize:12,fontWeight:900,letterSpacing:1.1,color:'#0f766e'}}>SPONSORED OCCUPATION</div><div style={{display:'flex',gap:12,alignItems:'baseline',flexWrap:'wrap',marginTop:6}}><strong style={{fontSize:24}}>{data.sponsorshipOccupation.code}</strong><span style={{...muted}}>{data.sponsorshipOccupation.title}</span></div><p style={{...muted,fontSize:12,lineHeight:1.5,marginBottom:0}}>This occupation code is derived from your LAUREM role and is used consistently across sponsorship and contract records. Final sponsorship remains subject to the applicable UK rules and the actual duties of the job.</p></section>}
 
       {!c ? <section style={{...card,marginTop:14,border:'2px solid #0f766e'}}>
         <div style={{fontSize:12,fontWeight:900,letterSpacing:1.3,color:'#0f766e'}}>COS NOT REQUESTED</div>
