@@ -17,6 +17,7 @@ export type InternationalNurseContractInput = {
   pensionScheme?: string | null;
   visaRoute?: string | null;
   sponsorshipOccupationCode?: string | null;
+  sponsorshipOccupationTitle?: string | null;
   nmcStatus?: string | null;
   registrationDeadline?: string | null;
   preRegistrationSalary?: number | null;
@@ -43,7 +44,10 @@ export function renderLauremInternationalNurseContract(input: InternationalNurse
   const registrationWindow = text(input.registrationDeadline, 'within the period required by the applicable immigration rules and NMC registration arrangements');
   const nmcStatus = text(input.nmcStatus, 'working towards full registration with the Nursing and Midwifery Council (NMC)');
   const visaRoute = text(input.visaRoute, 'Health and Care Worker visa / other lawful sponsored work route applicable to the role');
-  const soc = text(input.sponsorshipOccupationCode, '2237');
+  const soc = text(
+    input.sponsorshipOccupationCode,
+    '2237',
+  ) + (input.sponsorshipOccupationTitle ? ` (${input.sponsorshipOccupationTitle})` : '');
   const holiday = text(input.holidayEntitlement, 'the statutory minimum entitlement, as supplemented by any more favourable Laurem contractual entitlement');
   const pension = text(input.pensionScheme, 'the workplace pension scheme applicable to eligible employees');
   const contractEndDate = input.contractEndDate || calculatedEndDate;
