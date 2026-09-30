@@ -16,6 +16,7 @@ type AvailabilitySummary = { id:string; effective_from:string; full_time:boolean
 type WorkforceReadiness = { overall:'ready'|'attention'|'blocked'; nextAction:string|null; lanes:{key:string;level:'ready'|'attention'|'blocked';label:string;detail:string;count:number}[] };
 type PayrollEntry = { id:string; payroll_period_id:string; approved_hours:number|null; hourly_rate:number|null; gross_amount:number|null; status:string; notes:string|null; created_at:string; updated_at:string; payroll_periods?:{period_start:string;period_end:string;pay_date:string|null;status:string}|null };
 type OperationalState = { level:'clear'|'active'|'attention'|'blocked'; status:string; label:string; detail:string; currentAssignmentId:string|null; upcomingAssignmentId:string|null; openAttendanceTimesheetId:string|null; counts:{upcomingAssignments:number;pendingTimesheets:number;rejectedTimesheets:number;pendingLeave:number;openPayrollEntries:number} };
+type WorkspaceBootstrap = { summary:{upcomingShifts:number;submittedTimesheets:number;rejectedTimesheets:number;approvedHours:number;pendingLeave:number;unreadNotifications:number;signaturePending:number;profileCompleteness:number;openPayroll:number}; staff:Staff; nextShift:Shift|null; operationalState:OperationalState; readiness:WorkforceReadiness|null; notifications:NotificationSummary[]; documents:StaffDocument[] };
 type VisaSupport = { available:boolean; pathway:'visa_switch'|'international_sponsorship'|null; label:string|null; explanation:string; cosStatus:{key:string;label:string;canDownload:boolean;documentId:string|null}; caseId:string|null; invoice:{invoiceNumber:string;status:string;amountPence:number;issueDate:string}|null };
 
 const shell: React.CSSProperties = { minHeight:'100vh', background:'#f4f7fb', color:'#102a43', fontFamily:'system-ui', padding:'24px 18px 60px' };
@@ -52,6 +53,8 @@ export default function StaffPortalHome() {
   const [loggingOut,setLoggingOut] = useState(false);
   const [photoFailed,setPhotoFailed] = useState(false);
   const [visaSupport,setVisaSupport] = useState<VisaSupport|null>(null);
+  const [workspaceBootstrap,setWorkspaceBootstrap] = useState(false);
+  const [bootstrapSummary,setBootstrapSummary] = useState<WorkspaceBootstrap|null>(null);
 
   async function load(showSpinner=true) {
     if(showSpinner) setLoading(true); else setRefreshing(true);
@@ -80,7 +83,33 @@ export default function StaffPortalHome() {
     finally { setLoading(false); setRefreshing(false); }
   }
 
-  useEffect(()=>{ void load(); },[]);
+  useEffect(()=>{
+    let active = true;
+    async function bootstrap() {
+      setWorkspaceBootstrap(true);
+      try {
+        const response = await fetch('/api/staff/workspace-summary',{cache:'no-store'});
+        if(response.status===401){ router.replace('/staff/login'); return; }
+        const body = await response.json().catch(()=>({}));
+        if(!response.ok || !active) { await load(); return; }
+        setBootstrapSummary(body);
+        setStaff(body.staff);
+        setShifts(body.nextShift ? [body.nextShift] : []);
+        setWorkforceReadiness(body.readiness||null);
+        setOperationalState(body.operationalState||null);
+        setNotifications(body.notifications||[]);
+        setDocuments(body.documents||[]);
+        setLoading(false);
+        await load(false);
+      } catch {
+        if(active) await load();
+      } finally {
+        if(active) setWorkspaceBootstrap(false);
+      }
+    }
+    void bootstrap();
+    return ()=>{ active=false; };
+  },[]);
 
   async function logout() {
     setLoggingOut(true);
@@ -120,6 +149,8 @@ export default function StaffPortalHome() {
     const done = required.filter(task=>(task.status==='completed'||task.status==='waived') && (!task.acknowledgement_required || Boolean(task.acknowledged_at))).length;
     return required.length ? Math.round((done/required.length)*100) : onboarding ? 100 : 0;
   },[onboarding]);
+
+  if(workspaceBootstrap && staff && bootstrapSummary) return <StaffHomeBootstrap staff={staff} summary={bootstrapSummary.summary} nextShift={bootstrapSummary.nextShift} operationalState={bootstrapSummary.operationalState} readiness={bootstrapSummary.readiness} onOpen={(href)=>router.push(href)} />;
 
   const bodyVisaStatusLabel = visaSupport?.cosStatus?.label || 'COS not requested';
   const bodyVisaStatusKey = visaSupport?.cosStatus?.key || 'not_requested';
@@ -269,3 +300,8 @@ function Info({label,value}:{label:string;value:string}) { return <div><div styl
 function ReadinessCard({title,value,text,href}:{title:string;value:string;text:string;href:string}) { return <button onClick={()=>{window.location.href=href;}} style={{textAlign:'left',border:'1px solid #e5eaf0',background:'#fff',borderRadius:12,padding:14,cursor:'pointer'}}><div style={{fontSize:12,fontWeight:900,color:'#0f766e'}}>{title}</div><strong style={{display:'block',fontSize:18,marginTop:5}}>{value}</strong><div style={{...muted,fontSize:12,marginTop:5,lineHeight:1.45}}>{text}</div><div style={{marginTop:10,color:'#0f766e',fontSize:12,fontWeight:900}}>Open →</div></button>; }
 function Empty({text}:{text:string}) { return <div style={{...muted,padding:'14px 0'}}>{text}</div>; }
 const input:React.CSSProperties={border:'1px solid #dbe5ea',borderRadius:10,padding:'10px 11px',font:'inherit',width:'100%',boxSizing:'border-box'};
+
+function StaffHomeBootstrap({staff,summary,nextShift,operationalState,readiness,onOpen}:{staff:Staff;summary:WorkspaceBootstrap['summary'];nextShift:Shift|null;operationalState:OperationalState;readiness:WorkforceReadiness|null;onOpen:(href:string)=>void}){
+  const action = operationalState?.status==='on_shift'?['/staff/attendance','Open attendance']:operationalState?.status==='awaiting_timesheet_review'||operationalState?.status==='timesheet_resubmission'?['/staff/timesheets','Review timesheets']:operationalState?.status==='leave_pending'?['/staff/leave','View leave']:operationalState?.status==='payroll_open'?['/staff/payroll','View payroll']:['/staff/shifts','View my shifts'];
+  return <main className="staff-dashboard-page staff-bootstrap-page"><div className="staff-page-inner"><header className="staff-bootstrap-hero"><div><p className="staff-eyebrow">LAUREM CARE · STAFF PORTAL</p><h1>Welcome, {staff.full_name}</h1><p>{staff.job_title} · {staff.location||'Location not set'} · LAUREM ID {staff.laurem_id||staff.employee_number}</p></div><StaffBadge tone={staff.employment_status==='active'?'live':'attention'}>{staff.employment_status}</StaffBadge></header><section className="staff-bootstrap-command"><div><p className="staff-eyebrow staff-eyebrow--light">MY DAY</p><h2>{operationalState?.label||'Your workspace is loading'}</h2><p>{operationalState?.detail||'We are securely loading your full staff workspace.'}</p></div><button className="staff-action-primary" onClick={()=>onOpen(action[0])}>{action[1]}</button></section><div className="staff-stat-grid"><StaffMetric label="Upcoming shifts" value={summary.upcomingShifts}/><StaffMetric label="Pending timesheets" value={summary.submittedTimesheets+summary.rejectedTimesheets}/><StaffMetric label="Pending leave" value={summary.pendingLeave}/><StaffMetric label="Approved hours" value={summary.approvedHours.toFixed(2)}/><StaffMetric label="Unread notifications" value={summary.unreadNotifications}/></div>{nextShift&&<StaffPanel><StaffSectionHeader title="Next shift" copy="Your nearest assignment is ready while the rest of the workspace loads."/><div className="staff-bootstrap-shift"><div><StaffBadge tone="attention">{nextShift.status}</StaffBadge><h3>{nextShift.client_name||'LAUREM Assignment'}</h3><p>{nextShift.location}</p><strong>{new Date(nextShift.scheduled_start).toLocaleString('en-GB',{timeZone:'Europe/London',dateStyle:'medium',timeStyle:'short'})}</strong></div><StaffAction href="/staff/attendance" primary>Open attendance</StaffAction></div></StaffPanel>}<div className="staff-bootstrap-loading"><span className="staff-spinner" aria-hidden="true"></span><span>Finishing your secure workspace…</span></div></div></main>;
+}
