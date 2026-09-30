@@ -90,7 +90,7 @@ export default function StaffTimesheetsPage(){
         headers:{'content-type':'application/json'},
         body:JSON.stringify({
           assignmentId,workDate,clockIn,clockOut,breakMinutes:Number(breakMinutes),notes,
-          ...(editingId?{submit:true}:{}),
+          ...(editingId ? { submit: true } : {}),
         }),
       });
       const data=await response.json().catch(()=>({}));
