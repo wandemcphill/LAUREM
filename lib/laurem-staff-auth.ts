@@ -77,7 +77,7 @@ export async function getStaffSession(req: NextRequest) {
   if (!token) return null;
   const client = db();
   const { data: staff } = await client
-    .from('staff_profiles')
+    .from('laurem_staff_profiles')
     .select('id,laurem_id,email,employment_status,activated_at,password_hash,session_version')
     .eq('id', token.staff_id)
     .maybeSingle();
