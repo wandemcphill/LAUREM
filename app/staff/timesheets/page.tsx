@@ -147,7 +147,7 @@ export default function StaffTimesheetsPage(){
             <label className="staff-form-field staff-form-field--full">
               <span className="staff-form-label">LAUREM assignment</span>
               <select required value={assignmentId} onChange={e=>setAssignmentId(e.target.value)} className="staff-form-input">
-                <option value="" disabled>Select an assignment</option>
+                <option value="" disabled>Select a LAUREM assignment</option>
                 {assignments.map(assignment=><option key={assignment.id} value={assignment.id}>{assignment.client_name||'LAUREM Assignment'} · {new Date(assignment.scheduled_start).toLocaleString('en-GB')}</option>)}
               </select>
             </label>
