@@ -19,7 +19,7 @@ describe('staff workforce daily hub contract', () => {
 
     expect(dashboard).toContain('/staff/onboarding');
     expect(dashboard).toContain("['Payroll','/staff/payroll']");
-    expect(dashboard).toContain("href="/staff/documents"");
+    expect(dashboard).toContain('href="/staff/documents"');
     expect(dashboard).toContain('My Week');
 
     expect(route).toContain("getStaffSession");
