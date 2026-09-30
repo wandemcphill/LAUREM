@@ -34,6 +34,7 @@ export default function AdminVisaSponsorshipPage(){
  if(!data)return <main className='wrap' style={{padding:'36px 0 80px'}}><Link href={'/admin/workforce/'+encodeURIComponent(staffId)}>← Staff 360</Link><div className='card' style={{padding:20,marginTop:18,color:'#8a2323'}}>{error||'Unable to load case.'}</div></main>;
  const c=data.case, invoice=data.invoice;
  const splitPayment=Number(invoice?.amount_pence)===50000;
+ const paymentUrl=splitPayment && typeof invoice?.payment_url==='string' ? invoice.payment_url : null;
  return <main className='wrap' style={{padding:'30px 0 80px',maxWidth:1180}}>
   <Link href={'/admin/workforce/'+encodeURIComponent(staffId)} style={{color:'var(--muted)',textDecoration:'none'}}>← Staff 360</Link>
   <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'flex-start',flexWrap:'wrap',marginTop:12}}><div><div style={{color:'var(--accent)',fontWeight:800,letterSpacing:'.08em'}}>VISA & SPONSORSHIP</div><h1 style={{margin:'5px 0'}}>{data.staff.full_name}</h1><div style={muted}>{data.staff.job_title} · {data.staff.employee_number}</div></div><a href={data.smsUrl} target='_blank' rel='noreferrer' style={button(true)}>Open Sponsor Management System</a></div>
