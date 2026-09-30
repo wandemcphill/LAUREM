@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import StaffCommandPalette from '@/components/StaffCommandPalette';
 
 type NavItem = { href:string; label:string; short:string };
 
@@ -32,6 +33,7 @@ export default function StaffShell({ children }:{ children:React.ReactNode }) {
   if (publicStaffPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))) return <>{children}</>;
   return (
     <div className="staff-app">
+      <StaffCommandPalette />
       <a className="staff-skip-link" href="#staff-main-content">Skip to content</a>
       <aside className="staff-sidebar" aria-label="Staff portal navigation">
         <div className="staff-brand">
