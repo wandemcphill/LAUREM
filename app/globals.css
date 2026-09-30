@@ -393,3 +393,343 @@ button, input { font: inherit; }
     min-width: 0;
   }
 }
+
+/* Staff workforce experience */
+.staff-page--workforce {
+  min-height: 100vh;
+  padding: 26px 22px 72px;
+  background: var(--soft);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.staff-page--workforce .staff-page-inner {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
+.staff-workforce-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.staff-eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.staff-page-title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.08;
+}
+
+.staff-page-subtitle {
+  max-width: 720px;
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.staff-workforce-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.staff-action,
+.staff-action-primary {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 11px;
+  padding: 10px 14px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.staff-action {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.staff-action-primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.staff-action:disabled,
+.staff-action-primary:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.staff-workforce-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1.35fr) minmax(290px,.65fr);
+  gap: 14px;
+}
+
+.staff-workforce-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(24,55,47,.05);
+  padding: 20px;
+}
+
+.staff-workforce-card--hero {
+  background: linear-gradient(145deg, #173a31, #245b4d);
+  color: #fff;
+  border: 0;
+}
+
+.staff-card-heading {
+  margin: 0;
+  font-size: 20px;
+}
+
+.staff-card-copy {
+  margin: 5px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.staff-workforce-card--hero .staff-card-copy {
+  color: #d9ece5;
+}
+
+.staff-shift-item {
+  padding: 16px 0;
+  border-top: 1px solid #edf2f7;
+}
+
+.staff-shift-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.staff-shift-item:last-child {
+  padding-bottom: 0;
+}
+
+.staff-shift-topline,
+.staff-shift-actions,
+.staff-form-actions,
+.staff-history-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.staff-shift-client {
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.staff-shift-meta {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.staff-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #edf2f7;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.staff-badge--live {
+  background: #dff6ea;
+  color: #166534;
+}
+
+.staff-badge--attention {
+  background: #fff1cf;
+  color: #8a5a00;
+}
+
+.staff-badge--danger {
+  background: #fde7e7;
+  color: #991b1b;
+}
+
+.staff-live-number {
+  margin-top: 5px;
+  font-size: clamp(26px, 4vw, 36px);
+  font-weight: 950;
+  letter-spacing: -.02em;
+}
+
+.staff-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+}
+
+.staff-stat {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.staff-stat-value {
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.staff-stat-label {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.staff-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.staff-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.staff-table th,
+.staff-table td {
+  padding: 12px 13px;
+  text-align: left;
+  border-bottom: 1px solid #edf2f7;
+  white-space: nowrap;
+}
+
+.staff-table th {
+  color: var(--muted);
+  background: #fbfdfc;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.staff-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.staff-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+}
+
+.staff-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.staff-form-field--full {
+  grid-column: 1 / -1;
+}
+
+.staff-form-label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.staff-form-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border: 1px solid #cfded7;
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.staff-form-input:focus {
+  outline: 3px solid rgba(141,205,185,.38);
+  border-color: var(--accent);
+}
+
+.staff-empty {
+  padding: 20px 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.staff-mobile-hint {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .staff-page--workforce {
+    padding: 20px 16px 84px;
+  }
+
+  .staff-workforce-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .staff-page--workforce {
+    padding-inline: 12px;
+  }
+
+  .staff-workforce-card {
+    padding: 17px;
+    border-radius: 15px;
+  }
+
+  .staff-stat-grid,
+  .staff-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-form-field--full {
+    grid-column: auto;
+  }
+
+  .staff-workforce-actions {
+    width: 100%;
+  }
+
+  .staff-workforce-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .staff-shift-actions > * {
+    width: 100%;
+  }
+}
