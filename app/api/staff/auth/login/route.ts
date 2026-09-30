@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (accountLimiterError) return NextResponse.json({ error: 'Unable to process sign-in.' }, { status: 503 });
   if (!accountLimiter?.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(accountLimiter.retry_after || 900) } });
 
-  const { data: staff } = await client.from('staff_profiles')
+  const { data: staff } = await client.from('laurem_staff_profiles')
     .select('id,laurem_id,employee_number,email,full_name,password_hash,employment_status,activated_at,session_version')
     .or(`laurem_id.eq.${id},employee_number.eq.${id}`).maybeSingle();
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   if (sessionError) return NextResponse.json({ error: 'Unable to create staff session.' }, { status: 500 });
 
   const now = new Date().toISOString();
-  await client.from('staff_profiles').update({ last_login_at: now, updated_at: now }).eq('id', staff.id);
+  await client.from('laurem_staff_profiles').update({ last_login_at: now, updated_at: now }).eq('id', staff.id);
   await client.from('staff_security_events').insert({ staff_id: staff.id, event_type: 'staff.login.succeeded', actor: staff.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: {} });
   const response = NextResponse.json({ ok: true, staff: { laurem_id: staff.laurem_id || staff.employee_number, full_name: staff.full_name } });
   setStaffSession(response, token);
