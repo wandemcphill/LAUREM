@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const client = db();
-  const { data: staff } = await client.from('staff_profiles')
+  const { data: staff } = await client.from('laurem_staff_profiles')
     .select('id,application_id')
     .eq('id', session.staff_id)
     .maybeSingle();
