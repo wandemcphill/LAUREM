@@ -733,3 +733,18 @@ button, input { font: inherit; }
     width: 100%;
   }
 }
+
+.staff-clockout-grid {
+  grid-template-columns: 150px minmax(0,1fr) auto;
+}
+
+.staff-shift-facts {
+  grid-template-columns: repeat(3, minmax(0,1fr));
+}
+
+@media (max-width: 640px) {
+  .staff-clockout-grid,
+  .staff-shift-facts {
+    grid-template-columns: 1fr !important;
+  }
+}
