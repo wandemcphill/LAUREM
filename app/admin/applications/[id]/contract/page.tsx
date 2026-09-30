@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { lauremInternationalNurseContractConfig as contractConfig } from '@/lib/laurem-international-nurse-contract-config';
 import LauremContractDocument from '@/components/LauremContractDocument';
-import { calculateThreeYearContractEndDate } from '@/lib/laurem-contract-dates';
+import { calculateThreeYearContractEndDate, enforceMinimumLauremContractStartDate } from '@/lib/laurem-contract-dates';
+import { LAUREM_MINIMUM_CONTRACT_START_DATE } from '@/lib/laurem-role-policy';
+import { getLauremSponsorshipOccupation } from '@/lib/laurem-sponsorship-occupation';
 
 type Application = { id:string; full_name:string; email:string; role_applied:string; living_in_uk?:string|null; requires_sponsorship?:string|null; start_date?:string|null; address?:string|null };
 type ContractResult = { id?:string; status?:string; acceptanceLink?:string; documentPackLink?:string; email?:{status?:string;error?:string}; contract?:{id?:string;status?:string;issued_at?:string|null;viewed_at?:string|null;accepted_at?:string|null;accepted_by_name?:string|null;version?:number|null;job_title?:string|null;contract_content?:string|null;contract_type?:string|null;contract_end_date?:string|null;start_date?:string|null} };
@@ -18,9 +20,9 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ContractResult|null>(null);
   const [form, setForm] = useState({
-    contractEndDate: '',
+    startDate: '', contractEndDate: '',
     weeklyHours: String(contractConfig.defaultWeeklyHours), annualSalary: String(contractConfig.defaultAnnualSalaryBenchmark), hourlyRate: '', postRegistrationSalary: String(contractConfig.defaultAnnualSalaryBenchmark), preRegistrationSalary: '',
-    visaRoute: contractConfig.defaultVisaRoute, sponsorshipOccupationCode: contractConfig.defaultOccupationCode, nmcStatus: 'Working towards full NMC registration',
+    visaRoute: contractConfig.defaultVisaRoute, sponsorshipOccupationCode: '', nmcStatus: 'Working towards full NMC registration',
     registrationDeadline: 'Within the period permitted by the applicable immigration rules and NMC process', probation: '6 months',
     noticePeriodEmployee: '1 week during probation and 4 weeks thereafter', noticePeriodEmployer: '1 week during probation and 4 weeks thereafter, or the statutory minimum where greater',
     holidayEntitlement: 'Statutory minimum entitlement plus any more favourable Laurem entitlement stated in the offer', pensionScheme: 'Laurem workplace pension arrangement for eligible employees',
@@ -41,6 +43,15 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
         const contractPayload=await contractResponse.json().catch(()=>({}));
         if (!contractResponse.ok) throw new Error(contractPayload.error||'Unable to load existing contract.');
         const existing=contractPayload.contract;
+        const occupation = getLauremSponsorshipOccupation(app.role_applied);
+        const existingStartDate = existing?.start_date || app.start_date || LAUREM_MINIMUM_CONTRACT_START_DATE;
+        const safeStartDate = enforceMinimumLauremContractStartDate(existingStartDate);
+        setForm((current) => ({
+          ...current,
+          startDate: safeStartDate,
+          contractEndDate: existing?.contract_end_date || calculateThreeYearContractEndDate(safeStartDate) || current.contractEndDate,
+          sponsorshipOccupationCode: occupation?.code || '',
+        }));
         if (existing) {
           setResult({ id: existing.id, status: existing.status, contract: existing });
           setMessage(existing.status==='draft'
@@ -59,7 +70,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     setBusy(true);setMessage(null);setResult(null);
     try{
       const response=await fetch('/api/admin/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-        applicationId:application.id,weeklyHours:Number(form.weeklyHours),annualSalary:Number(form.annualSalary),hourlyRate:form.hourlyRate?Number(form.hourlyRate):undefined,postRegistrationSalary:Number(form.postRegistrationSalary),preRegistrationSalary:form.preRegistrationSalary?Number(form.preRegistrationSalary):undefined,
+        applicationId:application.id,startDate:form.startDate,weeklyHours:Number(form.weeklyHours),annualSalary:Number(form.annualSalary),hourlyRate:form.hourlyRate?Number(form.hourlyRate):undefined,postRegistrationSalary:Number(form.postRegistrationSalary),preRegistrationSalary:form.preRegistrationSalary?Number(form.preRegistrationSalary):undefined,
         visaRoute:form.visaRoute,sponsorshipOccupationCode:form.sponsorshipOccupationCode,nmcStatus:form.nmcStatus,registrationDeadline:form.registrationDeadline,probation:form.probation,
         noticePeriodEmployee:form.noticePeriodEmployee,noticePeriodEmployer:form.noticePeriodEmployer,holidayEntitlement:form.holidayEntitlement,pensionScheme:form.pensionScheme,
         workLocations:form.workLocations.split(',').map(v=>v.trim()).filter(Boolean),relocationSupport:form.relocationSupport,repayableCosts:form.repayableCosts,repaymentSchedule:form.repaymentSchedule,
@@ -107,7 +118,8 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
     )}
 
     <section className="card" style={{padding:22,marginBottom:16}}><h2>Employment terms</h2><div style={grid}>
-       <Field label="Contract end date (three-year sponsored term)" value={form.contractEndDate} onChange={(v)=>setField('contractEndDate',v)} type="date" />
+       <Field label="Employment start date (minimum 23 November 2026)" value={form.startDate} onChange={(v)=>{const safe=enforceMinimumLauremContractStartDate(v);setForm((current)=>({...current,startDate:safe,contractEndDate:calculateThreeYearContractEndDate(safe)||current.contractEndDate}));}} type="date" min={LAUREM_MINIMUM_CONTRACT_START_DATE} />
+      <Field label="Contract end date (three-year sponsored term)" value={form.contractEndDate} onChange={(v)=>setField('contractEndDate',v)} type="date" readOnly />
       <Field label="Weekly contracted hours" value={form.weeklyHours} onChange={(v)=>setField('weeklyHours',v)} type="number" />
       <Field label="Annual salary (£, where applicable)" value={form.annualSalary} onChange={(v)=>setField('annualSalary',v)} type="number" />
       <Field label="Hourly rate (£, where applicable)" value={form.hourlyRate} onChange={(v)=>setField('hourlyRate',v)} type="number" />
@@ -115,7 +127,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
       <Field label="Pre-registration salary (£, if applicable)" value={form.preRegistrationSalary} onChange={(v)=>setField('preRegistrationSalary',v)} type="number" />
       <Field label="Probation" value={form.probation} onChange={(v)=>setField('probation',v)} />
       <Field label="Visa route" value={form.visaRoute} onChange={(v)=>setField('visaRoute',v)} />
-      <Field label="Sponsorship occupation code" value={form.sponsorshipOccupationCode} onChange={(v)=>setField('sponsorshipOccupationCode',v)} />
+      <Field label="Sponsorship occupation code (role-derived)" value={form.sponsorshipOccupationCode} onChange={(v)=>setField('sponsorshipOccupationCode',v)} readOnly />
       <Field label="NMC status" value={form.nmcStatus} onChange={(v)=>setField('nmcStatus',v)} />
       <Field label="Registration deadline" value={form.registrationDeadline} onChange={(v)=>setField('registrationDeadline',v)} />
       <Field label="Work locations" value={form.workLocations} onChange={(v)=>setField('workLocations',v)} />
@@ -131,7 +143,7 @@ export default function InternationalNurseContractPage({ params }: { params: Pro
   </main>;
 }
 
-function Field({label,value,onChange,type='text',multiline=false}:{label:string;value:string;onChange:(value:string)=>void;type?:string;multiline?:boolean}){return <label style={{display:'block',marginBottom:13}}><span style={{display:'block',fontSize:12,fontWeight:800,marginBottom:6}}>{label}</span>{multiline?<textarea value={value} onChange={e=>onChange(e.target.value)} rows={3} style={inputStyle}/>:<input type={type} value={value} onChange={e=>onChange(e.target.value)} style={inputStyle}/>}</label>}
+function Field({label,value,onChange,type='text',multiline=false,min,readOnly=false}:{label:string;value:string;onChange:(value:string)=>void;type?:string;multiline?:boolean;min?:string;readOnly?:boolean}){return <label style={{display:'block',marginBottom:13}}><span style={{display:'block',fontSize:12,fontWeight:800,marginBottom:6}}>{label}</span>{multiline?<textarea value={value} onChange={e=>onChange(e.target.value)} rows={3} style={inputStyle}/>:<input type={type} value={value} onChange={e=>onChange(e.target.value)} min={min} readOnly={readOnly} style={inputStyle}/>}</label>}
 const grid={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:14};
 const inputStyle={width:'100%',padding:11,border:'1px solid var(--line)',borderRadius:9,font:'inherit'};
 const primaryButton={marginTop:10,background:'var(--ink)',color:'white',border:0,padding:'12px 18px',borderRadius:9,fontWeight:800,cursor:'pointer' as const};
