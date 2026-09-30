@@ -86,7 +86,7 @@ export default function StaffTimesheetsPage(){
     try{
       const endpoint=editingId?'/api/staff/timesheets?id='+encodeURIComponent(editingId):'/api/staff/timesheets';
       const response=await fetch(endpoint,{
-        method:editingId?'PATCH':'POST',
+        method: editingId ? 'PATCH' : 'POST',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({
           assignmentId,workDate,clockIn,clockOut,breakMinutes:Number(breakMinutes),notes,
@@ -138,7 +138,7 @@ export default function StaffTimesheetsPage(){
             <div>
               <p className="staff-eyebrow">{editingId?'Correction':'Manual entry'}</p>
               <h2 className="staff-card-heading">{editingId?'Correct timesheet':'Submit a timesheet'}</h2>
-              <p className="staff-card-copy">{editingId?'Correct the rejected record and resubmit it.':'Use this when an attendance record needs to be submitted manually. Every timesheet must reference a LAUREM assignment.'}</p>
+              <p className="staff-card-copy">{editingId?'Correct the rejected timesheet below and resubmit it.':'Use this when an attendance record needs to be submitted manually. Every timesheet must reference a LAUREM assignment.'}</p>
             </div>
             {editingId&&<button type="button" className="staff-action" onClick={cancelEdit} disabled={busy}>Cancel</button>}
           </div>
@@ -176,7 +176,7 @@ export default function StaffTimesheetsPage(){
           <div className="staff-form-actions" style={{marginTop:14,justifyContent:'flex-start'}}>
             <button disabled={busy||loading} className="staff-action-primary" aria-busy={busy}>{busy?(editingId?'Resubmitting...':'Submitting...'):(editingId?'Resubmit corrected timesheet':'Submit timesheet')}</button>
           </div>
-          <p className="staff-mobile-hint">For ordinary shifts, use Attendance to clock in and clock out. That keeps your timesheet linked automatically to the assignment.</p>
+          <p className="staff-mobile-hint">{editingId?'The LAUREM review note is shown with the rejected record below. Correct the details, then resubmit it.':'For ordinary shifts, use Attendance to clock in and clock out. That keeps your timesheet linked automatically to the assignment.'}</p>
         </form>
 
         <aside className="staff-workforce-card">
@@ -196,7 +196,7 @@ export default function StaffTimesheetsPage(){
           <div><p className="staff-eyebrow">Timesheet history</p><h2 className="staff-card-heading">Recent records</h2></div>
           <span className="staff-badge">Latest 100 records</span>
         </div>
-        {loading?<div className="staff-empty">Loading timesheets...</div>:!rows.length?<div className="staff-empty">No timesheets have been submitted yet. Your attendance records will appear here after clock-out.</div>:<div className="staff-table-wrap"><table className="staff-table"><thead><tr><th>Date</th><th>Hours</th><th>Clock in</th><th>Clock out</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}><td>{fmtDate(row.work_date)}</td><td><strong>{duration(row)}</strong></td><td>{fmtDateTime(row.clock_in)}</td><td>{fmtDateTime(row.clock_out)}</td><td><span className={badge(row.status)}>{row.status.replaceAll('_',' ')}</span></td><td>{row.status==='rejected'?<button className="staff-action" onClick={()=>beginEdit(row)} style={{minHeight:34,padding:'7px 10px'}}>Edit & resubmit</button>:<span style={{color:'var(--muted)',fontSize:12}}>Locked after review</span>}</td></tr>)}</tbody></table></div>}
+        {loading?<div className="staff-empty">Loading timesheets...</div>:!rows.length?<div className="staff-empty">No timesheets have been submitted yet. Your attendance records will appear here after clock-out.</div>:<div className="staff-table-wrap"><table className="staff-table"><thead><tr><th>Date</th><th>Hours</th><th>Clock in</th><th>Clock out</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map(row=><tr key={row.id}><td>{fmtDate(row.work_date)}</td><td><strong>{duration(row)}</strong></td><td>{fmtDateTime(row.clock_in)}</td><td>{fmtDateTime(row.clock_out)}</td><td><span className={badge(row.status)}>{row.status.replaceAll('_',' ')}</span></td><td>{row.status==='rejected'?<span style={{display:'inline-flex',gap:7,alignItems:'center'}}><span style={{color:'var(--muted)',fontSize:12}}>LAUREM review note:</span><button className="staff-action" onClick={()=>beginEdit(row)} style={{minHeight:34,padding:'7px 10px'}}>Edit & resubmit</button></span>:<span style={{color:'var(--muted)',fontSize:12}}>Locked after review</span>}</td></tr>)}</tbody></table></div>}
         <p className="staff-mobile-hint">On a phone, swipe the history table horizontally. Ordinary shifts should normally be recorded through Attendance.</p>
       </section>
     </div>
