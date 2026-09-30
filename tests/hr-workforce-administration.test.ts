@@ -238,5 +238,7 @@ describe('LAUREM £500 visa-switch invoice payment link', () => {
     expect(admin).toContain('Pay £500 invoice');
     expect(staff).toContain('invoice?.payment_url');
     expect(admin).toContain('invoice?.payment_url');
+    expect(staff).toContain('within 3 days of the invoice issue date');
+    expect(admin).toContain('due within 3 days of the invoice issue date');
   });
 });
