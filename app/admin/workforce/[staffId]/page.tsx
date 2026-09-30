@@ -63,6 +63,7 @@ type ComplianceSnapshot = {
   documentsComplete: boolean;
   onboardingComplete: boolean;
   attentionItems: string[];
+  complianceFollowUps: string[];
 };
 
 type Document = {
@@ -455,6 +456,18 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
                 <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: '#9a3412', fontSize: 13 }}>
                   {c.attentionItems.map((item, idx) => <li key={idx}>{item}</li>)}
                 </ul>
+              </div>
+            )}
+
+            {c.complianceFollowUps.length > 0 && (
+              <div style={{ marginTop: 18, padding: 14, background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 8 }}>
+                <strong>Non-blocking compliance follow-up:</strong>
+                <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--muted)', fontSize: 13 }}>
+                  {c.complianceFollowUps.map((item, idx) => <li key={idx}>{item}</li>)}
+                </ul>
+                <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>
+                  These items remain visible for HR action but do not block contract issuance, Hired status, portal provisioning, or staff activation.
+                </div>
               </div>
             )}
 
