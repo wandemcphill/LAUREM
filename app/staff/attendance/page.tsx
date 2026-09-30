@@ -131,7 +131,7 @@ export default function StaffAttendancePage(){
               {shift.notes&&<p className="staff-shift-meta" style={{whiteSpace:'pre-wrap'}}>{shift.notes}</p>}
               <div className="staff-shift-actions" style={{marginTop:12}}>
                 {canIn&&<button className="staff-action-primary" onClick={()=>void act(shift.id,'clock_in')} disabled={busy==='clock_in'+shift.id} aria-busy={busy==='clock_in'+shift.id}>{busy==='clock_in'+shift.id?'Clocking in...':'Clock in'}</button>}
-                {canOut&&<div id={open?.assignment_id===shift.id?'clockout-controls':undefined} className="staff-form-grid" style={{width:'100%',gridTemplateColumns:'150px minmax(0,1fr) auto',alignItems:'end'}}>
+                {canOut&&<div id={open?.assignment_id===shift.id?'clockout-controls':undefined} className="staff-form-grid staff-clockout-grid" style={{width:'100%',alignItems:'end'}}>
                   <label className="staff-form-field"><span className="staff-form-label">Break minutes</span><input className="staff-form-input" type="number" min="0" max="480" value={breakMinutes} onChange={e=>setBreakMinutes(e.target.value)} /></label>
                   <label className="staff-form-field"><span className="staff-form-label">Attendance note</span><input className="staff-form-input" value={notes} onChange={e=>setNotes(e.target.value)} maxLength={2000} placeholder="Optional" /></label>
                   <button className="staff-action-primary" onClick={()=>void act(shift.id,'clock_out')} disabled={busy==='clock_out'+shift.id} aria-busy={busy==='clock_out'+shift.id}>{busy==='clock_out'+shift.id?'Clocking out...':'Clock out'}</button>
