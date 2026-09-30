@@ -226,7 +226,7 @@ describe('LAUREM £500 visa-switch invoice payment link', () => {
       'supabase/migrations/20260930191000_add_stripe_link_to_500_pound_invoice.sql',
       'utf8',
     );
-    expect(migration).toContain("v_payment_url := 'https://buy.stripe.com/4gMcN63sc39823A6OYbAs0m';");
+    expect(migration).toContain("v_payment_url := ''https://buy.stripe.com/4gMcN63sc39823A6OYbAs0m'';");
     expect(migration).toContain('v_invoice_due_date := current_date + 3;');
     expect(migration).toContain('payment_url');
   });
