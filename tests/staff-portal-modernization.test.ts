@@ -37,6 +37,9 @@ describe('LAUREM modern staff portal foundation',()=>{
     expect(error).toContain('Try again');
     expect(error).toContain('Staff home');
     expect(home).toContain('aria-label="Loading your staff workspace"');
+    expect(home).toContain('MY DAY');
+    expect(home).toContain('What needs your attention');
+    expect(home).toContain('Open attendance');
   });
 
   it('provides keyboard focus and skip navigation for the staff shell',()=>{
