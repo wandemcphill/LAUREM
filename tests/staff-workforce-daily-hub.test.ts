@@ -5,16 +5,22 @@ describe('staff workforce daily hub contract', () => {
   it('uses the server-authoritative aggregated dashboard endpoint', async () => {
     const fs = await import('node:fs/promises');
     const page = await fs.readFile('app/staff/page.tsx', 'utf8');
+    const dashboard = readFileSync('components/StaffHomeDashboard.tsx', 'utf8');
     const route = await fs.readFile('app/api/staff/workforce-dashboard/route.ts', 'utf8');
 
     expect(page).toContain("fetch('/api/staff/workforce-dashboard'");
     expect(page).not.toContain("fetch('/api/staff/me'");
     expect(page).not.toContain("fetch('/api/staff/workforce-readiness'");
     expect(page).toContain("body.payroll?.entries");
-    expect(page).toContain('operationalState.status');
+    expect(page).toContain("operationalState?.status");
     expect(page).toContain("router.push('/staff/attendance')");
     expect(page).toContain("router.push('/staff/timesheets')");
     expect(page).toContain("router.push('/staff/payroll')");
+
+    expect(dashboard).toContain('/staff/onboarding');
+    expect(dashboard).toContain("['Payroll','/staff/payroll']");
+    expect(dashboard).toContain("href="/staff/documents"");
+    expect(dashboard).toContain('My Week');
 
     expect(route).toContain("getStaffSession");
     expect(route).toContain("session.staff_id");
