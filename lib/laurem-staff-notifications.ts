@@ -13,7 +13,7 @@ export async function createLauremStaffNotification(
   input: LauremStaffNotificationInput,
 ) {
   const { data, error } = await client
-    .from('staff_notifications')
+    .from('laurem_staff_notifications')
     .insert({
       staff_id: input.staffId,
       category: input.category,
