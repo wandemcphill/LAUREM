@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   if (!assignmentId) return NextResponse.json({ error: 'assignmentId is required.' }, { status: 400 });
 
   const client = db();
-  const { data: staff } = await client.from('staff_profiles')
+  const { data: staff } = await client.from('laurem_staff_profiles')
     .select('id,employment_status')
     .eq('id', session.staff_id)
     .maybeSingle();
