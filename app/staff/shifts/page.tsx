@@ -40,7 +40,7 @@ export default function StaffShiftsPage(){
   function statusLabel(status:string){return status.replaceAll('_',' ');}
 
   if(loading)return <StaffLoading label="Loading your shift calendar…"/>;
-  return <StaffPage className="staff-page--shifts"><StaffPageInner>
+  return <StaffPage className="staff-page--workforce staff-page--shifts"><StaffPageInner>
     <StaffPageHeader eyebrow="Workforce schedule" title="My Shifts" subtitle="Your weekly schedule, assignment details and recent shift history." actions={<><StaffAction href="/staff/availability">Work preferences</StaffAction><StaffAction onClick={()=>void load(false)} disabled={refreshing}>{refreshing?'Refreshing…':'Refresh'}</StaffAction></>}/>
     {error&&<StaffNotice tone="danger"><strong>Shift schedule unavailable</strong><p>{error}</p><StaffAction onClick={()=>void load(false)}>Try again</StaffAction></StaffNotice>}
 
