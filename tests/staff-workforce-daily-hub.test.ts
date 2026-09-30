@@ -19,7 +19,7 @@ describe('staff workforce daily hub contract', () => {
     expect(route).toContain("session.staff_id");
     expect(route).toContain("buildStaffOperationalSnapshot");
     expect(route).toContain("buildWorkforceReadiness");
-    expect(route).toContain("from('payroll_entries')");
+    expect(route).toContain("from('laurem_payroll_entries')");
     expect(route).toContain("from('staff_notifications')");
     expect(route).toContain("from('staff_documents')");
     expect(route).toContain("from('staff_message_conversations')");
