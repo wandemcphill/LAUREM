@@ -32,6 +32,7 @@ export default function StaffShell({ children }:{ children:React.ReactNode }) {
   if (publicStaffPaths.some((path) => pathname === path || pathname.startsWith(path + '/'))) return <>{children}</>;
   return (
     <div className="staff-app">
+      <a className="staff-skip-link" href="#staff-main-content">Skip to content</a>
       <aside className="staff-sidebar" aria-label="Staff portal navigation">
         <div className="staff-brand">
           <div className="staff-brand-mark" aria-hidden="true">L</div>
@@ -56,7 +57,7 @@ export default function StaffShell({ children }:{ children:React.ReactNode }) {
           <Link href="/staff" className="staff-mobile-brand"><span className="staff-brand-mark" aria-hidden="true">L</span><span>LAUREM</span></Link>
           <Link href="/staff/profile" className="staff-mobile-profile">Profile</Link>
         </div>
-        <div className="staff-content">{children}</div>
+        <div id="staff-main-content" className="staff-content">{children}</div>
         <nav className="staff-bottom-nav" aria-label="Mobile staff navigation">
           {primary.map((item) => {
             const active = isActive(pathname, item.href);
