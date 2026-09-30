@@ -10,7 +10,8 @@ import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
 import { getRequestId, logOperationalError, operationalError, withRequestId } from '@/lib/laurem-operational';
-import { calculateThreeYearContractEndDate } from '@/lib/laurem-contract-dates';
+import { calculateThreeYearContractEndDate, enforceMinimumLauremContractStartDate } from '@/lib/laurem-contract-dates';
+import { getLauremSponsorshipOccupation } from '@/lib/laurem-sponsorship-occupation';
 
 function appUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existingContract, error: contractLookupError } = await client
       .from('recruitment_contracts')
-      .select('id,status,version,accepted_at,accepted_by_name,contract_type')
+      .select('id,status,version,accepted_at,accepted_by_name,contract_type,start_date,sponsorship_occupation_code')
       .eq('application_id', applicationId)
       .maybeSingle();
     if (contractLookupError) throw contractLookupError;
@@ -97,8 +98,15 @@ export async function POST(request: NextRequest) {
     const annualSalary = typeof body?.annualSalary === 'number' ? body.annualSalary : null;
     const hourlyRate = typeof body?.hourlyRate === 'number' ? body.hourlyRate : null;
     const requestedContractEndDate = typeof body?.contractEndDate === 'string' ? body.contractEndDate.trim() : '';
+    const requestedStartDate = typeof body?.startDate === 'string' ? body.startDate.trim() : '';
+    const contractStartDate = enforceMinimumLauremContractStartDate(
+      requestedStartDate || (typeof app.start_date === 'string' ? app.start_date : null) || existingContract?.start_date || null,
+    );
+    const sponsorshipOccupation = getLauremSponsorshipOccupation(role);
+    const sponsorshipOccupationCode = (internationalNurse || requiresSponsorship) ? sponsorshipOccupation?.code || null : null;
+    const sponsorshipOccupationTitle = (internationalNurse || requiresSponsorship) ? sponsorshipOccupation?.title || null : null;
     const calculatedSponsoredEndDate = (internationalNurse || requiresSponsorship)
-      ? calculateThreeYearContractEndDate(typeof app.start_date === 'string' ? app.start_date : null)
+      ? calculateThreeYearContractEndDate(contractStartDate)
       : null;
     const contractEndDate = calculatedSponsoredEndDate || (requestedContractEndDate || null);
     const noticePeriodEmployee = typeof body?.noticePeriodEmployee === 'string' ? body.noticePeriodEmployee : null;
@@ -111,7 +119,7 @@ export async function POST(request: NextRequest) {
           employeeName: app.full_name,
           employeeAddress: app.address,
           jobTitle: role,
-          startDate: app.start_date,
+          startDate: contractStartDate,
           contractEndDate,
           annualSalary,
           weeklyHours,
@@ -122,7 +130,8 @@ export async function POST(request: NextRequest) {
           holidayEntitlement,
           pensionScheme,
           visaRoute: typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-          sponsorshipOccupationCode: typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
+          sponsorshipOccupationCode,
+          sponsorshipOccupationTitle,
           nmcStatus: typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
           registrationDeadline: typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
           preRegistrationSalary: typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
@@ -135,7 +144,7 @@ export async function POST(request: NextRequest) {
           employeeName: app.full_name,
           employeeAddress: app.address,
           jobTitle: role,
-          startDate: app.start_date,
+          startDate: contractStartDate,
           contractEndDate,
           minimumWeeklyHours: weeklyHours,
           hourlyRate,
@@ -153,7 +162,7 @@ export async function POST(request: NextRequest) {
       version: nextVersion,
       contract_type: internationalNurse ? 'international_nurse' : 'standard',
       job_title: role,
-      start_date: app.start_date,
+      start_date: contractStartDate,
       contract_end_date: contractEndDate,
       minimum_weekly_hours: weeklyHours,
       weekly_hours: weeklyHours,
@@ -166,7 +175,7 @@ export async function POST(request: NextRequest) {
       holiday_entitlement: holidayEntitlement,
       pension_scheme: pensionScheme,
       visa_route: internationalNurse && typeof body?.visaRoute === 'string' ? body.visaRoute : null,
-      sponsorship_occupation_code: internationalNurse && typeof body?.sponsorshipOccupationCode === 'string' ? body.sponsorshipOccupationCode : null,
+      sponsorship_occupation_code: sponsorshipOccupationCode,
       nmc_status: internationalNurse && typeof body?.nmcStatus === 'string' ? body.nmcStatus : null,
       registration_deadline: internationalNurse && typeof body?.registrationDeadline === 'string' ? body.registrationDeadline : null,
       pre_registration_salary: internationalNurse && typeof body?.preRegistrationSalary === 'number' ? body.preRegistrationSalary : null,
