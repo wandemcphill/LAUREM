@@ -100,7 +100,8 @@ describe('LAUREM UK switch invoice terms', () => {
     expect(migration).toContain("'weekly_deduction_count', 13");
     expect(migration).toContain("'weekly_deduction_pence', 11538");
     expect(migration).toContain("'final_weekly_deduction_pence', 11544");
-    expect(staffApi).toContain("Request UK visa-switch support.");
+    expect(staffApi).toContain("Request LAUREM support to switch your UK visa.");
+    expect(staffApi).toContain("initial service invoice is £500, payable within 3 days of the invoice issue date");
     expect(migration).toContain('v_invoice_amount_pence := 200000');
     expect(helper).toContain(": 'full_upfront';");
   });
