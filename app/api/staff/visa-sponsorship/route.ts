@@ -138,7 +138,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
       paymentPlanKind: rolePathway ? paymentPlanFor(rolePathway === 'visa_switch' ? staff.job_title || application.role_applied : staff.job_title || application.role_applied, rolePathway, application) : 'full_upfront',
       label: rolePathway === 'visa_switch' ? 'Apply for Visa Switch' : rolePathway === 'international_sponsorship' ? 'Apply for Visa Sponsorship' : null,
       explanation: rolePathway === 'visa_switch'
-        ? 'Request UK visa-switch support. The upfront invoice is £500 and is due immediately before LAUREM starts the visa sponsorship process. The remaining £1,500 is recovered through weekly salary deductions during the first three months after successful visa approval and commencement of employment.'
+        ? 'Request LAUREM support to switch your UK visa. The initial service invoice is £500, payable within 3 days of the invoice issue date and before LAUREM begins the visa sponsorship process. The remaining £1,500 is not payable now and is recovered through weekly salary deductions during the first three months of employment, following successful visa approval and commencement of employment.'
         : rolePathway === 'international_sponsorship'
           ? 'Request international visa sponsorship support. The existing £2,000 invoice arrangement remains unchanged.'
           : 'Visa support requests are currently available here for eligible UK switch roles and Registered Nurses.',
