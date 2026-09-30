@@ -384,3 +384,12 @@ button, input { font: inherit; }
   outline: 3px solid #8dcdb9;
   outline-offset: 2px;
 }
+
+@media (max-width: 760px) {
+  .staff-dashboard-page section[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+  .staff-dashboard-page article {
+    min-width: 0;
+  }
+}
