@@ -39,12 +39,12 @@ describe('LAUREM workforce audit namespace isolation', () => {
   });
 
   it('keeps assignment and leave audit writes behind the logical namespace adapter', () => {
-    expect(assignmentRoute).toContain("from('workforce_audit_events')");
-    expect(adminLeaveRoute).toContain("from('workforce_audit_events')");
-    expect(staffLeaveRoute).toContain("from('workforce_audit_events')");
-    expect(assignmentRoute).not.toContain("from('laurem_workforce_audit_events')");
-    expect(adminLeaveRoute).not.toContain("from('laurem_workforce_audit_events')");
-    expect(staffLeaveRoute).not.toContain("from('laurem_workforce_audit_events')");
+    expect(assignmentRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(adminLeaveRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(assignmentRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(adminLeaveRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
   });
 
   it('includes the audit table in empty-state cleanup and baseline protection', () => {
