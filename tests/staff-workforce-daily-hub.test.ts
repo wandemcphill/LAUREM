@@ -21,8 +21,8 @@ describe('staff workforce daily hub contract', () => {
     expect(route).toContain("buildWorkforceReadiness");
     expect(route).toContain("from('laurem_payroll_entries')");
     expect(route).toContain("from('laurem_staff_notifications')");
-    expect(route).toContain("from('staff_documents')");
-    expect(route).toContain("from('staff_message_conversations')");
+    expect(route).toContain("from('laurem_staff_documents')");
+    expect(route).toContain("from('laurem_staff_message_conversations')");
   });
 
   it('keeps payroll and workforce state staff-scoped at the query boundary', async () => {
