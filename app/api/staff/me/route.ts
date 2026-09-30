@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const { data: staff, error } = await db().from('staff_profiles')
+  const { data: staff, error } = await db().from('laurem_staff_profiles')
     .select(PROFILE_FIELDS)
     .eq('id', session.staff_id)
     .maybeSingle();
@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest) {
   update.updated_at = new Date().toISOString();
 
   const client = db();
-  const { data, error } = await client.from('staff_profiles')
+  const { data, error } = await client.from('laurem_staff_profiles')
     .update(update)
     .eq('id', session.staff_id)
     .select(PROFILE_FIELDS)
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data: current } = await client.from('staff_profiles')
+  const { data: current } = await client.from('laurem_staff_profiles')
     .select('profile_photo_path')
     .eq('id', session.staff_id)
     .maybeSingle();
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
   if (upload.error) return NextResponse.json({ error: 'Unable to save the photograph.' }, { status: 500 });
 
   const now = new Date().toISOString();
-  const { data, error } = await client.from('staff_profiles')
+  const { data, error } = await client.from('laurem_staff_profiles')
     .update({
       profile_photo_path: path,
       profile_photo_updated_at: now,
