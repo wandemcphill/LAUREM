@@ -32,14 +32,15 @@ describe('LAUREM modern staff portal foundation',()=>{
     const loading=source('app/staff/loading.tsx');
     const error=source('app/staff/error.tsx');
     const home=source('app/staff/page.tsx');
+    const dashboard=source('components/StaffHomeDashboard.tsx');
     expect(loading).toContain('Loading staff workspace');
     expect(loading).toContain('staff-skeleton');
     expect(error).toContain('Try again');
     expect(error).toContain('Staff home');
-    expect(home).toContain('aria-label="Loading your staff workspace"');
-    expect(home).toContain('MY DAY');
-    expect(home).toContain('What needs your attention');
-    expect(home).toContain('Open attendance');
+    expect(home).toContain('StaffHomeDashboard');
+    expect(dashboard).toContain('MY DAY');
+    expect(dashboard).toContain('What needs your attention');
+    expect(dashboard).toContain('Open attendance');
   });
 
   it('provides keyboard focus and skip navigation for the staff shell',()=>{

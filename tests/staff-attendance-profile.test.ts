@@ -41,7 +41,7 @@ describe('LAUREM staff attendance and profile', () => {
   });
 
   it('surfaces attendance and profile in the staff portal', () => {
-    const dashboard = readFileSync('app/staff/page.tsx', 'utf8');
+    const dashboard = readFileSync('components/StaffHomeDashboard.tsx', 'utf8');
     expect(dashboard).toContain("['Attendance','/staff/attendance']");
     expect(dashboard).toContain("['My Profile','/staff/profile']");
   });

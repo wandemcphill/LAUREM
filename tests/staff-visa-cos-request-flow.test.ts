@@ -8,7 +8,7 @@ function source(path: string) {
 describe('LAUREM staff visa / COS request flow', () => {
   it('shows COS status and role-specific request actions on the staff dashboard', () => {
     const api = source('app/api/staff/workforce-dashboard/route.ts');
-    const page = source('app/staff/page.tsx');
+    const page = source('components/StaffHomeDashboard.tsx');
     expect(api).toContain('visaSupport');
     expect(api).toContain('COS not requested');
     expect(api).toContain('Processing COS');

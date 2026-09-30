@@ -7,13 +7,14 @@ describe('LAUREM workforce operations acceptance contract', () => {
     const staffApi = readFileSync('app/api/staff/workforce-readiness/route.ts', 'utf8');
     const adminApi = readFileSync('app/api/admin/workforce/readiness/route.ts', 'utf8');
     const staffPage = readFileSync('app/staff/page.tsx', 'utf8');
+    const staffDashboard = readFileSync('components/StaffHomeDashboard.tsx', 'utf8');
     const adminPage = readFileSync('app/admin/workforce/page.tsx', 'utf8');
 
     expect(staffApi).toContain('buildWorkforceReadiness');
     expect(adminApi).toContain('buildWorkforceReadiness');
     expect(staffPage).toContain('/api/staff/workforce-dashboard');
     expect(staffPage).not.toContain("fetch('/api/staff/workforce-readiness'");
-    expect(staffPage).toContain("TODAY'S WORKFORCE STATE");
+    expect(staffDashboard).toContain("Today's workforce state");
     expect(adminPage).toContain('/api/admin/workforce/readiness');
     expect(adminPage).toContain('WORKFORCE ACCEPTANCE');
   });

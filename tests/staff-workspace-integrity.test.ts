@@ -35,7 +35,7 @@ describe('staff self-service workspace', () => {
 
 describe('staff workspace UI wiring', () => {
   it('surfaces onboarding and payroll as first-class staff destinations', async () => {
-    const home = await read('app/staff/page.tsx');
+    const home = await read('components/StaffHomeDashboard.tsx');
     const onboarding = await read('app/staff/onboarding/page.tsx');
     const payroll = await read('app/staff/payroll/page.tsx');
     expect(home).toContain("'/staff/onboarding'");

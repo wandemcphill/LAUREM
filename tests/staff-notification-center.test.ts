@@ -25,7 +25,7 @@ describe('LAUREM staff notification centre', () => {
 
   it('provides a dedicated notification page and dashboard entry point', () => {
     const page = readFileSync('app/staff/notifications/page.tsx', 'utf8');
-    const dashboard = readFileSync('app/staff/page.tsx', 'utf8');
+    const dashboard = readFileSync('components/StaffHomeDashboard.tsx', 'utf8');
     expect(page).toContain('Mark all as read');
     expect(page).toContain('/api/staff/notifications');
     expect(dashboard).toContain('/staff/notifications');
