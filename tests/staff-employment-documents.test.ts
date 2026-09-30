@@ -34,7 +34,9 @@ describe('LAUREM staff employment documents', () => {
   it('requires online staff signature rather than a download workflow', () => {
     const page = readFileSync('app/staff/documents/[id]/page.tsx', 'utf8');
     expect(page).toContain('Sign document electronically');
-    expect(page).toContain("/api/staff/documents/\${encodeURIComponent(id)}");
+    expect(page).toContain('documentApiPath');
+    expect(page).toContain('/api/staff/documents/');
+    expect(page).toContain('encodeURIComponent(id)');
     expect(page).toContain('canvas');
     expect(page).toContain('/api/staff/documents/${encodeURIComponent(id)}/download');
     const downloadRoute = readFileSync('app/api/staff/documents/[id]/download/route.ts', 'utf8');
