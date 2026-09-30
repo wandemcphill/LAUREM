@@ -116,16 +116,16 @@ export default function StaffVisaSponsorshipPage() {
         <p style={{...muted,lineHeight:1.6,marginTop:0}}>{data.request.explanation}</p>
         <div style={{marginTop:14,padding:15,borderRadius:12,background:'#f7fafc',lineHeight:1.6,fontSize:13}}>
           <strong>Before you proceed</strong>
-          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below creates the applicable LAUREM service invoice and opens your case. For UK visa switches for Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, the initial invoice is £500 and is due within 3 days of the invoice issue date before LAUREM starts the visa sponsorship process. The remaining £1,500 is not due now and is recovered through weekly salary deductions during the first three months after successful visa approval and commencement of employment. International Nurses remain on the existing £2,000 arrangement.</p>
+          <p style={{...muted,margin:'7px 0 0'}}>Pressing the button below will create the applicable LAUREM service invoice and open your visa-switch case. For UK visa switches involving Healthcare Assistants, Senior Healthcare Assistants, Support Workers and Senior Support Workers, the initial invoice is £500 and must be paid within 3 days of the invoice issue date before LAUREM begins the visa sponsorship process. The remaining £1,500 is deferred and recovered through weekly salary deductions during the first three months of employment, following successful visa approval and commencement of employment. International Nurses remain subject to the existing £2,000 arrangement.</p>
         </div>
         <div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea'}}><div style={{marginTop:13,padding:14,borderRadius:12,border:'1px solid #dbe5ea',background:'#fbfefd'}}>
           <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Planned LAUREM sponsorship term</div>
           <strong>{data.sponsorshipTermEndDateLabel ? 'Three-year term ends '+data.sponsorshipTermEndDateLabel : 'End date will be calculated when a commencement date is recorded'}</strong>
-          <div style={{...muted,fontSize:12,marginTop:4}}>This is the planned three-year employment/sponsorship term used for LAUREM documents. The final CoS end date remains subject to the approved sponsorship record.</div>
+          <div style={{...muted,fontSize:12,marginTop:4}}>The planned sponsorship term is three years for LAUREM employment and sponsorship documentation. The final Certificate of Sponsorship (CoS) end date will be based on the approved sponsorship record.</div>
         </div>
         
           <div style={{fontSize:12,color:'#627d98',fontWeight:800}}>Your route</div>
-          <strong>{data.request.pathway === 'visa_switch' ? 'UK visa switch support' : 'International visa sponsorship support'}</strong>
+          <strong>{data.request.pathway === 'visa_switch' ? 'UK Visa Switch Support' : 'International Visa Sponsorship Support'}</strong>
           <div style={{...muted,fontSize:12,marginTop:4}}>{data.application.role_applied || data.staff.job_title}</div>
         </div>
         <button disabled={busy || !data.request.available} onClick={()=>void requestSupport()} style={{...button(true),marginTop:16}}>{busy?'Generating invoice…':`Request £${upfrontAmount.toLocaleString('en-GB')} Invoice`}</button>
