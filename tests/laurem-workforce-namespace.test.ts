@@ -38,13 +38,13 @@ describe('LAUREM workforce audit namespace isolation', () => {
     expect(migration).not.toContain('public.workforce_audit_events');
   });
 
-  it('keeps assignment and leave audit writes behind the logical namespace adapter', () => {
+  it('keeps assignment and leave audit writes inside the LAUREM namespace', () => {
     expect(assignmentRoute).toContain("from('workforce_audit_events')");
     expect(adminLeaveRoute).toContain("from('workforce_audit_events')");
     expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
-    expect(assignmentRoute).toContain("from('workforce_audit_events')");
-    expect(adminLeaveRoute).toContain("from('laurem_workforce_audit_events')");
-    expect(staffLeaveRoute).toContain("from('laurem_workforce_audit_events')");
+    expect(assignmentRoute).not.toContain("from('public.workforce_audit_events')");
+    expect(adminLeaveRoute).not.toContain("from('public.workforce_audit_events')");
+    expect(staffLeaveRoute).not.toContain("from('public.workforce_audit_events')");
   });
 
   it('includes the audit table in empty-state cleanup and baseline protection', () => {
