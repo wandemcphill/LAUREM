@@ -100,7 +100,7 @@ export default function StaffShiftsPage(){
               </div>
               {badge(shift.status)}
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10,marginTop:12}}>
+            <div className="staff-shift-facts" style={{display:'grid',gap:10,marginTop:12}}>
               <div><div className="staff-eyebrow" style={{fontSize:9,marginBottom:3}}>Date</div><strong>{day(shift.scheduled_start)}</strong></div>
               <div><div className="staff-eyebrow" style={{fontSize:9,marginBottom:3}}>Time</div><strong>{new Date(shift.scheduled_start).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} to {new Date(shift.scheduled_end).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</strong></div>
               <div><div className="staff-eyebrow" style={{fontSize:9,marginBottom:3}}>Duration</div><strong>{shiftDuration(shift.scheduled_start,shift.scheduled_end)}</strong></div>
