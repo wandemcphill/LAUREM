@@ -50,4 +50,21 @@ describe('LAUREM modern staff portal foundation',()=>{
     expect(css).toContain('.staff-skip-link:focus');
     expect(css).toContain(':focus-visible');
   });
+
+  it('modernizes the core workforce screens without changing their API contracts',()=>{
+    const attendance=source('app/staff/attendance/page.tsx');
+    const shifts=source('app/staff/shifts/page.tsx');
+    const timesheets=source('app/staff/timesheets/page.tsx');
+    expect(attendance).toContain('/api/staff/attendance');
+    expect(attendance).toContain('Clock in');
+    expect(attendance).toContain('Clock out');
+    expect(shifts).toContain('/api/staff/shifts');
+    expect(shifts).toContain('Next shift');
+    expect(shifts).toContain('Open attendance');
+    expect(timesheets).toContain('/api/staff/timesheets');
+    expect(timesheets).toContain('My Timesheets');
+    expect(timesheets).toContain('Edit & resubmit');
+    expect(timesheets).toContain('Approved or paid records are locked.');
+    for(const file of [attendance,shifts,timesheets]) expect(file).toContain('staff-page--workforce');
+  });
 });
