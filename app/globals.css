@@ -981,3 +981,9 @@ button, input { font: inherit; }
     flex: 1 1 auto;
   }
 }
+
+.staff-action.is-selected {
+  background: var(--pale);
+  border-color: #b7dacc;
+  color: var(--ink);
+}
