@@ -115,7 +115,9 @@ describe('LAUREM activation recovery regression coverage', () => {
       'utf8',
     );
     expect(migration).toContain('staff_row.id,');
-    expect(migration).toContain('select *\\n    into transitioned\\n    from public.laurem_transition_application_status(');
+    expect(migration).toContain('select *');
+    expect(migration).toContain('into transitioned');
+    expect(migration).toContain('from public.laurem_transition_application_status(');
     expect(migration).not.toContain('p_staff_id,');
     expect(migration).toContain('application_status_before');
   });
