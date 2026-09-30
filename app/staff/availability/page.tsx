@@ -38,7 +38,7 @@ export default function StaffRotaPreferencesPage(){
   <StaffPanel><StaffSectionHeader title="Preference history" copy="Previous requests remain visible so you can see how your preferences changed."/><div className="staff-preference-history">{!history.length?<div className="staff-empty">No previous rota requests.</div>:history.map(item=><article key={item.id}><div><strong>{item.regions.join(', ')||'No region'}</strong><span>{item.shift_preferences.join(', ')||'No shift preference'} · {date(item.effective_from)}</span></div><StaffBadge tone={item.status==='approved'?'live':item.status==='rejected'?'danger':'attention'}>{item.status.replaceAll('_',' ')}</StaffBadge></article>)}</div></StaffPanel>
  </StaffPageInner></StaffPage>;
 }
-function PreferenceGroup({title,options,value,toggle,helper,multiple=false}:{title:string;options:any[];value:string[];toggle:(v:string[])=>void;helper?:string;multiple?:boolean}){
+function PreferenceGroup({title,options,value,toggle,helper,multiple=false}:{title:string;options:readonly any[];value:string[];toggle:(v:string[])=>void;helper?:string;multiple?:boolean}){
  return <fieldset className="staff-preference-group"><legend>{title}</legend><div className="staff-preference-options">{options.map((option:any)=>{const k=Array.isArray(option)?option[0]:option;const label=Array.isArray(option)?option[1]:option;const checked=value.includes(k);return <label key={k} className={checked?'is-selected':''}><input type={multiple?'checkbox':'radio'} name={title} checked={checked} onChange={()=>toggle(multiple?toggleValue(value,k):[k])}/><span><strong>{label}</strong>{helper&&<small>{helper}</small>}</span></label>;})}</div></fieldset>;
 }
 function toggleValue(a:string[],v:string){return toggle(a,v);}
