@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const client = db();
   const { data: packageRow, error: packageError } = await client
-    .from('staff_onboarding_packages')
+    .from('laurem_staff_onboarding_packages')
     .select('id,staff_id,audience,title,status,assigned_at,completed_at,created_at,updated_at')
     .eq('staff_id', session.staff_id)
     .maybeSingle();
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!packageRow) return NextResponse.json({ package: null, tasks: [] });
 
   const { data: tasks, error: taskError } = await client
-    .from('staff_onboarding_tasks')
+    .from('laurem_staff_onboarding_tasks')
     .select('id,package_id,task_key,category,title,description,required,status,document_path,acknowledgement_required,acknowledged_at,completed_at,notes,sort_order')
     .eq('package_id', packageRow.id)
     .order('sort_order', { ascending: true });
