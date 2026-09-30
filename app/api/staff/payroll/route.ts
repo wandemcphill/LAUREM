@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
 
-  const { data, error } = await db().from('payroll_entries')
+  const { data, error } = await db().from('laurem_payroll_entries')
     .select('id,payroll_period_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at,payroll_periods(period_start,period_end,pay_date,status)')
     .eq('staff_id', session.staff_id)
     .order('created_at', { ascending: false })
