@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const delivery = await sendLauremStaffPasswordReset(client, staff, token);
-    await client.from('staff_security_events').insert({
+    await client.from('laurem_staff_security_events').insert({
       staff_id: staff.staff_id,
       event_type: 'staff.password_reset.requested',
       actor: 'staff_password_reset_request',
