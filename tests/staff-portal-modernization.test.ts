@@ -67,4 +67,18 @@ describe('LAUREM modern staff portal foundation',()=>{
     expect(timesheets).toContain('Approved or paid records are locked.');
     for(const file of [attendance,shifts,timesheets]) expect(file).toContain('staff-page--workforce');
   });
+
+  it('modernizes staff communication without changing private API contracts',()=>{
+    const messages=source('app/staff/messages/page.tsx');
+    const notifications=source('app/staff/notifications/page.tsx');
+    expect(messages).toContain('/api/staff/messages');
+    expect(messages).toContain('Message LAUREM');
+    expect(messages).toContain('Send message');
+    expect(messages).toContain('staff-message-stream');
+    expect(notifications).toContain('/api/staff/notifications');
+    expect(notifications).toContain('Mark all read');
+    expect(notifications).toContain('Unread');
+    expect(notifications).toContain('staff-notification-list');
+  });
+
 });
