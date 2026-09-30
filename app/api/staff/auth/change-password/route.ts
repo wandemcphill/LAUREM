@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const client = db();
   const { data: staff, error: staffError } = await client
-    .from('staff_profiles')
+    .from('laurem_staff_profiles')
     .select('id,application_id,laurem_id,email,password_hash,employment_status,activated_at,session_version')
     .eq('id', session.staff_id)
     .maybeSingle();
