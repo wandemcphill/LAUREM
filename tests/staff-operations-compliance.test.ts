@@ -68,7 +68,10 @@ describe('LAUREM staff operations and compliance',()=>{
     expect(source('app/api/admin/workforce/compliance-requests/route.ts')).toContain('markPaid');
   });
   it('does not alter the UK visa switch split workflow',()=>{
-    expect(source('app/api/staff/visa-sponsorship/route.ts')).toContain('UK visa-switch support');
+    const api = source('app/api/staff/visa-sponsorship/route.ts');
+    expect(api).toContain('Request LAUREM support to switch your UK visa.');
+    expect(api).toContain('initial service invoice is £500');
+    expect(api).toContain('remaining £1,500 is not payable now');
     expect(source('lib/laurem-visa-payment-plan.ts')).toContain('UK_SWITCH_UPFRONT_AMOUNT_PENCE = 50_000');
   });
 });
