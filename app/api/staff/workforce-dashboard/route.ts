@@ -36,14 +36,14 @@ export async function GET(request: NextRequest) {
         .select('id,application_id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
         .eq('id', session.staff_id)
         .maybeSingle(),
-      client.from('staff_assignments')
+      client.from('laurem_staff_assignments')
         .select('id,staff_id,client_name,location,scheduled_start,scheduled_end,status,notes')
         .eq('staff_id', session.staff_id)
         .in('status', ['scheduled', 'confirmed'])
         .gte('scheduled_end', now.toISOString())
         .order('scheduled_start', { ascending: true })
         .limit(20),
-      client.from('staff_timesheets')
+      client.from('laurem_staff_timesheets')
         .select('id,assignment_id,work_date,clock_in,clock_out,total_hours,status,notes')
         .eq('staff_id', session.staff_id)
         .order('work_date', { ascending: false })
@@ -57,12 +57,12 @@ export async function GET(request: NextRequest) {
         .select('id,title,status,updated_at')
         .eq('staff_id', session.staff_id)
         .maybeSingle(),
-      client.from('staff_notifications')
+      client.from('laurem_staff_notifications')
         .select('id,title,body,read_at,action_url,created_at')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(8),
-      client.from('staff_documents')
+      client.from('laurem_staff_documents')
         .select('id,title,signature_status,category,issued_at')
         .eq('staff_id', session.staff_id)
         .eq('status', 'issued')
@@ -76,19 +76,19 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
-      client.from('payroll_entries')
-        .select('id,payroll_period_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at,payroll_periods(period_start,period_end,pay_date,status)')
+      client.from('laurem_payroll_entries')
+        .select('id,payroll_period_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at,laurem_payroll_periods(period_start,period_end,pay_date,status)')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(12),
-      client.from('staff_visa_cases')
+      client.from('laurem_staff_visa_cases')
         .select('id,pathway,status,requested_at,updated_at,job_title_at_request')
         .eq('staff_id', session.staff_id)
         .not('status', 'in', '(declined,withdrawn)')
         .order('requested_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
-      client.from('staff_visa_invoices')
+      client.from('laurem_staff_visa_invoices')
         .select('id,visa_case_id,invoice_number,status,amount_pence,issue_date')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       const openAssignmentIds = [...new Set(openAttendance.map((row: any) => row.assignment_id).filter(Boolean))];
       if (openAssignmentIds.length) {
         const { data: openAssignments, error: openAssignmentError } = await client
-          .from('staff_assignments')
+          .from('laurem_staff_assignments')
           .select('id,scheduled_end')
           .eq('staff_id', session.staff_id)
           .in('id', openAssignmentIds);
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     let messages: any[] = [];
     if (conversationIds.length) {
       const { data: conversations, error: conversationError } = await client
-        .from('staff_message_conversations')
+        .from('laurem_staff_message_conversations')
         .select('id,updated_at,last_message_at')
         .in('id', conversationIds)
         .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -191,14 +191,14 @@ export async function GET(request: NextRequest) {
 
       for (const conversation of conversations || []) {
         const [{ data: latest }, { data: participants }] = await Promise.all([
-          client.from('staff_messages')
+          client.from('laurem_staff_messages')
             .select('body,sender_staff_id,sender_admin_email,created_at')
             .eq('conversation_id', conversation.id)
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-          client.from('staff_message_participants')
+          client.from('laurem_staff_message_participants')
             .select('staff_id,last_read_at')
             .eq('conversation_id', conversation.id),
         ]);
