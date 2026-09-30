@@ -361,3 +361,26 @@ button, input { font: inherit; }
     padding-inline: 12px;
   }
 }
+
+.staff-skip-link {
+  position: fixed;
+  left: 16px;
+  top: -60px;
+  z-index: 100;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 12px 30px rgba(24,55,47,.18);
+}
+.staff-skip-link:focus { top: 16px; }
+.staff-nav-link:focus-visible,
+.staff-mobile-brand:focus-visible,
+.staff-mobile-profile:focus-visible,
+.staff-bottom-link:focus-visible,
+.staff-skip-link:focus-visible {
+  outline: 3px solid #8dcdb9;
+  outline-offset: 2px;
+}
