@@ -118,3 +118,80 @@ export async function participantConversationIds(client: SupabaseClient, staffId
   if (error) throw error;
   return (data || []).map((row) => row.conversation_id);
 }
+
+
+export async function getStaffConversationSummaries(client: SupabaseClient, staffId: string, limit = 6) {
+  const conversationIds = await participantConversationIds(client, staffId);
+  if (!conversationIds.length) return [];
+
+  const { data: conversations, error: conversationError } = await client
+    .from('laurem_staff_message_conversations')
+    .select('id,updated_at,last_message_at')
+    .in('id', conversationIds)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (conversationError) throw conversationError;
+
+  const ids = (conversations || []).map((row) => row.id);
+  if (!ids.length) return [];
+
+  const [{ data: messages, error: messageError }, { data: participants, error: participantError }] = await Promise.all([
+    client.from('laurem_staff_messages')
+      .select('conversation_id,body,sender_staff_id,sender_admin_email,created_at')
+      .in('conversation_id', ids)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(limit * 12),
+    client.from('laurem_staff_message_participants')
+      .select('conversation_id,staff_id,last_read_at')
+      .in('conversation_id', ids),
+  ]);
+  if (messageError) throw messageError;
+  if (participantError) throw participantError;
+
+  const otherIds = [...new Set((participants || [])
+    .map((row: any) => row.staff_id)
+    .filter((id: string | null) => id && id !== staffId))];
+
+  const { data: otherStaff, error: otherStaffError } = otherIds.length
+    ? await client.from('laurem_staff_profiles')
+      .select('id,full_name,job_title')
+      .in('id', otherIds)
+    : { data: [], error: null };
+  if (otherStaffError) throw otherStaffError;
+
+  const latestByConversation = new Map<string, any>();
+  for (const message of messages || []) {
+    if (!latestByConversation.has(message.conversation_id)) {
+      latestByConversation.set(message.conversation_id, message);
+    }
+  }
+
+  const staffById = new Map((otherStaff || []).map((row: any) => [row.id, row]));
+  const participantsByConversation = new Map<string, any[]>();
+  for (const participant of participants || []) {
+    const list = participantsByConversation.get(participant.conversation_id) || [];
+    list.push(participant);
+    participantsByConversation.set(participant.conversation_id, list);
+  }
+
+  return (conversations || []).map((conversation: any) => {
+    const latest = latestByConversation.get(conversation.id) || null;
+    const rows = participantsByConversation.get(conversation.id) || [];
+    const own = rows.find((row: any) => row.staff_id === staffId);
+    const otherId = rows.map((row: any) => row.staff_id).find((id: string) => id !== staffId) || null;
+    const other = otherId ? staffById.get(otherId) : null;
+    const unread = Boolean(
+      latest &&
+      latest.sender_staff_id !== staffId &&
+      (!own?.last_read_at || new Date(latest.created_at).getTime() > new Date(own.last_read_at).getTime())
+    );
+
+    return {
+      ...conversation,
+      other: other ? { name: other.full_name, jobTitle: other.job_title } : { name: 'LAUREM Admin / HR', jobTitle: 'Recruitment & Staff Support' },
+      latest,
+      unread,
+    };
+  });
+}

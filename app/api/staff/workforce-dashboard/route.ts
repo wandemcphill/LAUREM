@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
-import { participantConversationIds } from '@/lib/laurem-messaging';
+import { getStaffConversationSummaries } from '@/lib/laurem-messaging';
 import { buildStaffOperationalSnapshot } from '@/lib/laurem-workforce-integrity';
 import { buildWorkforceReadiness } from '@/lib/laurem-workforce-readiness';
 import { buildUkSwitchPaymentPlan, isInternationalNurseRole, isUkSwitchSplitRole } from '@/lib/laurem-visa-payment-plan';
@@ -178,43 +178,7 @@ export async function GET(request: NextRequest) {
       now,
     });
 
-    const conversationIds = await participantConversationIds(client, session.staff_id);
-    let messages: any[] = [];
-    if (conversationIds.length) {
-      const { data: conversations, error: conversationError } = await client
-        .from('laurem_staff_message_conversations')
-        .select('id,updated_at,last_message_at')
-        .in('id', conversationIds)
-        .order('last_message_at', { ascending: false, nullsFirst: false })
-        .limit(6);
-      if (conversationError) return NextResponse.json({ error: 'Unable to load staff messages.' }, { status: 500 });
-
-      for (const conversation of conversations || []) {
-        const [{ data: latest }, { data: participants }] = await Promise.all([
-          client.from('laurem_staff_messages')
-            .select('body,sender_staff_id,sender_admin_email,created_at')
-            .eq('conversation_id', conversation.id)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          client.from('laurem_staff_message_participants')
-            .select('staff_id,last_read_at')
-            .eq('conversation_id', conversation.id),
-        ]);
-        const otherId = (participants || []).map((row: any) => row.staff_id).find((id: string) => id !== session.staff_id) || null;
-        const { data: other } = otherId
-          ? await client.from('laurem_staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
-          : { data: null };
-        const ownParticipant = (participants || []).find((row: any) => row.staff_id === session.staff_id);
-        messages.push({
-          ...conversation,
-          other: other ? { name: other.full_name, jobTitle: other.job_title } : { name: 'LAUREM Admin / HR', jobTitle: 'Recruitment & Staff Support' },
-          latest,
-          unread: Boolean(latest && latest.sender_staff_id !== session.staff_id && (!ownParticipant?.last_read_at || new Date(latest.created_at).getTime() > new Date(ownParticipant.last_read_at).getTime())),
-        });
-      }
-    }
+    const messages = await getStaffConversationSummaries(client, session.staff_id, 6);
 
     const unreadNotifications = (notificationsResult.data || []).filter((notification: any) => !notification.read_at).length;
     const signaturePending = (documentsResult.data || []).filter((document: any) => document.signature_status === 'pending').length;
