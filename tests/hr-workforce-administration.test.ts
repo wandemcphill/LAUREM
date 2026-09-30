@@ -150,9 +150,10 @@ describe('HR / Workforce Administration Domain Tests', () => {
       now: fakeNow,
     });
 
-    expect(snapshot.overallStatus).toBe('Missing');
-    expect(snapshot.attentionItems.length).toBeGreaterThan(0);
-    expect(snapshot.attentionItems[0]).toContain('DBS/PVG');
+    expect(snapshot.overallStatus).toBe('Current');
+    expect(snapshot.attentionItems).toHaveLength(0);
+    expect(snapshot.complianceFollowUps).toHaveLength(1);
+    expect(snapshot.complianceFollowUps[0]).toContain('DBS/PVG');
   });
 
   it('enforces canonical staff employment status transitions', () => {
