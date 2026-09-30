@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const session = await getStaffSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const client = db();
-  const { data: me } = await client.from('staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
+  const { data: me } = await client.from('laurem_staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
   if (!me || !['pending', 'active'].includes(me.employment_status)) return NextResponse.json({ error: 'Messaging unavailable.' }, { status: 403 });
 
   const mailbox = await ensureLauremMailbox(client, me);
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const { data: participants } = await client.from('staff_message_participants').select('staff_id,last_read_at').eq('conversation_id', conversation.id);
     const otherId = (participants || []).map((p: any) => p.staff_id).find((id: string) => id !== session.staff_id);
     const [{ data: other }, { data: latest }] = await Promise.all([
-      otherId ? client.from('staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
+      otherId ? client.from('laurem_staff_profiles').select('id,full_name,laurem_id,employee_number,job_title').eq('id', otherId).maybeSingle() : Promise.resolve({ data: null }),
       client.from('staff_messages').select('id,body,sender_staff_id,sender_admin_email,created_at').eq('conversation_id', conversation.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     const { data: otherMailbox } = otherId ? await client.from('staff_internal_mailboxes').select('handle,namespace').eq('staff_id', otherId).maybeSingle() : { data: null };
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
   const client = db();
-  const { data: me } = await client.from('staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
+  const { data: me } = await client.from('laurem_staff_profiles').select('id,full_name,job_title,employment_status').eq('id', session.staff_id).maybeSingle();
   if (!me || !['pending', 'active'].includes(me.employment_status)) return NextResponse.json({ error: 'Messaging unavailable.' }, { status: 403 });
 
   const ip = requestIp(req) || 'unknown';
