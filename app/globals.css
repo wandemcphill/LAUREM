@@ -748,3 +748,236 @@ button, input { font: inherit; }
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Staff communication experience */
+.staff-messages-layout {
+  display: grid;
+  grid-template-columns: 330px minmax(0,1fr);
+  min-height: 650px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(24,55,47,.05);
+}
+
+.staff-message-list {
+  min-width: 0;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: #fbfdfc;
+  overflow-y: auto;
+}
+
+.staff-message-list-item {
+  width: 100%;
+  display: block;
+  text-align: left;
+  padding: 12px;
+  margin-bottom: 5px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.staff-message-list-item:hover {
+  background: #f2f7f4;
+}
+
+.staff-message-list-item.is-active {
+  background: #e8f5ef;
+  border-color: #c6e5d9;
+}
+
+.staff-message-list-name {
+  display: block;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-message-list-preview {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-message-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 650px;
+}
+
+.staff-message-pane-header {
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.staff-message-stream {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  background: #fcfefd;
+}
+
+.staff-message-bubble {
+  max-width: min(76%, 620px);
+  padding: 11px 13px;
+  border-radius: 15px;
+  line-height: 1.5;
+}
+
+.staff-message-bubble.is-staff {
+  justify-self: start;
+  background: #eef4f1;
+  color: var(--ink);
+  border-bottom-left-radius: 5px;
+}
+
+.staff-message-bubble.is-admin {
+  justify-self: end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.staff-message-meta {
+  margin-top: 6px;
+  opacity: .72;
+  font-size: 10px;
+}
+
+.staff-message-composer {
+  display: flex;
+  gap: 8px;
+  padding: 13px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.staff-message-composer textarea {
+  min-width: 0;
+  flex: 1;
+  resize: vertical;
+  min-height: 45px;
+  max-height: 180px;
+  padding: 11px 12px;
+  border: 1px solid #cfded7;
+  border-radius: 11px;
+}
+
+.staff-message-composer textarea:focus {
+  outline: 3px solid rgba(141,205,185,.38);
+  border-color: var(--accent);
+}
+
+.staff-notification-list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-notification-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 17px;
+}
+
+.staff-notification-card.is-unread {
+  background: #f8fffc;
+  border-color: #b7ead0;
+}
+
+.staff-notification-layout {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.staff-notification-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.staff-notification-title {
+  margin: 7px 0 6px;
+  font-size: 18px;
+}
+
+.staff-notification-body {
+  margin: 0;
+  color: #486581;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.staff-notification-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 800px) {
+  .staff-messages-layout {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .staff-message-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: 290px;
+  }
+
+  .staff-message-pane {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 600px) {
+  .staff-message-list {
+    padding: 8px;
+  }
+
+  .staff-message-stream {
+    padding: 14px;
+  }
+
+  .staff-message-bubble {
+    max-width: 88%;
+  }
+
+  .staff-message-composer {
+    position: sticky;
+    bottom: 70px;
+  }
+
+  .staff-message-composer button {
+    align-self: stretch;
+  }
+
+  .staff-notification-layout {
+    flex-direction: column;
+  }
+
+  .staff-notification-actions {
+    width: 100%;
+  }
+
+  .staff-notification-actions > * {
+    flex: 1 1 auto;
+  }
+}
