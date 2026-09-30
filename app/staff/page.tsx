@@ -129,7 +129,7 @@ export default function StaffPortalHome() {
   const staffVisaDownload = visaSupport?.cosStatus?.canDownload ? visaSupport.cosStatus.documentId : null;
   const bodyVisaExplanation = visaSupport?.explanation || 'Visa support is available for eligible staff roles.';
 
-  if(loading || !staff) return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}><div style={card}><strong>LAUREM STAFF PORTAL</strong><p style={muted}>Loading your workspace…</p></div></div></main>;
+  if(loading || !staff) return <main className="staff-page" style={shell}><div className="staff-page-inner"><section className="staff-skeleton-card" aria-label="Loading your staff workspace"><div className="staff-skeleton staff-skeleton-eyebrow"/><div className="staff-skeleton staff-skeleton-title"/><div className="staff-skeleton staff-skeleton-line"/><div className="staff-skeleton staff-skeleton-line short"/></section></div></main>;
 
   return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}>
     <header style={{...card,display:'flex',justifyContent:'space-between',gap:18,alignItems:'center',flexWrap:'wrap'}}>
