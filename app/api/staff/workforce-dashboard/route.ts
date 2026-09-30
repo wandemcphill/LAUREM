@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         .eq('staff_id', session.staff_id)
         .order('start_date', { ascending: false })
         .limit(50),
-      client.from('staff_onboarding_packages')
+      client.from('laurem_staff_onboarding_packages')
         .select('id,title,status,updated_at')
         .eq('staff_id', session.staff_id)
         .maybeSingle(),
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .maybeSingle(),
       client.from('laurem_payroll_entries')
-        .select('id,payroll_period_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at,laurem_payroll_periods(period_start,period_end,pay_date,status)')
+        .select('id,payroll_period_id,approved_hours,hourly_rate,gross_amount,status,notes,created_at,updated_at,laurem_laurem_payroll_periods(period_start,period_end,pay_date,status)')
         .eq('staff_id', session.staff_id)
         .order('created_at', { ascending: false })
         .limit(12),
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     let onboarding: { package: Record<string, unknown>; tasks: unknown[] } | null = null;
     if (onboardingPackageResult.data) {
       const { data: tasks, error: taskError } = await client
-        .from('staff_onboarding_tasks')
+        .from('laurem_staff_onboarding_tasks')
         .select('id,title,required,status,acknowledgement_required,acknowledged_at')
         .eq('package_id', onboardingPackageResult.data.id)
         .order('sort_order', { ascending: true });
