@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       visaCaseResult,
       visaInvoiceResult,
     ] = await Promise.all([
-      client.from('staff_profiles')
+      client.from('laurem_staff_profiles')
         .select('id,application_id,laurem_id,employee_number,full_name,email,phone,job_title,employment_status,start_date,location,portal_handle,portal_address,address_line_1,city,postcode,country,profile_photo_path,profile_photo_updated_at,nmc_number,right_to_work_verified,dbs_verified')
         .eq('id', session.staff_id)
         .maybeSingle(),
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
         ]);
         const otherId = (participants || []).map((row: any) => row.staff_id).find((id: string) => id !== session.staff_id) || null;
         const { data: other } = otherId
-          ? await client.from('staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
+          ? await client.from('laurem_staff_profiles').select('id,full_name,job_title').eq('id', otherId).maybeSingle()
           : { data: null };
         const ownParticipant = (participants || []).find((row: any) => row.staff_id === session.staff_id);
         messages.push({
