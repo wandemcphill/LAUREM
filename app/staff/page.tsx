@@ -131,7 +131,7 @@ export default function StaffPortalHome() {
 
   if(loading || !staff) return <main className="staff-page" style={shell}><div className="staff-page-inner"><section className="staff-skeleton-card" aria-label="Loading your staff workspace"><div className="staff-skeleton staff-skeleton-eyebrow"/><div className="staff-skeleton staff-skeleton-title"/><div className="staff-skeleton staff-skeleton-line"/><div className="staff-skeleton staff-skeleton-line short"/></section></div></main>;
 
-  return <main style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}>
+  return <main className="staff-dashboard-page" style={shell}><div style={{maxWidth:1160,margin:'0 auto'}}>
     <header style={{...card,display:'flex',justifyContent:'space-between',gap:18,alignItems:'center',flexWrap:'wrap'}}>
       <div style={{display:'flex',gap:14,alignItems:'center',minWidth:0}}>
         <div style={{width:72,height:72,borderRadius:'50%',overflow:'hidden',background:'#e6fffb',display:'grid',placeItems:'center',flexShrink:0}}>
