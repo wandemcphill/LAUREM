@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
-type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;confirmed_route:string|null;conversation_id:string|null;legal_review_completed:boolean;legal_review_completed_by:string|null;legal_review_completed_at:string|null;submission_ready_at:string|null;target_role:string;target_work_location:string;monitor:any;current_visa_type:string;current_visa_end_date:string;living_in_uk:boolean;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];readiness:any;costSummary:any;legal_notes:string|null;staff_message:string|null};
+type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;confirmed_route:string|null;conversation_id:string|null;legal_review_completed:boolean;legal_review_completed_by:string|null;legal_review_completed_at:string|null;submission_ready_at:string|null;target_role:string;target_work_location:string;monitor:any;milestones:any[];current_visa_type:string;current_visa_end_date:string;living_in_uk:boolean;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];readiness:any;costSummary:any;legal_notes:string|null;staff_message:string|null};
 
 export default function AdminVisaHelpPage(){
   const [rows,setRows]=useState<Row[]>([]);
