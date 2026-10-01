@@ -77,6 +77,7 @@ export function recommendVisaHelp(input: {
     occupation,
     isNurse,
     isCareRole,
+    isNursingAssistant,
     needsThreeMonths,
   } = getVisaHelpRules(input.role);
 
