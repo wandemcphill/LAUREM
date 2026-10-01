@@ -97,6 +97,14 @@ export function evaluateVisaHelpReadiness(input: {
   };
 }
 
-export function nextCaseStatusAfterTaskResponse(taskType: VisaHelpWorkflowTask['task_type']) {
-  return taskType === 'document' ? 'awaiting_documents' : 'legal_review';
+export function deriveVisaHelpCaseStatus(input: {
+  tasks: Array<VisaHelpWorkflowTask & { visibility?: 'staff' | 'internal' }>;
+  legalTeamRequested?: boolean;
+  recommendationDecision?: VisaHelpRecommendation['decision'];
+}) {
+  const staffTasks = input.tasks.filter(task => (task.visibility || 'staff') === 'staff' && task.required && !['verified','cancelled'].includes(task.status));
+  if (staffTasks.length > 0) {
+    return staffTasks.some(task => task.task_type === 'document') ? 'awaiting_documents' : 'awaiting_staff';
+  }
+  return input.legalTeamRequested || input.recommendationDecision !== 'provisional' ? 'legal_review' : 'triaged';
 }
