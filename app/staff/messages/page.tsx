@@ -47,6 +47,10 @@ export default function StaffMessagesPage() {
   }
 
   useEffect(()=>{void load();},[router]);
+  useEffect(()=>{
+    const desired=new URLSearchParams(window.location.search).get('conversation');
+    if(desired)void openConversation(desired);
+  },[]);
 
   async function sendNew(event:FormEvent){
     event.preventDefault();

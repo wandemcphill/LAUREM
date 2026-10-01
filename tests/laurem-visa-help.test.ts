@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
+import { deriveVisaHelpCaseStatus, evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
@@ -126,6 +127,118 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(result.estimatedApplicationFees).toBe(972);
     expect(result.estimatedIhsTotal).toBe(0);
     expect(result.totalEstimatedApplicantCost).toBe(972);
+  });
+
+  it('blocks readiness when required requests remain unverified', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      tasks:[{task_type:'information',title:'Confirm UKVI reference',required:true,status:'submitted'}],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.openRequiredTasks).toBe(1);
+  });
+
+  it('requires a confirmed route as well as legal review for non-routine cases', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Support Worker',
+      livingInUk:false,
+      wantsDependants:true,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:false,
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      legalReviewCompleted:true,
+      tasks:[{task_type:'action',title:'Complete LAUREM legal/support review',required:true,status:'verified'}],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.issues.join(' ')).toContain('confirmed immigration route');
+  });
+
+  it('allows a routine nurse case through readiness when identity and required requests are complete', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      documentChecklist:[
+        {key:'current_immigration_status',required:true},
+        {key:'cos',required:true},
+        {key:'english',required:true},
+        {key:'employment',required:true},
+        {key:'occupation_code',required:true},
+        {key:'maintenance',required:true},
+        {key:'travel_immigration_history',required:true},
+        {key:'professional_registration',required:true},
+      ],
+      documentLinks:[
+        {checklist_key:'current_immigration_status',status:'accepted'},
+        {checklist_key:'english',status:'accepted'},
+        {checklist_key:'maintenance',status:'accepted'},
+        {checklist_key:'travel_immigration_history',status:'accepted'},
+        {checklist_key:'professional_registration',status:'accepted'},
+      ],
+      tasks:[],
+    });
+    expect(result.ready).toBe(true);
+    expect(result.openRequiredTasks).toBe(0);
+  });
+
+  it('blocks readiness when a required evidence item has only been submitted, not accepted', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      documentChecklist:[{key:'english',required:true}],
+      documentLinks:[{checklist_key:'english',status:'submitted'}],
+      tasks:[],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.issues.join(' ')).toContain('required evidence item');
+  });
+
+  it('keeps the case in awaiting-documents while another required document request remains open', () => {
+    expect(deriveVisaHelpCaseStatus({
+      tasks:[
+        {task_type:'document',title:'Passport',required:true,status:'submitted',visibility:'staff'},
+        {task_type:'information',title:'Question',required:true,status:'verified',visibility:'staff'},
+      ],
+      legalTeamRequested:true,
+      recommendationDecision:'provisional',
+    })).toBe('awaiting_documents');
   });
 
 });

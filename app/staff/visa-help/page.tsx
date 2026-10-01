@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
 type Dependant={relationship:string;fullName:string;dateOfBirth:string;nationality:string;currentLocation:string;currentVisaType:string;currentVisaEndDate:string;bornInUk:string;otherParentSponsored:string};
-type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];addresses:string[]};
+type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];addresses:string[];conversationId:string|null};
 const blankDependant=():Dependant=>({relationship:'',fullName:'',dateOfBirth:'',nationality:'',currentLocation:'',currentVisaType:'',currentVisaEndDate:'',bornInUk:'',otherParentSponsored:''});
 
 export default function StaffVisaHelpPage(){
@@ -51,8 +51,12 @@ export default function StaffVisaHelpPage(){
  const [consent,setConsent]=useState(false);
  const [staffMessage,setStaffMessage]=useState('');
  const [uploadTitle,setUploadTitle]=useState('');
+ const [uploadChecklistKey,setUploadChecklistKey]=useState('');
  const [uploadFile,setUploadFile]=useState<File|null>(null);
  const [uploading,setUploading]=useState(false);
+ const [taskResponses,setTaskResponses]=useState<Record<string,string>>({});
+ const [taskDocumentIds,setTaskDocumentIds]=useState<Record<string,string>>({});
+ const [taskSaving,setTaskSaving]=useState<string>('');
 
  async function load(){
   setLoading(true);setError('');
@@ -166,14 +170,31 @@ export default function StaffVisaHelpPage(){
   try{
    const form=new FormData();
    form.append('title',uploadTitle);
+   if(uploadChecklistKey)form.append('checklistKey',uploadChecklistKey);
    form.append('file',uploadFile);
    const r=await fetch('/api/staff/visa-help/documents',{method:'POST',body:form});
    const b=await r.json().catch(()=>({}));
    if(!r.ok)throw new Error(b.error||'Unable to upload document.');
-   setUploadTitle('');setUploadFile(null);
+   setUploadTitle('');setUploadChecklistKey('');setUploadFile(null);
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Unable to upload document.');}
   finally{setUploading(false);}
+ }
+
+ async function respondToTask(taskId:string){
+  const responseText=(taskResponses[taskId]||'').trim();
+  const responseDocumentId=taskDocumentIds[taskId]||null;
+  if(!responseText&&!responseDocumentId){setError('Add a written response or select an uploaded document before submitting the request.');return;}
+  setTaskSaving(taskId);setError('');
+  try{
+   const r=await fetch('/api/staff/visa-help/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({taskId,responseText,responseDocumentId})});
+   const b=await r.json().catch(()=>({}));
+   if(!r.ok)throw new Error(b.error||'Unable to submit the Visa Help request.');
+   setTaskResponses(current=>({...current,[taskId]:''}));
+   setTaskDocumentIds(current=>({...current,[taskId]:''}));
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:'Unable to submit the Visa Help request.');}
+  finally{setTaskSaving('');}
  }
 
  function updateDependant(index:number,key:keyof Dependant,value:string){
@@ -186,6 +207,27 @@ export default function StaffVisaHelpPage(){
  return <StaffPage className="staff-page--visa-help"><StaffPageInner>
   <StaffPageHeader eyebrow="IMMIGRATION SUPPORT" title="Visa Help Centre" subtitle="Answer a guided set of questions, receive a preliminary route assessment, then choose self-completion or LAUREM legal/support assistance." actions={<><StaffAction onClick={()=>void load()}>Refresh</StaffAction><StaffAction href="/staff/visa-sponsorship">Visa & Sponsorship</StaffAction></>}/>
   {error&&<StaffNotice tone="danger"><strong>Visa Help needs attention</strong><p>{error}</p></StaffNotice>}
+  <StaffPanel>
+    <StaffSectionHeader title="Case workspace" copy="This area stays active after submission. LAUREM can request information or evidence here, and every request/response is recorded against your case."/>
+    <div className="staff-home-lane-grid">
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Case status</StaffBadge><strong>{data.case?.status?data.case.status.replaceAll('_',' '):'Draft'}</strong><span>Last updated {data.case?.updated_at?new Date(data.case.updated_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet submitted'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.tasks?.some((x:any)=>x.required&&['open','rejected'].includes(x.status))?'attention':'neutral'}>Requests</StaffBadge><strong>{data.tasks?.filter((x:any)=>x.status!=='cancelled'&&x.status!=='verified').length||0} outstanding</strong><span>{data.tasks?.filter((x:any)=>x.status==='verified').length||0} verified request{(data.tasks?.filter((x:any)=>x.status==='verified').length||0)===1?'':'s'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.case?.legal_review_completed?'live':'neutral'}>Legal review</StaffBadge><strong>{data.case?.legal_review_completed?'Completed':'Not completed'}</strong><span>{data.case?.confirmed_route||data.recommendation?.title||'Route assessment pending'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Conversation</StaffBadge><strong>{data.conversationId?'Open with LAUREM':'Available after support review'}</strong><span>{data.conversationId?'Use the private case thread for questions and follow-up.':'A private case thread will be created when support review is opened.'}</span></article>
+    </div>
+    {data.conversationId&&<div className="staff-home-panel-actions"><StaffAction primary href={'/staff/messages?conversation='+encodeURIComponent(data.conversationId)}>Open case conversation</StaffAction></div>}
+    {data.tasks?.length>0&&<div className="staff-document-list">
+      {data.tasks.filter((task:any)=>task.status!=='cancelled').map((task:any)=><article key={task.id} className={'staff-document-card'+(task.required&&task.status!=='verified'?' staff-document-card--attention':'')}>
+        <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">!</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{task.task_type}</span><StaffBadge tone={task.status==='verified'?'live':task.status==='rejected'?'danger':task.status==='submitted'?'attention':'neutral'}>{task.status}</StaffBadge></div><h3>{task.title}</h3><p>{task.description||'LAUREM has requested an action on your Visa Help case.'}</p><div className="staff-document-meta">{task.required?'Required request':'Optional request'}{task.due_at?' · Due '+new Date(task.due_at).toLocaleString('en-GB',{dateStyle:'medium'}):''}</div></div></div>
+        {['open','rejected'].includes(task.status)&&<div className="staff-modern-form" style={{width:'100%',marginTop:12}}>
+          <TextArea label="Your response" value={taskResponses[task.id]||''} onChange={value=>setTaskResponses(current=>({...current,[task.id]:value}))} placeholder="Respond to LAUREM's request."/>
+          <SelectField label="Attach an uploaded Visa Help document" value={taskDocumentIds[task.id]||''} onChange={value=>setTaskDocumentIds(current=>({...current,[task.id]:value}))} options={data.documents.map((doc:any)=>[doc.id,doc.title])}/>
+          <div className="staff-home-panel-actions"><StaffAction primary onClick={()=>void respondToTask(task.id)} disabled={taskSaving===task.id}>{taskSaving===task.id?'Submitting…':'Submit response'}</StaffAction></div>
+        </div>}
+      </article>)}
+    </div>}
+    {data.events?.length>0&&<div className="staff-panel-nested"><StaffSectionHeader title="Case timeline" copy="A chronological audit trail of the Visa Help workflow."/><div className="staff-document-list">{data.events.slice(0,12).map((event:any)=><article key={event.id} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-copy"><span className="staff-document-category">{event.actor_type} · {event.event_type.replaceAll('_',' ')}</span><h3>{new Date(event.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}</h3><p>{event.metadata?.title||event.metadata?.to||event.metadata?.reason||'Workflow activity recorded.'}</p></div></div></article>)}</div></div>}
+  </StaffPanel>
   <div className="staff-stat-grid">
    {[['1','Your situation'],['2','Dependants'],['3','Documents'],['4','Choose help']].map(item=><div key={item[0]} className="staff-stat"><div className="staff-stat-value">{item[0]}</div><div className="staff-stat-label">{item[1]}</div></div>)}
   </div>
@@ -242,8 +284,8 @@ export default function StaffVisaHelpPage(){
       <TextField label="English-language evidence" value={englishEvidence} onChange={setEnglishEvidence} placeholder="For example: degree taught in English, approved test, previous successful visa evidence."/>
       <TextField label="Maintenance evidence" value={maintenanceEvidence} onChange={setMaintenanceEvidence} placeholder="For example: personal funds evidence or sponsor maintenance confirmation."/>
       <StaffSectionHeader title="Document checklist" copy="Required items change with the selected route and your circumstances. Upload what you already have; LAUREM can identify missing items during review."/>
-      <div className="staff-home-lane-grid">{checklist.map((item:any)=><article key={item.key} className="staff-home-lane"><StaffBadge tone={item.required?'attention':'neutral'}>{item.required?'Required':'Conditional'}</StaffBadge><strong>{item.label}</strong><span>{data.documents.some((doc:any)=>doc.title.toLowerCase()===item.label.toLowerCase())?'Uploaded to portal':'Not yet matched to an upload'}</span></article>)}</div>
-      <div className="staff-panel-nested"><StaffSectionHeader title="Upload a supporting document" copy="Use this for passport, visa evidence, relationship documents, English evidence, bank statements or other materials requested for your case."/><div className="staff-form-grid"><TextField label="Document title" value={uploadTitle} onChange={setUploadTitle} placeholder="e.g. Current eVisa evidence"/><label className="staff-form-field"><span className="staff-form-label">File</span><input className="staff-form-input" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg" onChange={e=>setUploadFile(e.target.files?.[0]||null)}/></label></div><StaffAction onClick={()=>void upload()} disabled={uploading}>{uploading?'Uploading…':'Upload document securely'}</StaffAction></div>
+      <div className="staff-home-lane-grid">{checklist.map((item:any)=>{const link=data.documentLinks.find((candidate:any)=>candidate.checklist_key===item.key);return <article key={item.key} className="staff-home-lane"><StaffBadge tone={link?.status==='accepted'?'live':link?.status==='rejected'?'danger':item.required?'attention':'neutral'}>{link?.status|| (item.required?'Required':'Conditional')}</StaffBadge><strong>{item.label}</strong><span>{link?.status==='accepted'?'Accepted by LAUREM':link?.status==='submitted'?'Submitted · awaiting review':link?.status==='rejected'?'Rejected · upload a replacement':'No case-linked upload yet'}</span></article>})}</div>
+      <div className="staff-panel-nested"><StaffSectionHeader title="Upload a supporting document" copy="Classify the evidence when possible. This lets LAUREM review it against a specific checklist item rather than guessing from the filename."/><div className="staff-form-grid"><TextField label="Document title" value={uploadTitle} onChange={setUploadTitle} placeholder="e.g. Current eVisa evidence"/><SelectField label="What does this document support?" value={uploadChecklistKey} onChange={setUploadChecklistKey} options={[['','General case evidence'],...checklist.map((item:any)=>[item.key,item.label])]}/><label className="staff-form-field"><span className="staff-form-label">File</span><input className="staff-form-input" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg" onChange={e=>setUploadFile(e.target.files?.[0]||null)}/></label></div><StaffAction onClick={()=>void upload()} disabled={uploading}>{uploading?'Uploading…':'Upload document securely'}</StaffAction></div>
       {data.documents.length>0&&<div className="staff-document-list">{data.documents.map((doc:any)=><article key={doc.id} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">V</div><div className="staff-document-copy"><h3>{doc.title}</h3><p>{doc.description||'Private Visa Help document'}</p><div className="staff-document-meta">{doc.original_filename||'Portal document'} · {new Date(doc.issued_at).toLocaleDateString('en-GB',{dateStyle:'medium'})}</div></div></div><div className="staff-document-actions"><StaffAction href={'/staff/documents/'+encodeURIComponent(doc.id)}>Open</StaffAction></div></article>)}</div>}
       <div className="staff-home-panel-actions"><StaffAction onClick={()=>void save('save')}>Save progress</StaffAction><StaffAction onClick={()=>setStep(2)}>Back</StaffAction><StaffAction primary onClick={()=>setStep(4)}>Continue</StaffAction></div>
     </div>
@@ -252,15 +294,15 @@ export default function StaffVisaHelpPage(){
   {step===4&&<StaffPanel>
     <StaffSectionHeader title="Visa cost, IHS and decision timeline" copy="The figures below are an estimate based on the currently selected route, intended visa duration and number of applicants. Check the official GOV.UK links before payment; fee guidance is reviewed again after 8 October 2026."/>
     <div className="staff-form-grid">
-      <SelectField label="Expected visa duration" value={durationYears} onChange={setDurationYears} options={[['1','1 year'],['2','2 years'],['3','3 years'],['4','4 years'],['5','5 years']]}/>
+      <SelectField label="Expected visa duration" value={durationMonths} onChange={setDurationMonths} options={[['6','6 months'],['12','1 year'],['18','18 months'],['24','2 years'],['30','30 months'],['36','3 years'],['42','42 months'],['48','4 years'],['54','54 months'],['60','5 years']]}/>
     </div>
     {data.costSummary&&<div className="staff-home-lane-grid">
       <article className="staff-home-lane"><StaffBadge tone="neutral">Visa application fee</StaffBadge><strong>{data.costSummary.applicationFeePerPerson==null?'Route review required':'£'+Number(data.costSummary.applicationFeePerPerson).toLocaleString('en-GB')+' per person'}</strong><span>{data.costSummary.estimatedApplicationFees==null?'Final fee depends on the confirmed route and duration.':'Estimated application fees for '+(1+dependants.length)+' applicant'+(dependants.length===0?'':'s')+': £'+Number(data.costSummary.estimatedApplicationFees).toLocaleString('en-GB')}</span></article>
-      <article className="staff-home-lane"><StaffBadge tone={data.costSummary.ihsExempt?'live':'attention'}>Immigration Health Surcharge</StaffBadge><strong>{data.costSummary.ihsExempt?'£0':'£'+Number(data.costSummary.ihsPerPersonPerYear).toLocaleString('en-GB')+' per year'}</strong><span>{data.costSummary.ihsExempt?'Health and Care Worker applicants and eligible dependants are exempt from IHS.':'IHS is normally charged separately and depends on the length of permission granted.'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.costSummary.ihsExempt?'live':'attention'}>Immigration Health Surcharge</StaffBadge><strong>{data.costSummary.estimatedIhsTotal==null?'Pending route/duration':data.costSummary.ihsExempt?'£0':'£'+Number(data.costSummary.estimatedIhsTotal).toLocaleString('en-GB')}</strong><span>{data.costSummary.ihsExempt?'Health and Care Worker applicants and eligible dependants are exempt from IHS.':'£'+Number(data.costSummary.ihsPerPersonPerYear).toLocaleString('en-GB')+' per year · estimated chargeable period '+(data.costSummary.estimatedIhsChargeableMonths==null?'pending':data.costSummary.estimatedIhsChargeableMonths+' months')+'.'}</span></article>
       <article className="staff-home-lane"><StaffBadge tone="live">UKVI decision standard</StaffBadge><strong>{data.costSummary.processingTime}</strong><span>Inside UK: {data.costSummary.processingTimeInsideUk} · Outside UK: {data.costSummary.processingTimeOutsideUk}</span></article>
       <article className="staff-home-lane"><StaffBadge tone="neutral">Estimated applicant cost</StaffBadge><strong>{data.costSummary.totalEstimatedApplicantCost==null?'Pending route/duration':'£'+Number(data.costSummary.totalEstimatedApplicantCost).toLocaleString('en-GB')}</strong><span>Excludes optional priority services and separate costs such as TB testing, translations or professional fees where applicable.</span></article>
     </div>}
-    <StaffNotice tone="warning"><strong>Timeline is not a promise</strong><p>UKVI's published standard begins after the application has been submitted, identity has been proved and the required documents have been provided. Complex cases or verification checks can take longer, and LAUREM should not book travel on the assumption of a particular decision date.</p></StaffNotice>
+    <StaffNotice tone="warning"><strong>Timeline is not a promise</strong><p>UKVI's published standard begins after the application has been submitted, identity has been proved and the required documents have been provided. Complex cases or verification checks can take longer, and LAUREM should not book travel on the assumption of a particular decision date.</p>{data.costSummary?.feeReviewDueLabel&&<p>{data.costSummary.feeReviewDueLabel}</p>}</StaffNotice>
     {data.costSummary?.sourceUrls?.length>0&&<div className="staff-home-panel-actions">{data.costSummary.sourceUrls.slice(0,4).map((url:string)=><StaffAction key={url} href={url}>Open official guidance</StaffAction>)}</div>}
 
     <StaffSectionHeader title="4. Your preliminary route and how you want help" copy="The route engine uses current published UK guidance plus LAUREM's recorded sponsored occupation. A legal/support review remains available whenever the facts are not straightforward."/>
