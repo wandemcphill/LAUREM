@@ -132,14 +132,33 @@ export async function PATCH(request: NextRequest) {
       metadata:{taskId,from:task.status,to:status,action,reviewerNote:reviewerNote||null},
     });
 
-    const bodyText=action==='verify'
-      ? 'LAUREM verified your request: '+task.title+'.'
-      : action==='reject'
-        ? 'LAUREM needs more work on your request: '+task.title+(reviewerNote?' · '+reviewerNote:'')
-        : action==='reopen'
-          ? 'LAUREM reopened your request: '+task.title+'.'
-          : 'LAUREM cancelled your request: '+task.title+'.';
-    await createLauremStaffNotification(client,{staffId:task.staff_id,category:'compliance',title:'Visa Help request updated',body:bodyText,actionUrl:'/staff/visa-help'});
+    if(task.visibility==='internal' && task.title==='Complete LAUREM legal/support review' && action==='verify'){
+      await client.from('laurem_staff_visa_help_cases').update({
+        legal_review_completed:true,
+        legal_review_completed_by:session.email,
+        legal_review_completed_at:now,
+        updated_at:now,
+      }).eq('id',task.visa_help_case_id);
+      await client.from('laurem_staff_visa_help_events').insert({
+        visa_help_case_id:task.visa_help_case_id,
+        staff_id:task.staff_id,
+        event_type:'legal_review_completed',
+        actor_type:'legal',
+        actor:session.email,
+        metadata:{taskId:task.id,reviewerNote:reviewerNote||null},
+      });
+    }
+
+    if(task.visibility==='staff'){
+      const bodyText=action==='verify'
+        ? 'LAUREM verified your request: '+task.title+'.'
+        : action==='reject'
+          ? 'LAUREM needs more work on your request: '+task.title+(reviewerNote?' · '+reviewerNote:'')
+          : action==='reopen'
+            ? 'LAUREM reopened your request: '+task.title+'.'
+            : 'LAUREM cancelled your request: '+task.title+'.';
+      await createLauremStaffNotification(client,{staffId:task.staff_id,category:'compliance',title:'Visa Help request updated',body:bodyText,actionUrl:'/staff/visa-help'});
+    }
 
     return NextResponse.json({task:updated},{status:200});
   } catch(error) {
