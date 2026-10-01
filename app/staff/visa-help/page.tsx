@@ -1,3 +1,4 @@
+import VisaHelpApplicationTrackingPanel from '@/components/VisaHelpApplicationTrackingPanel';
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -341,6 +342,7 @@ export default function StaffVisaHelpPage(){
     </div>
   </StaffPanel>}
 
+ {data?.case?.id&&<VisaHelpApplicationTrackingPanel mode="staff" caseId={data.case.id}/>} 
  </StaffPageInner></StaffPage>;
 }
 
