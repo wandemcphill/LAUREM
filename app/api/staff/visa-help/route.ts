@@ -49,6 +49,7 @@ async function loadStaffCase(session:any){
   return {
     staff,
     application:app,
+    livingInUk,
     case:visaCase,
     recommendation:rec,
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
@@ -72,6 +73,17 @@ export async function GET(request:NextRequest){
   try{
     const data=await loadStaffCase(session);
     if(!data)return NextResponse.json({error:'Staff profile not found.'},{status:404});
+    const url=new URL(request.url);
+    const queryDurationMonths=Number(url.searchParams.get('durationMonths')||0);
+    const queryDependantCount=Number(url.searchParams.get('dependantCount')||-1);
+    if(queryDurationMonths>0 || queryDependantCount>=0){
+      data.costSummary=getVisaCostSummary({
+        route:data.recommendation.route,
+        outsideUk:!data.livingInUk,
+        durationMonths:queryDurationMonths>0?queryDurationMonths:data.costSummary?.durationMonths||null,
+        dependantCount:queryDependantCount>=0?queryDependantCount:(Array.isArray(data.case?.dependants)?data.case.dependants.length:0),
+      });
+    }
     return NextResponse.json(data);
   }catch(error){
     console.error(JSON.stringify({level:'error',event:'staff.visa_help.load_failed',staffId:session.staff_id,reason:error instanceof Error?error.message:String(error)}));
@@ -114,7 +126,7 @@ export async function POST(request:NextRequest){
     if(livingInUk && !currentVisaType) return NextResponse.json({error:'Select your current UK visa type so the route check can run.'},{status:422});
     if(currentVisaStartDate && currentVisaEndDate && currentVisaEndDate<currentVisaStartDate) return NextResponse.json({error:'Current visa end date cannot be before the start date.'},{status:422});
     if(monthsWorkingForLaurem<0 || monthsWorkingForLaurem>240) return NextResponse.json({error:'Months working for LAUREM must be between 0 and 240.'},{status:422});
-    if(durationMonths<0 || durationMonths>120) return NextResponse.json({error:'Visa duration must be between 1 and 120 months when entered.'},{status:422});
+    if(durationMonths<0 || durationMonths>120) return NextResponse.json({error:'Visa duration must be between 0 and 120 months.'},{status:422});
 
     const recommendation:VisaHelpRecommendation=recommendVisaHelp({
       role,livingInUk,currentVisaType,currentVisaStartDate,currentVisaEndDate,
