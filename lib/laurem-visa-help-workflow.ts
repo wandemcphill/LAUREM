@@ -7,6 +7,17 @@ export type VisaHelpWorkflowTask = {
   status: 'open' | 'submitted' | 'verified' | 'rejected' | 'cancelled';
 };
 
+export type VisaHelpWorkflowDocumentLink = {
+  checklist_key?: string | null;
+  status: 'submitted' | 'accepted' | 'rejected';
+};
+
+const SYSTEM_SATISFIED_CHECKLIST_KEYS = new Set([
+  'cos',
+  'employment',
+  'occupation_code',
+]);
+
 export type VisaHelpReadiness = {
   ready: boolean;
   issues: string[];
@@ -24,6 +35,8 @@ export function evaluateVisaHelpReadiness(input: {
   passportExpiryDate?: string | null;
   dependants?: Array<{ relationship?: string; fullName?: string; dateOfBirth?: string; nationality?: string; currentLocation?: string }>;
   tasks?: VisaHelpWorkflowTask[];
+  documentChecklist?: Array<{ key: string; required: boolean }>;
+  documentLinks?: VisaHelpWorkflowDocumentLink[];
   legalReviewCompleted?: boolean;
 }) : VisaHelpReadiness {
   const issues: string[] = [];
@@ -61,6 +74,19 @@ export function evaluateVisaHelpReadiness(input: {
   const verifiedRequiredTasks = requiredTasks.filter(task => task.status === 'verified').length;
   if (openRequiredTasks > 0) {
     issues.push(openRequiredTasks + ' required case request' + (openRequiredTasks === 1 ? ' is' : 's are') + ' not yet verified.');
+  }
+
+  const requiredEvidence = (input.documentChecklist || [])
+    .filter(item => item.required && !SYSTEM_SATISFIED_CHECKLIST_KEYS.has(item.key))
+    .map(item => item.key);
+  const acceptedEvidence = new Set(
+    (input.documentLinks || [])
+      .filter(link => link.status === 'accepted' && link.checklist_key)
+      .map(link => link.checklist_key as string),
+  );
+  const missingEvidence = requiredEvidence.filter(key => !acceptedEvidence.has(key));
+  if (missingEvidence.length > 0) {
+    issues.push(missingEvidence.length + ' required evidence item' + (missingEvidence.length === 1 ? ' is' : 's are') + ' not yet accepted by LAUREM.');
   }
 
   return {
