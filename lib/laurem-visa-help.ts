@@ -33,7 +33,6 @@ const BLOCKED_SWITCH_TYPES = new Set([
   'Short-term study visa',
   'Seasonal Worker visa',
   'Domestic worker in a private household visa',
-  'Standard Visitor visa',
   'Parent of a Child Student visa',
   'Immigration bail',
   'No current UK immigration permission',
@@ -100,7 +99,27 @@ export function recommendVisaHelp(input: {
   const expired = Boolean(input.currentVisaEndDate && input.currentVisaEndDate < new Date().toISOString().slice(0, 10));
 
   if (!input.livingInUk) {
-    const route = isNurse || isCareRole || isNursingAssistant
+    if (isCareRole) {
+      return {
+        route: 'legal_review_required',
+        title: 'Overseas care-worker route is not open to new applications',
+        decision: 'requires_legal_review',
+        reason: 'Current UK guidance closed the Health and Care Worker route to new overseas applications for care workers and senior care workers from 22 July 2025. This case must not be routed into a new overseas care-worker application without a separate legal basis.',
+        dependantPosition: 'restricted',
+        conditions: [
+          'Confirm whether the applicant has an exceptional or transitional basis that changes the route position.',
+          'Do not issue a routine overseas care-worker visa instruction from this screen.',
+          'Escalate the case to LAUREM legal/support review before sponsor-side immigration steps.'
+        ],
+        blockedReasons: ['SOC 6135/6136 care-worker route is closed to new overseas applications under current guidance.'],
+        sourceUrls: [
+          'https://www.gov.uk/government/publications/applying-for-health-and-social-care-jobs-in-the-uk-from-abroad/part-1-applying-for-health-and-social-care-jobs-in-the-uk-from-abroad',
+          'https://www.gov.uk/health-care-worker-visa/your-job',
+        ],
+      };
+    }
+
+    const route = isNurse || isNursingAssistant
       ? 'health_and_care_worker'
       : 'outside_uk_skilled_worker';
     return {
@@ -108,10 +127,10 @@ export function recommendVisaHelp(input: {
       title: route === 'health_and_care_worker' ? 'Health and Care Worker visa' : 'Skilled Worker visa from outside the UK',
       decision: 'provisional',
       reason: 'The staff record indicates the applicant is outside the UK. LAUREM can complete sponsor-side preparation, while the applicant completes the relevant visa application from outside the UK.',
-      dependantPosition: isCareRole ? 'restricted' : 'generally_permitted',
+      dependantPosition: 'generally_permitted',
       conditions: [
         'A valid Certificate of Sponsorship is required.',
-        occupation?.code ? 'The occupation code used by LAUREM must match the actual sponsored duties.' : 'The sponsored occupation code must be confirmed before submission.',
+        'The occupation code used by LAUREM must match the actual sponsored duties.',
         'Identity, English-language and other documentary requirements depend on the route and applicant circumstances.',
       ],
       blockedReasons: [],
