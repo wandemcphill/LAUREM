@@ -28,6 +28,32 @@ export async function PATCH(request: NextRequest) {
     }).eq('id',linkId).select('*').single();
     if(updateError)throw updateError;
 
+    if(status==='accepted' || status==='rejected'){
+      const {data:linkedTasks,error:linkedTaskError}=await client.from('laurem_staff_visa_help_tasks')
+        .select('id,status,title').eq('visa_help_case_id',link.visa_help_case_id).eq('response_document_id',link.document_id).eq('visibility','staff');
+      if(linkedTaskError)throw linkedTaskError;
+      for(const task of linkedTasks||[]){
+        if(task.status==='submitted'){
+          const taskStatus=status==='accepted'?'verified':'rejected';
+          await client.from('laurem_staff_visa_help_tasks').update({
+            status:taskStatus,
+            reviewer_note:reviewerNote,
+            reviewed_by:session.email,
+            reviewed_at:now,
+            updated_at:now,
+          }).eq('id',task.id);
+          await client.from('laurem_staff_visa_help_events').insert({
+            visa_help_case_id:link.visa_help_case_id,
+            staff_id:link.staff_id,
+            event_type:'visa_help_request_reviewed',
+            actor_type:'admin',
+            actor:session.email,
+            metadata:{taskId:task.id,from:'submitted',to:taskStatus,documentId:link.document_id,via:'document_review'},
+          });
+        }
+      }
+    }
+
     await client.from('laurem_staff_visa_help_events').insert({
       visa_help_case_id:link.visa_help_case_id,
       staff_id:link.staff_id,
