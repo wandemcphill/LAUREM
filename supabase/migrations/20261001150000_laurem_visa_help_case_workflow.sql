@@ -6,6 +6,7 @@ create table if not exists public.laurem_staff_visa_help_tasks (
   visa_help_case_id uuid not null references public.laurem_staff_visa_help_cases(id) on delete cascade,
   staff_id uuid not null references public.laurem_staff_profiles(id) on delete cascade,
   task_type text not null check (task_type in ('information','document','action')),
+  visibility text not null default 'staff' check (visibility in ('staff','internal')),
   title text not null check (char_length(btrim(title)) between 1 and 200),
   description text not null default '' check (char_length(description) <= 4000),
   required boolean not null default true,
@@ -27,6 +28,8 @@ create index if not exists laurem_staff_visa_help_tasks_case_idx
   on public.laurem_staff_visa_help_tasks(visa_help_case_id, status, required, created_at desc);
 create index if not exists laurem_staff_visa_help_tasks_staff_idx
   on public.laurem_staff_visa_help_tasks(staff_id, status, created_at desc);
+create index if not exists laurem_staff_visa_help_tasks_visibility_idx
+  on public.laurem_staff_visa_help_tasks(visa_help_case_id, visibility, status, created_at desc);
 
 create table if not exists public.laurem_staff_visa_help_documents (
   id uuid primary key default gen_random_uuid(),
@@ -52,6 +55,9 @@ alter table public.laurem_staff_visa_help_cases
 create unique index if not exists laurem_staff_visa_help_cases_conversation_idx
   on public.laurem_staff_visa_help_cases(conversation_id)
   where conversation_id is not null;
+
+alter table public.laurem_staff_visa_help_tasks
+  add column if not exists visibility text not null default 'staff';
 
 alter table public.laurem_staff_visa_help_cases
   add column if not exists confirmed_route text,
