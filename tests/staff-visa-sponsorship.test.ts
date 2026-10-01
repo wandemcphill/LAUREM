@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { LAUREM_COUNTRY_OPTIONS } from '@/lib/laurem-country-options';
+import { LAUREM_CURRENT_UK_VISA_TYPES } from '@/lib/laurem-visa-options';
 
 describe('LAUREM staff visa sponsorship workflow', () => {
   it('defines dedicated UK visa cases with role-specific invoice handling', () => {
@@ -57,7 +59,11 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     const route = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
     const countries = readFileSync('lib/laurem-country-options.ts', 'utf8');
     const visas = readFileSync('lib/laurem-visa-options.ts', 'utf8');
-    expect(countries.match(/code: '[A-Z]{2}'/g)?.length).toBe(249);
+    expect(LAUREM_COUNTRY_OPTIONS).toHaveLength(249);
+    expect(LAUREM_COUNTRY_OPTIONS.some(option => option.code === 'NG')).toBe(true);
+    expect(LAUREM_COUNTRY_OPTIONS.some(option => option.code === 'GB')).toBe(true);
+    expect(LAUREM_CURRENT_UK_VISA_TYPES.some(option => option.value === 'Student visa')).toBe(true);
+    expect(LAUREM_CURRENT_UK_VISA_TYPES.some(option => option.value === 'Graduate visa')).toBe(true);
     expect(page).toContain('LAUREM_COUNTRY_OPTIONS.map');
     expect(page).toContain('LAUREM_CURRENT_UK_VISA_TYPES.map');
     expect(page).toContain('Is the application address above still your current address?');
@@ -71,8 +77,8 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(route).toContain('right_to_work_status');
     expect(route).toContain('right_to_work_proof_provided');
     expect(route).toContain('uk_status_share_code');
-    expect(countries).toContain(' NG ');
-    expect(countries).toContain(' GB ');
+    expect(countries).toContain('NG');
+    expect(countries).toContain('GB');
     expect(visas).toContain("'Student visa'");
     expect(visas).toContain("'Graduate visa'");
     expect(visas).toContain("'Skilled Worker visa'");
