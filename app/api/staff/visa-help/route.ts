@@ -54,6 +54,12 @@ async function loadStaffCase(session:any){
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
     documents:documents||[],
     addresses:app.address?[String(app.address)]:[],
+    costSummary:getVisaCostSummary({
+      route:rec.route,
+      outsideUk:!livingInUk,
+      durationYears:Number(current.durationYears||0)||null,
+      dependantCount:Array.isArray(visaCase?.dependants)?visaCase.dependants.length:Number(current.dependantCount||0),
+    }),
   };
 }
 
@@ -96,6 +102,7 @@ export async function POST(request:NextRequest){
     const rightToWorkStatus=body.rightToWorkStatus==null?'':String(body.rightToWorkStatus);
     const rightToWorkProofProvided=body.rightToWorkProofProvided==null?'':String(body.rightToWorkProofProvided);
     const monthsWorkingForLaurem=Number(body.monthsWorkingForLaurem||0);
+    const durationYears=Number(body.durationYears||0);
     const wantsDependants=bool(body.wantsDependants);
     const dependantsInsideUk=bool(body.dependantsInsideUk);
 
@@ -115,6 +122,12 @@ export async function POST(request:NextRequest){
     });
 
     const hasDependants=wantsDependants || (Array.isArray(body.dependants)&&body.dependants.length>0);
+    const costSummary=getVisaCostSummary({
+      route:recommendation.route,
+      outsideUk:!livingInUk,
+      durationYears:durationYears||null,
+      dependantCount:Array.isArray(body.dependants)?body.dependants.length:0,
+    });
     const checklist=buildVisaHelpDocumentChecklist({
       role,
       route:recommendation.route,
@@ -149,6 +162,7 @@ export async function POST(request:NextRequest){
       wantsDependants,
       dependantsInsideUk,
       dependants:Array.isArray(body.dependants)?body.dependants.slice(0,10):[],
+      durationYears,
       currentAddress:text(body.currentAddress,800),
       previousImmigrationRefusals:body.previousImmigrationRefusals,
       previousOverstayOrBreach:body.previousOverstayOrBreach,
@@ -259,7 +273,7 @@ export async function POST(request:NextRequest){
       });
     }
 
-    return NextResponse.json({case:caseRow,recommendation,documentChecklist:checklist},{status:existing?.id?200:201});
+    return NextResponse.json({case:caseRow,recommendation,documentChecklist:checklist,costSummary},{status:existing?.id?200:201});
   }catch(error){
     console.error(JSON.stringify({level:'error',event:'staff.visa_help.save_failed',staffId:session.staff_id,reason:error instanceof Error?error.message:String(error)}));
     return NextResponse.json({error:'Unable to save your Visa Help case.'},{status:500});
