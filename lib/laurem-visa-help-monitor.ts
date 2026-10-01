@@ -35,6 +35,7 @@ export function monitorVisaHelpCase(input: {
     required: boolean;
     status: 'open' | 'submitted' | 'verified' | 'rejected' | 'cancelled';
     dueAt?: string | null;
+    due_at?: string | null;
     visibility?: 'staff' | 'internal';
   }>;
   legalTeamRequested?: boolean;
@@ -45,11 +46,11 @@ export function monitorVisaHelpCase(input: {
   const tasks = (input.tasks || []).filter(task => (task.visibility || 'staff') === 'staff' && task.required && task.status !== 'cancelled');
   const openRequiredTasks = tasks.filter(task => task.status !== 'verified').length;
   const overdueRequiredTasks = tasks.filter(task => {
-    const due = daysUntilTimestamp(task.dueAt, now);
+    const due = daysUntilTimestamp(task.dueAt || task.due_at, now);
     return task.status !== 'verified' && due !== null && due < 0;
   }).length;
   const dueDays = tasks
-    .map(task => task.status === 'verified' ? null : daysUntilTimestamp(task.dueAt, now))
+    .map(task => task.status === 'verified' ? null : daysUntilTimestamp(task.dueAt || task.due_at, now))
     .filter((value): value is number => value !== null)
     .sort((a, b) => a - b)[0] ?? null;
   const daysToVisaExpiry = daysUntilDate(input.currentVisaEndDate, now);
