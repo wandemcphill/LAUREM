@@ -18,6 +18,15 @@ export default function StaffVisaHelpPage(){
  const [currentVisaType,setCurrentVisaType]=useState('');
  const [currentVisaStartDate,setCurrentVisaStartDate]=useState('');
  const [currentVisaEndDate,setCurrentVisaEndDate]=useState('');
+ const [passportNumber,setPassportNumber]=useState('');
+ const [passportIssueDate,setPassportIssueDate]=useState('');
+ const [passportExpiryDate,setPassportExpiryDate]=useState('');
+ const [passportCountry,setPassportCountry]=useState('');
+ const [ukStatusShareCode,setUkStatusShareCode]=useState('');
+ const [ukviReference,setUkviReference]=useState('');
+ const [ukviAccountEmail,setUkviAccountEmail]=useState('');
+ const [rightToWorkStatus,setRightToWorkStatus]=useState('');
+ const [rightToWorkProofProvided,setRightToWorkProofProvided]=useState('');
  const [livingInUk,setLivingInUk]=useState('');
  const [targetWorkLocation,setTargetWorkLocation]=useState('');
  const [monthsWorkingForLaurem,setMonthsWorkingForLaurem]=useState('0');
@@ -58,6 +67,15 @@ export default function StaffVisaHelpPage(){
    else if(b.application?.living_in_uk && b.application?.living_in_uk.toLowerCase()==='yes')setCurrentVisaType('');
    setCurrentVisaStartDate(c?.current_visa_start_date||'');
    setCurrentVisaEndDate(c?.current_visa_end_date||'');
+   setPassportNumber(a.passportNumber||'');
+   setPassportIssueDate(a.passportIssueDate||'');
+   setPassportExpiryDate(a.passportExpiryDate||'');
+   setPassportCountry(a.passportCountry||'');
+   setUkStatusShareCode(a.ukStatusShareCode||'');
+   setUkviReference(a.ukviReference||'');
+   setUkviAccountEmail(a.ukviAccountEmail||'');
+   setRightToWorkStatus(a.rightToWorkStatus||'');
+   setRightToWorkProofProvided(a.rightToWorkProofProvided||'');
    setLivingInUk(c?.living_in_uk===true?'yes':c?.living_in_uk===false?'no':b.application?.living_in_uk?.toLowerCase()==='yes'?'yes':'');
    setTargetWorkLocation(c?.target_work_location||b.staff?.location||'');
    setMonthsWorkingForLaurem(String(a.monthsWorkingForLaurem??0));
@@ -102,6 +120,7 @@ export default function StaffVisaHelpPage(){
     livingInUk:livingInUk==='yes',
     currentVisaType,currentVisaStartDate,currentVisaEndDate,
     targetWorkLocation,monthsWorkingForLaurem,
+    passportNumber,passportIssueDate,passportExpiryDate,passportCountry,ukStatusShareCode,ukviReference,ukviAccountEmail,rightToWorkStatus,rightToWorkProofProvided,
     studentCourseFinished:studentCourseFinished===''?null:studentCourseFinished==='true',
     jobStartsAfterCourse:jobStartsAfterCourse===''?null:jobStartsAfterCourse==='true',
     phdStudy24Months:phdStudy24Months===''?null:phdStudy24Months==='true',
@@ -191,7 +210,20 @@ export default function StaffVisaHelpPage(){
        <YesNo label="Have you ever overstayed or breached UK immigration conditions?" value={previousOverstayOrBreach} onChange={setPreviousOverstayOrBreach}/>
        <YesNo label="Do you have any criminal convictions or cautions that may be relevant?" value={criminalConvictions} onChange={setCriminalConvictions}/>
       </div>
-      <TextArea label="Previous UK addresses / residence history" value={previousUkAddresses} onChange={setPreviousUkAddresses} placeholder="Give previous UK addresses and dates where relevant to your application."/>
+      <StaffSectionHeader title="Identity and current permission evidence" copy="Your recruitment application already contains your name, date of birth and nationality. Add the passport and UKVI details that the support team will need to prepare a switch application."/>
+      <div className="staff-form-grid">
+       <TextField label="Passport number" value={passportNumber} onChange={setPassportNumber}/>
+       <TextField label="Passport country" value={passportCountry} onChange={setPassportCountry}/>
+       <DateField label="Passport issue date" value={passportIssueDate} onChange={setPassportIssueDate}/>
+       <DateField label="Passport expiry date" value={passportExpiryDate} onChange={setPassportExpiryDate}/>
+       <TextField label="UKVI application / reference number, if any" value={ukviReference} onChange={setUkviReference}/>
+       <TextField label="UKVI account email, if different from your LAUREM email" value={ukviAccountEmail} onChange={setUkviAccountEmail}/>
+       <TextField label="UK status share code, if available" value={ukStatusShareCode} onChange={setUkStatusShareCode}/>
+       <SelectField label="Current right to work" value={rightToWorkStatus} onChange={setRightToWorkStatus} options={[['yes','Yes'],['no','No'],['uncertain','Not sure']]}/>
+       <SelectField label="Right-to-work evidence supplied to LAUREM" value={rightToWorkProofProvided} onChange={setRightToWorkProofProvided} options={[['yes','Yes'],['no','No']]}/>
+      </div>
+      <StaffNotice><strong>Recruitment record already on file</strong><p>Date of birth: {data.application?.date_of_birth||'Not recorded'} · Nationality: {data.application?.nationality||'Not recorded'}</p></StaffNotice>
+            <TextArea label="Previous UK addresses / residence history" value={previousUkAddresses} onChange={setPreviousUkAddresses} placeholder="Give previous UK addresses and dates where relevant to your application."/>
       <TextArea label="UK immigration history" value={immigrationHistoryNotes} onChange={setImmigrationHistoryNotes} placeholder="List prior UK visas, applications, refusals, appeals, administrative reviews, overstays or other immigration events."/>
       <TextArea label="International travel history" value={travelHistoryNotes} onChange={setTravelHistoryNotes} placeholder="List material travel outside the UK and any periods of residence abroad relevant to the visa application."/>
       <TextField label="English-language evidence" value={englishEvidence} onChange={setEnglishEvidence} placeholder="For example: degree taught in English, approved test, previous successful visa evidence."/>
