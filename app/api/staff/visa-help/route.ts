@@ -20,7 +20,7 @@ async function loadStaffCase(session:any){
     client.from('recruitment_applications').select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship,qualifications,training,professional_experience,employment_history,application_data').eq('id', (await client.from('laurem_staff_profiles').select('application_id').eq('id',session.staff_id).maybeSingle()).data?.application_id || '').maybeSingle(),
     client.from('laurem_staff_visa_help_cases').select('*').eq('staff_id',session.staff_id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     client.from('laurem_staff_documents').select('id,title,description,original_filename,mime_type,file_size_bytes,issued_at').eq('staff_id',session.staff_id).eq('category','visa_help').eq('status','issued').order('issued_at',{ascending:false}),
-    client.from('laurem_staff_visa_help_tasks').select('*').eq('staff_id',session.staff_id).order('created_at',{ascending:false}),
+    client.from('laurem_staff_visa_help_tasks').select('*').eq('staff_id',session.staff_id).eq('visibility','staff').order('created_at',{ascending:false}),
     client.from('laurem_staff_visa_help_events').select('id,event_type,actor_type,actor,metadata,created_at').eq('staff_id',session.staff_id).order('created_at',{ascending:false}).limit(100),
     client.from('laurem_staff_visa_help_documents').select('id,document_id,checklist_key,status,reviewer_note,reviewed_by,reviewed_at,created_at,updated_at').eq('staff_id',session.staff_id).order('created_at',{ascending:false}),
   ]);
