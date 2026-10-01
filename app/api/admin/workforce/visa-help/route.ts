@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { getVisaCostSummary } from '@/lib/laurem-visa-help';
+import { evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
 
 export async function GET(request:NextRequest){
  const session=readAdminSession(request);
@@ -15,13 +16,19 @@ export async function GET(request:NextRequest){
    .limit(200);
   if(error)throw error;
   const rows=cases||[];
+  const caseIds=rows.map((x:any)=>x.id);
   const staffIds=[...new Set(rows.map((x:any)=>x.staff_id))];
   const {data:staff,error:staffError}=staffIds.length?await client.from('laurem_staff_profiles').select('id,laurem_id,employee_number,full_name,email,job_title,employment_status,location,start_date').in('id',staffIds):{data:[],error:null};
   if(staffError)throw staffError;
-  const caseIds=rows.map((x:any)=>x.id);
+  const {data:tasks,error:taskError}=caseIds.length?await client.from('laurem_staff_visa_help_tasks').select('*').in('visa_help_case_id',caseIds).order('created_at',{ascending:false}):{data:[],error:null};
+  if(taskError)throw taskError;
+  const {data:events,error:eventError}=caseIds.length?await client.from('laurem_staff_visa_help_events').select('id,visa_help_case_id,event_type,actor_type,actor,metadata,created_at').in('visa_help_case_id',caseIds).order('created_at',{ascending:false}).limit(500):{data:[],error:null};
+  if(eventError)throw eventError;
+  const {data:documentLinks,error:linkError}=caseIds.length?await client.from('laurem_staff_visa_help_documents').select('*').in('visa_help_case_id',caseIds).order('created_at',{ascending:false}):{data:[],error:null};
+  if(linkError)throw linkError;
   const {data:documents,error:docError}=caseIds.length?await client.from('laurem_staff_documents').select('id,staff_id,title,original_filename,issued_at').eq('category','visa_help').eq('status','issued').in('staff_id',staffIds).order('issued_at',{ascending:false}):{data:[],error:null};
   if(docError)throw docError;
-  return NextResponse.json({cases:rows.map((row:any)=>({...row,staff:(staff||[]).find((s:any)=>s.id===row.staff_id)||null,documents:(documents||[]).filter((d:any)=>d.staff_id===row.staff_id),costSummary:getVisaCostSummary({route:row.selected_route,outsideUk:!row.living_in_uk,durationMonths:Number(row.answers?.durationMonths||0)||null,durationYears:Number(row.answers?.durationYears||0)||null,dependantCount:Array.isArray(row.dependants)?row.dependants.length:0})})),counts:{
+  return NextResponse.json({cases:rows.map((row:any)=>{const rowTasks=(tasks||[]).filter((t:any)=>t.visa_help_case_id===row.id);const readiness=evaluateVisaHelpReadiness({recommendation:row.recommendation,livingInUk:Boolean(row.living_in_uk),currentVisaType:row.current_visa_type,passportNumber:row.answers?.passportNumber,passportCountry:row.answers?.passportCountry,passportExpiryDate:row.answers?.passportExpiryDate,dependants:Array.isArray(row.dependants)?row.dependants:[],confirmedRoute:row.confirmed_route,legalReviewCompleted:Boolean(row.legal_review_completed),tasks:rowTasks});return {...row,staff:(staff||[]).find((s:any)=>s.id===row.staff_id)||null,documents:(documents||[]).filter((d:any)=>d.staff_id===row.staff_id),tasks:rowTasks,events:(events||[]).filter((e:any)=>e.visa_help_case_id===row.id),documentLinks:(documentLinks||[]).filter((d:any)=>d.visa_help_case_id===row.id),readiness,costSummary:getVisaCostSummary({route:row.confirmed_route||row.selected_route,outsideUk:!row.living_in_uk,durationMonths:Number(row.answers?.durationMonths||0)||null,durationYears:Number(row.answers?.durationYears||0)||null,dependantCount:Array.isArray(row.dependants)?row.dependants.length:0})};}),counts:{
    open:rows.length,
    legal:rows.filter((x:any)=>x.legal_team_requested).length,
    awaitingDocuments:rows.filter((x:any)=>x.status==='awaiting_documents').length,
@@ -38,6 +45,8 @@ export async function PATCH(request:NextRequest){
  if(!session)return NextResponse.json({error:'Unauthorised'},{status:401});
  const body=await request.json().catch(()=>null) as Record<string,any>|null;
  const caseId=typeof body?.caseId==='string'?body.caseId:'';
+ const confirmedRoute=typeof body?.confirmedRoute==='string'?body.confirmedRoute.trim().slice(0,120):null;
+ const legalReviewCompleted=typeof body?.legalReviewCompleted==='boolean'?body.legalReviewCompleted:null;
  const status=typeof body?.status==='string'?body.status:'';
  const legalNotes=typeof body?.legalNotes==='string'?body.legalNotes.trim().slice(0,5000):null;
  const assignedTo=typeof body?.assignedTo==='string'?body.assignedTo.trim().slice(0,240):null;
@@ -46,14 +55,26 @@ export async function PATCH(request:NextRequest){
  if(status&&!allowed.has(status))return NextResponse.json({error:'Invalid Visa Help status.'},{status:400});
  try{
   const client=db();
-  const {data:existing,error:loadError}=await client.from('laurem_staff_visa_help_cases').select('id,staff_id,status').eq('id',caseId).maybeSingle();
+  const {data:existing,error:loadError}=await client.from('laurem_staff_visa_help_cases').select('id,staff_id,status,living_in_uk,current_visa_type,recommendation,answers,dependants,confirmed_route,legal_review_completed').eq('id',caseId).maybeSingle();
   if(loadError)throw loadError;
   if(!existing)return NextResponse.json({error:'Visa Help case not found.'},{status:404});
+  const {data:tasks,error:taskError}=await client.from('laurem_staff_visa_help_tasks').select('task_type,title,required,status').eq('visa_help_case_id',caseId);
+  if(taskError)throw taskError;
+  const effectiveConfirmedRoute=confirmedRoute!==null?confirmedRoute:existing.confirmed_route;
+  const effectiveLegalReviewCompleted=legalReviewCompleted!==null?legalReviewCompleted:Boolean(existing.legal_review_completed);
+  if(status==='ready_for_submission'){
+    const readiness=evaluateVisaHelpReadiness({recommendation:existing.recommendation,livingInUk:Boolean(existing.living_in_uk),currentVisaType:existing.current_visa_type,passportNumber:existing.answers?.passportNumber,passportCountry:existing.answers?.passportCountry,passportExpiryDate:existing.answers?.passportExpiryDate,dependants:Array.isArray(existing.dependants)?existing.dependants:[],confirmedRoute:effectiveConfirmedRoute,legalReviewCompleted:effectiveLegalReviewCompleted,tasks:tasks||[]});
+    if(!readiness.ready)return NextResponse.json({error:'Case is not ready for submission.',readiness},{status:409});
+  }
+  if(status==='submitted'&&existing.status!=='ready_for_submission')return NextResponse.json({error:'The case must pass the ready-for-submission gate first.'},{status:409});
   const patch:any={updated_at:new Date().toISOString()};
   if(status)patch.status=status;
+  if(confirmedRoute!==null)patch.confirmed_route=confirmedRoute;
+  if(legalReviewCompleted!==null){patch.legal_review_completed=legalReviewCompleted;patch.legal_review_completed_by=legalReviewCompleted?session.email:null;patch.legal_review_completed_at=legalReviewCompleted?new Date().toISOString():null;}
   if(legalNotes!==null)patch.legal_notes=legalNotes;
   if(assignedTo!==null)patch.assigned_to=assignedTo;
   if(['legal_review','awaiting_documents','ready_for_submission'].includes(status))patch.reviewed_at=new Date().toISOString();
+  if(status==='ready_for_submission')patch.submission_ready_at=new Date().toISOString();
   if(status==='submitted')patch.submitted_at=new Date().toISOString();
   const {data,error}=await client.from('laurem_staff_visa_help_cases').update(patch).eq('id',caseId).select('*').single();
   if(error)throw error;
