@@ -57,6 +57,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     const route = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
     const countries = readFileSync('lib/laurem-country-options.ts', 'utf8');
     const visas = readFileSync('lib/laurem-visa-options.ts', 'utf8');
+    expect(countries.match(/code: '[A-Z]{2}'/g)?.length).toBe(249);
     expect(page).toContain('LAUREM_COUNTRY_OPTIONS.map');
     expect(page).toContain('LAUREM_CURRENT_UK_VISA_TYPES.map');
     expect(page).toContain('Is the application address above still your current address?');
