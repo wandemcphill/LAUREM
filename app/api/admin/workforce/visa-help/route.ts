@@ -63,7 +63,7 @@ export async function PATCH(request:NextRequest){
   const effectiveConfirmedRoute=confirmedRoute!==null?confirmedRoute:existing.confirmed_route;
   const effectiveLegalReviewCompleted=legalReviewCompleted!==null?legalReviewCompleted:Boolean(existing.legal_review_completed);
   if(status==='ready_for_submission'){
-    const readiness=evaluateVisaHelpReadiness({recommendation:existing.recommendation,livingInUk:Boolean(existing.living_in_uk),currentVisaType:existing.current_visa_type,passportNumber:existing.answers?.passportNumber,passportCountry:existing.answers?.passportCountry,passportExpiryDate:existing.answers?.passportExpiryDate,dependants:Array.isArray(existing.dependants)?existing.dependants:[],confirmedRoute:effectiveConfirmedRoute,legalReviewCompleted:effectiveLegalReviewCompleted,tasks:tasks||[]});
+    const readiness=evaluateVisaHelpReadiness({recommendation:existing.recommendation,livingInUk:Boolean(existing.living_in_uk),currentVisaType:existing.current_visa_type,passportNumber:existing.answers?.passportNumber,passportCountry:existing.answers?.passportCountry,passportExpiryDate:existing.answers?.passportExpiryDate,dependants:Array.isArray(existing.dependants)?existing.dependants:[],confirmedRoute:effectiveConfirmedRoute,legalReviewCompleted:effectiveLegalReviewCompleted,tasks:tasks||[],documentChecklist:Array.isArray(existing.document_checklist)?existing.document_checklist:[],documentLinks:documentLinks||[]});
     if(!readiness.ready)return NextResponse.json({error:'Case is not ready for submission.',readiness},{status:409});
   }
   if(status==='submitted'&&existing.status!=='ready_for_submission')return NextResponse.json({error:'The case must pass the ready-for-submission gate first.'},{status:409});
