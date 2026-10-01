@@ -108,6 +108,17 @@ export default function StaffVisaHelpPage(){
  const preliminary=data?.recommendation;
  const legalIntakeNeeded=legalRequested==='yes'||preliminary?.decision!=='provisional';
  const checklist=useMemo(()=>data?.case?.document_checklist||[],[data]);
+ useEffect(()=>{
+  if(!data||!durationMonths)return;
+  const controller=new AbortController();
+  const params=new URLSearchParams({durationMonths,dependantCount:String(dependants.length)});
+  fetch('/api/staff/visa-help?'+params.toString(),{cache:'no-store',signal:controller.signal})
+   .then(async r=>{const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Unable to refresh visa cost estimate.');return b;})
+   .then(b=>setData(prev=>prev?{...prev,costSummary:b.costSummary}:prev))
+   .catch(error=>{if(error?.name!=='AbortError')console.error(error);});
+  return ()=>controller.abort();
+ },[durationMonths,dependants.length]);
+
 
  async function save(action:'save'|'submit'){
   if(!data)return;
