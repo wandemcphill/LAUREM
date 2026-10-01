@@ -86,6 +86,15 @@ export async function POST(request:NextRequest){
     const currentVisaType=text(body.currentVisaType,120);
     const currentVisaStartDate=text(body.currentVisaStartDate,20);
     const currentVisaEndDate=text(body.currentVisaEndDate,20);
+    const passportNumber=text(body.passportNumber,80);
+    const passportIssueDate=text(body.passportIssueDate,20);
+    const passportExpiryDate=text(body.passportExpiryDate,20);
+    const passportCountry=text(body.passportCountry,120);
+    const ukStatusShareCode=text(body.ukStatusShareCode,40);
+    const ukviReference=text(body.ukviReference,120);
+    const ukviAccountEmail=text(body.ukviAccountEmail,254);
+    const rightToWorkStatus=body.rightToWorkStatus==null?'':String(body.rightToWorkStatus);
+    const rightToWorkProofProvided=body.rightToWorkProofProvided==null?'':String(body.rightToWorkProofProvided);
     const monthsWorkingForLaurem=Number(body.monthsWorkingForLaurem||0);
     const wantsDependants=bool(body.wantsDependants);
     const dependantsInsideUk=bool(body.dependantsInsideUk);
@@ -144,6 +153,16 @@ export async function POST(request:NextRequest){
       criminalConvictions:body.criminalConvictions,
       immigrationHistoryNotes:text(body.immigrationHistoryNotes,2000),
       travelHistoryNotes:text(body.travelHistoryNotes,2000),
+      previousUkAddresses:text(body.previousUkAddresses,2500),
+      passportNumber:passportNumber||null,
+      passportIssueDate:passportIssueDate||null,
+      passportExpiryDate:passportExpiryDate||null,
+      passportCountry:passportCountry||null,
+      ukStatusShareCode:ukStatusShareCode||null,
+      ukviReference:ukviReference||null,
+      ukviAccountEmail:ukviAccountEmail||null,
+      rightToWorkStatus:rightToWorkStatus||null,
+      rightToWorkProofProvided:rightToWorkProofProvided||null,
       englishEvidence:text(body.englishEvidence,500),
       maintenanceEvidence:text(body.maintenanceEvidence,500),
       legalQuestionnaireComplete:bool(body.legalQuestionnaireComplete),
