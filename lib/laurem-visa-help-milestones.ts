@@ -55,3 +55,31 @@ export function defaultVisaHelpMilestoneStatus(input: {
   if (input.milestoneType === 'post_decision') return input.caseStatus === 'closed' ? 'in_progress' : 'pending';
   return 'pending';
 }
+
+
+export function buildInitialVisaHelpMilestones(input: {
+  staffId: string;
+  caseId: string;
+  recommendationDecision?: 'provisional' | 'requires_legal_review' | 'not_switchable' | null;
+  legalTeamRequested?: boolean;
+  caseStatus?: string | null;
+  submittedAt?: string | null;
+  outsideUk: boolean;
+}) {
+  const dueAt = calculateVisaDecisionDueAt({ submittedAt: input.submittedAt, outsideUk: input.outsideUk });
+  return visaHelpMilestoneTemplates().map(template => ({
+    visa_help_case_id: input.caseId,
+    staff_id: input.staffId,
+    milestone_type: template.milestone_type,
+    title: template.title,
+    status: defaultVisaHelpMilestoneStatus({
+      milestoneType: template.milestone_type,
+      recommendationDecision: input.recommendationDecision,
+      legalTeamRequested: input.legalTeamRequested,
+      caseStatus: input.caseStatus,
+      submittedAt: input.submittedAt,
+    }),
+    due_at: template.milestone_type === 'decision' ? dueAt : null,
+    position: template.position,
+  }));
+}
