@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const { data: tasks, error } = await client.from('laurem_staff_visa_help_tasks')
       .select('*')
       .eq('staff_id', session.staff_id)
+      .eq('visibility','staff')
       .not('status', 'eq', 'cancelled')
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -35,10 +36,11 @@ export async function POST(request: NextRequest) {
   try {
     const client = db();
     const { data: task, error: taskError } = await client.from('laurem_staff_visa_help_tasks')
-      .select('id,visa_help_case_id,staff_id,task_type,status,title')
+      .select('id,visa_help_case_id,staff_id,task_type,status,title,visibility')
       .eq('id', taskId).eq('staff_id', session.staff_id).maybeSingle();
     if (taskError) throw taskError;
     if (!task) return NextResponse.json({ error:'Visa Help request not found.' }, { status:404 });
+    if (task.visibility !== 'staff') return NextResponse.json({ error:'This Visa Help request is internal and is not awaiting a staff response.' }, { status:403 });
     if (!['open','rejected'].includes(task.status)) return NextResponse.json({ error:'This request is not waiting for a staff response.' }, { status:409 });
 
     if (responseDocumentId) {
