@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
 type Dependant={relationship:string;fullName:string;dateOfBirth:string;nationality:string;currentLocation:string;currentVisaType:string;currentVisaEndDate:string;bornInUk:string;otherParentSponsored:string};
-type Data={staff:any;application:any;case:any;recommendation:any;visaTypes:any[];documents:any[];addresses:string[]};
+type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];addresses:string[]};
 const blankDependant=():Dependant=>({relationship:'',fullName:'',dateOfBirth:'',nationality:'',currentLocation:'',currentVisaType:'',currentVisaEndDate:'',bornInUk:'',otherParentSponsored:''});
 
 export default function StaffVisaHelpPage(){
@@ -237,6 +237,19 @@ export default function StaffVisaHelpPage(){
   </StaffPanel>}
 
   {step===4&&<StaffPanel>
+    <StaffSectionHeader title="Visa cost, IHS and decision timeline" copy="The figures below are an estimate based on the currently selected route, visa duration and number of applicants. LAUREM refreshes the underlying official guidance when this page is loaded."/>
+    <div className="staff-form-grid">
+      <SelectField label="Expected visa duration" value={durationYears} onChange={setDurationYears} options={[['1','1 year'],['2','2 years'],['3','3 years'],['4','4 years'],['5','5 years']]}/>
+    </div>
+    {data.costSummary&&<div className="staff-home-lane-grid">
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Visa application fee</StaffBadge><strong>{data.costSummary.applicationFeePerPerson==null?'Route review required':'£'+Number(data.costSummary.applicationFeePerPerson).toLocaleString('en-GB')+' per person'}</strong><span>{data.costSummary.estimatedApplicationFees==null?'Final fee depends on the confirmed route and duration.':'Estimated application fees for '+(1+dependants.length)+' applicant'+(dependants.length===0?'':'s')+': £'+Number(data.costSummary.estimatedApplicationFees).toLocaleString('en-GB')}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.costSummary.ihsExempt?'live':'attention'}>Immigration Health Surcharge</StaffBadge><strong>{data.costSummary.ihsExempt?'£0':'£'+Number(data.costSummary.ihsPerPersonPerYear).toLocaleString('en-GB')+' per year'}</strong><span>{data.costSummary.ihsExempt?'Health and Care Worker applicants and eligible dependants are exempt from IHS.':'IHS is normally charged separately and depends on the length of permission granted.'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone="live">UKVI decision standard</StaffBadge><strong>{data.costSummary.processingTime}</strong><span>Inside UK: {data.costSummary.processingTimeInsideUk} · Outside UK: {data.costSummary.processingTimeOutsideUk}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Estimated applicant cost</StaffBadge><strong>{data.costSummary.totalEstimatedApplicantCost==null?'Pending route/duration':'£'+Number(data.costSummary.totalEstimatedApplicantCost).toLocaleString('en-GB')}</strong><span>Excludes optional priority services and separate costs such as TB testing, translations or professional fees where applicable.</span></article>
+    </div>}
+    <StaffNotice tone="warning"><strong>Timeline is not a promise</strong><p>UKVI's published standard begins after the application has been submitted, identity has been proved and the required documents have been provided. Complex cases or verification checks can take longer, and LAUREM should not book travel on the assumption of a particular decision date.</p></StaffNotice>
+    {data.costSummary?.sourceUrls?.length>0&&<div className="staff-home-panel-actions">{data.costSummary.sourceUrls.slice(0,4).map((url:string)=><StaffAction key={url} href={url}>Open official guidance</StaffAction>)}</div>}
+
     <StaffSectionHeader title="4. Your preliminary route and how you want help" copy="The route engine uses current published UK guidance plus LAUREM's recorded sponsored occupation. A legal/support review remains available whenever the facts are not straightforward."/>
     <div className="staff-visa-status-panel">
       <div className="staff-visa-status-top"><div><p className="staff-eyebrow">Preliminary route</p><h2 className="staff-card-heading">{preliminary?.title||'Route assessment pending'}</h2><p className="staff-card-copy">{preliminary?.reason||'Complete the earlier steps and save your answers.'}</p></div><StaffBadge tone={preliminary?.decision==='provisional'?'live':preliminary?.decision==='not_switchable'?'danger':'attention'}>{preliminary?.decision?.replaceAll('_',' ')||'pending'}</StaffBadge></div>
