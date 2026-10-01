@@ -7,6 +7,7 @@ import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications'
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { getOrCreateVisaHelpConversation } from '@/lib/laurem-messaging';
+import { monitorVisaHelpCase } from '@/lib/laurem-visa-help-monitor';
 
 export const dynamic='force-dynamic';
 
@@ -62,6 +63,14 @@ async function loadStaffCase(session:any){
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
     documents:documents||[],
     tasks:tasks||[],
+    monitor:monitorVisaHelpCase({
+      status:visaCase?.status,
+      currentVisaEndDate:visaCase?.current_visa_end_date,
+      tasks:tasks||[],
+      legalTeamRequested:Boolean(visaCase?.legal_team_requested),
+      recommendationDecision:rec.decision,
+      legalReviewCompleted:Boolean(visaCase?.legal_review_completed),
+    }),
     events:events||[],
     documentLinks:documentLinks||[],
     addresses:app.address?[String(app.address)]:[],
