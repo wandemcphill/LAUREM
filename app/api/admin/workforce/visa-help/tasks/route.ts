@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
   const title = typeof body?.title === 'string' ? body.title.trim().slice(0,200) : '';
   const description = typeof body?.description === 'string' ? body.description.trim().slice(0,4000) : '';
   const required = body?.required !== false;
+  const visibility = body?.visibility === 'internal' ? 'internal' : 'staff';
   const dueAt = typeof body?.dueAt === 'string' && body.dueAt ? body.dueAt : null;
   if (!caseId || !['information','document','action'].includes(taskType) || !title) {
     return NextResponse.json({ error:'Case, request type and title are required.' }, { status:400 });
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
         visa_help_case_id:caseId,
         staff_id:caseRow.staff_id,
         task_type:taskType,
+        visibility,
         title,
         description,
         required,
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
       metadata:{taskId:task.id,taskType,title,required,dueAt},
     });
 
-    await createLauremStaffNotification(client,{
+    if(visibility==='staff') await createLauremStaffNotification(client,{
       staffId:caseRow.staff_id,
       category:'compliance',
       title:'LAUREM requested '+(taskType==='document'?'a document':taskType==='information'?'more information':'an action'),
