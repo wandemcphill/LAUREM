@@ -1,3 +1,4 @@
+import VisaHelpApplicationTrackingPanel from '@/components/VisaHelpApplicationTrackingPanel';
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -204,6 +205,8 @@ export default function AdminVisaHelpPage(){
         </div>
         <div className="staff-home-panel-actions"><StaffAction onClick={()=>void updateCase({confirmedRoute:confirmedRoute||null,legalReviewCompleted,legalNotes:notes})}>Save review decision</StaffAction><StaffAction primary onClick={()=>void updateCase({status:'ready_for_submission',confirmedRoute:confirmedRoute||null,legalReviewCompleted,legalNotes:notes})}>Mark ready for submission</StaffAction><StaffAction onClick={()=>void updateCase({status:'submitted',legalNotes:notes})}>Record submitted</StaffAction></div>
       </StaffPanel>
+
+      <VisaHelpApplicationTrackingPanel mode="admin" caseId={selected.id}/>
 
       <StaffPanel>
         <StaffSectionHeader title="Create a case request" copy="Create an explicit, trackable request instead of putting evidence gaps only into free-text notes."/>
