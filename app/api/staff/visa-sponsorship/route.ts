@@ -241,7 +241,8 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const currentVisaType = typeof body?.currentVisaType === 'string' ? body.currentVisaType.trim().slice(0,120) : '';
-  const currentVisaExpiryDate = typeof body?.currentVisaExpiryDate === 'string' ? body.currentVisaExpiryDate : '';
+  const currentVisaStartDate = typeof body?.currentVisaStartDate === 'string' ? body.currentVisaStartDate : '';
+  const currentVisaEndDate = typeof body?.currentVisaEndDate === 'string' ? body.currentVisaEndDate : '';
   const passportNumber = typeof body?.passportNumber === 'string' ? body.passportNumber.trim().slice(0,80) : '';
   const passportExpiryDate = typeof body?.passportExpiryDate === 'string' ? body.passportExpiryDate : '';
   const passportCountry = typeof body?.passportCountry === 'string' ? body.passportCountry.trim().slice(0,120) : '';
@@ -273,7 +274,9 @@ export async function PATCH(request: NextRequest) {
     if (!['yes', 'no'].includes(addressProofProvided)) missingCandidateFields.push('Whether address proof has been provided to LAUREM');
     if (currentCase.pathway === 'visa_switch') {
       if (!currentVisaType) missingCandidateFields.push('Current UK visa type');
-      if (!currentVisaExpiryDate) missingCandidateFields.push('Current UK visa expiry');
+      if (!currentVisaStartDate) missingCandidateFields.push('Current UK visa start date');
+      if (!currentVisaEndDate) missingCandidateFields.push('Current UK visa end date');
+      if (currentVisaStartDate && currentVisaEndDate && currentVisaEndDate < currentVisaStartDate) return NextResponse.json({ error: 'Current UK visa end date cannot be before the start date.' }, { status: 422 });
       if (!['yes', 'no'].includes(rightToWorkStatus)) missingCandidateFields.push('Whether you have the right to work in the UK');
       if (!['yes', 'no'].includes(rightToWorkProofProvided)) missingCandidateFields.push('Whether right-to-work proof has been provided to LAUREM');
       if ((rightToWorkStatus === 'no' || rightToWorkProofProvided === 'no') && !ukStatusShareCode) missingCandidateFields.push('UK status share code');
@@ -288,7 +291,9 @@ export async function PATCH(request: NextRequest) {
     const additional = {
       ...(currentCase.additional_information || {}),
       current_visa_type: currentVisaType || null,
-      current_visa_expiry_date: currentVisaExpiryDate || null,
+      current_visa_start_date: currentVisaStartDate || null,
+      current_visa_end_date: currentVisaEndDate || null,
+      current_visa_expiry_date: currentVisaEndDate || null,
       passport_number: passportNumber || null,
       passport_expiry_date: passportExpiryDate || null,
       passport_country: passportCountry || null,
