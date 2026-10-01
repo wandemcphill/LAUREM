@@ -63,21 +63,23 @@ export async function POST(request: NextRequest) {
     });
 
     let conversationId=caseRow.conversation_id;
-    try {
-      const conversation=await getOrCreateVisaHelpConversation(client,caseRow.staff_id,caseId);
-      conversationId=conversation.id;
-      if(!caseRow.conversation_id) {
-        await client.from('laurem_staff_visa_help_cases').update({conversation_id:conversation.id}).eq('id',caseId);
+    if(visibility==='staff'){
+      try {
+        const conversation=await getOrCreateVisaHelpConversation(client,caseRow.staff_id,caseId);
+        conversationId=conversation.id;
+        if(!caseRow.conversation_id) {
+          await client.from('laurem_staff_visa_help_cases').update({conversation_id:conversation.id}).eq('id',caseId);
+        }
+        const now=new Date().toISOString();
+        await client.from('laurem_staff_messages').insert({
+          conversation_id:conversation.id,
+          sender_admin_email:session.email,
+          body:'Visa Help request: '+title+(description?'\\n\\n'+description:'')+(dueAt?'\\n\\nDue: '+new Date(dueAt).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):''),
+        });
+        await client.from('laurem_staff_message_conversations').update({last_message_at:now,updated_at:now}).eq('id',conversation.id);
+      } catch (messageError) {
+        console.error(JSON.stringify({level:'warn',event:'admin.visa_help.task_message_failed',caseId,reason:messageError instanceof Error?messageError.message:String(messageError)}));
       }
-      await client.from('laurem_staff_messages').insert({
-        conversation_id:conversation.id,
-        sender_admin_email:session.email,
-        body:'Visa Help request: '+title+(description?'\n\n'+description:'')+(dueAt?'\n\nDue: '+new Date(dueAt).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):''),
-      });
-      const now=new Date().toISOString();
-      await client.from('laurem_staff_message_conversations').update({last_message_at:now,updated_at:now}).eq('id',conversation.id);
-    } catch (messageError) {
-      console.error(JSON.stringify({level:'warn',event:'admin.visa_help.task_message_failed',caseId,reason:messageError instanceof Error?messageError.message:String(messageError)}));
     }
 
     return NextResponse.json({ task, conversationId }, { status:201 });
