@@ -46,12 +46,17 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(page).toContain('Passport number *');
     expect(page).toContain('Passport expiry *');
     expect(page).toContain('Passport country *');
+    expect(page).toContain('Current UK visa start date *');
+    expect(page).toContain('Current UK visa end date *');
     expect(page).toContain('required={isVisaSwitch}');
     expect(page).toContain("setPassportCountry(info.passport_country||'');");
     expect(page).not.toContain("setPassportCountry(info.passport_country||b.application?.nationality||'');");
     expect(route).toContain('missingCandidateFields');
     expect(route).toContain('Please complete the required sponsorship details:');
     expect(route).toContain("currentCase.pathway === 'visa_switch'");
+    expect(route).toContain('currentVisaStartDate');
+    expect(route).toContain('currentVisaEndDate');
+    expect(route).toContain('Current UK visa end date cannot be before the start date.');
   });
 
   it('uses complete country and current UK visa option lists and captures address/right-to-work checks', () => {
