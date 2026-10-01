@@ -25,13 +25,16 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(auditFix).toContain("'candidate_information_updated'");
   });
 
-  it('uses existing recruitment information and does not create a second candidate identity form', () => {
+  it('uses existing recruitment information while collecting only sponsorship-specific details from the new hire', () => {
     const route = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     expect(route).toContain("from('recruitment_applications')");
     expect(route).toContain('laurem_request_staff_visa_sponsorship');
     expect(page).toContain('Information already held');
-    expect(page).toContain('Only add information that was not already collected during recruitment.');
+    expect(page).toContain('Complete your sponsorship details');
+    expect(page).toContain('Passport number *');
+    expect(page).toContain('Passport expiry *');
+    expect(page).toContain('Passport country *');
   });
 
   it('makes sponsorship passport and visa details candidate-entered and required', () => {
