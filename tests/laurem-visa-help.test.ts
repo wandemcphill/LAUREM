@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
-import { evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
+import { deriveVisaHelpCaseStatus, evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
@@ -228,6 +228,17 @@ describe('LAUREM Visa Help decision engine', () => {
     });
     expect(result.ready).toBe(false);
     expect(result.issues.join(' ')).toContain('required evidence item');
+  });
+
+  it('keeps the case in awaiting-documents while another required document request remains open', () => {
+    expect(deriveVisaHelpCaseStatus({
+      tasks:[
+        {task_type:'document',title:'Passport',required:true,status:'submitted',visibility:'staff'},
+        {task_type:'information',title:'Question',required:true,status:'verified',visibility:'staff'},
+      ],
+      legalTeamRequested:true,
+      recommendationDecision:'provisional',
+    })).toBe('awaiting_documents');
   });
 
 });
