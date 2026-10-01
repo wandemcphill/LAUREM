@@ -513,7 +513,6 @@ export default function WorkforcePage() {
             <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>Processing {visaCounts.processing}</span>
             <span style={{padding:'7px 10px',borderRadius:999,background:'var(--soft)',fontSize:12,fontWeight:800}}>Active {visaCounts.active}</span>
           </div>
-        </div>
         <div style={{display:'grid',gap:10,marginTop:12}}>
           {visaRequests.map((request) => {
             const userStatus = request.cosDocument && ['cos_assigned','completed'].includes(request.status)
