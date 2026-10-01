@@ -267,3 +267,105 @@ export function buildVisaHelpDocumentChecklist(input: {
 
   return checklist;
 }
+
+export type VisaCostSummary = {
+  currency: 'GBP';
+  applicationFeePerPerson: number | null;
+  estimatedApplicationFees: number | null;
+  ihsPerPersonPerYear: number;
+  estimatedIhsTotal: number | null;
+  totalEstimatedApplicantCost: number | null;
+  ihsExempt: boolean;
+  durationBand: 'up_to_3_years' | 'over_3_years' | 'not_set';
+  processingTime: string;
+  processingTimeInsideUk: string;
+  processingTimeOutsideUk: string;
+  processingStartsAfter: string;
+  sourceUrls: string[];
+  lastCheckedLabel: string;
+};
+
+export function getVisaCostSummary(input: {
+  route: VisaHelpRecommendation['route'];
+  outsideUk: boolean;
+  durationYears?: number | null;
+  dependantCount?: number | null;
+}): VisaCostSummary {
+  const durationYears = Number(input.durationYears || 0);
+  const dependantCount = Math.max(0, Number(input.dependantCount || 0));
+  const people = 1 + dependantCount;
+  const durationBand: VisaCostSummary['durationBand'] =
+    durationYears <= 0 ? 'not_set' : durationYears <= 3 ? 'up_to_3_years' : 'over_3_years';
+
+  if (input.route === 'health_and_care_worker') {
+    const fee = durationBand === 'up_to_3_years' ? 324 : durationBand === 'over_3_years' ? 628 : null;
+    const fees = fee == null ? null : fee * people;
+    return {
+      currency: 'GBP',
+      applicationFeePerPerson: fee,
+      estimatedApplicationFees: fees,
+      ihsPerPersonPerYear: 0,
+      estimatedIhsTotal: 0,
+      totalEstimatedApplicantCost: fees,
+      ihsExempt: true,
+      durationBand,
+      processingTime: input.outsideUk ? 'Usually 3 weeks' : 'Usually 3 weeks',
+      processingTimeInsideUk: 'Usually 3 weeks',
+      processingTimeOutsideUk: 'Usually 3 weeks',
+      processingStartsAfter: 'UKVI has received the online application, identity has been verified and the required documents have been provided.',
+      sourceUrls: [
+        'https://www.gov.uk/health-care-worker-visa/how-much-it-costs',
+        'https://www.gov.uk/healthcare-immigration-application/who-needs-pay',
+        'https://www.gov.uk/health-care-worker-visa/overview',
+      ],
+      lastCheckedLabel: 'Checked against GOV.UK guidance for 2026',
+    };
+  }
+
+  if (input.route === 'skilled_worker' || input.route === 'outside_uk_skilled_worker') {
+    const fee = input.outsideUk
+      ? (durationBand === 'up_to_3_years' ? 819 : durationBand === 'over_3_years' ? 1618 : null)
+      : (durationBand === 'up_to_3_years' ? 943 : durationBand === 'over_3_years' ? 1865 : null);
+    const ihsRate = 1035;
+    const fees = fee == null ? null : fee * people;
+    const ihs = fee == null || durationYears <= 0 ? null : ihsRate * durationYears * people;
+    return {
+      currency: 'GBP',
+      applicationFeePerPerson: fee,
+      estimatedApplicationFees: fees,
+      ihsPerPersonPerYear: ihsRate,
+      estimatedIhsTotal: ihs,
+      totalEstimatedApplicantCost: fees == null || ihs == null ? null : fees + ihs,
+      ihsExempt: false,
+      durationBand,
+      processingTime: input.outsideUk ? 'Usually 3 weeks' : 'Usually 8 weeks',
+      processingTimeInsideUk: 'Usually 8 weeks',
+      processingTimeOutsideUk: 'Usually 3 weeks',
+      processingStartsAfter: 'UKVI has received the online application, identity has been verified and the required documents have been provided.',
+      sourceUrls: [
+        'https://www.gov.uk/skilled-worker-visa/how-much-it-costs',
+        'https://www.gov.uk/healthcare-immigration-application/how-much-pay',
+        'https://www.gov.uk/government/publications/visa-regulations-revised-table/home-office-immigration-and-nationality-fees-8-april-2026',
+        'https://www.gov.uk/government/publications/long-term-work-visas-customer-service-standards',
+      ],
+      lastCheckedLabel: 'Checked against GOV.UK guidance for 2026',
+    };
+  }
+
+  return {
+    currency: 'GBP',
+    applicationFeePerPerson: null,
+    estimatedApplicationFees: null,
+    ihsPerPersonPerYear: 0,
+    estimatedIhsTotal: null,
+    totalEstimatedApplicantCost: null,
+    ihsExempt: false,
+    durationBand,
+    processingTime: 'Requires route review',
+    processingTimeInsideUk: 'Requires route review',
+    processingTimeOutsideUk: 'Requires route review',
+    processingStartsAfter: 'The route and application requirements must be confirmed first.',
+    sourceUrls: ['https://www.gov.uk/browse/visas-immigration'],
+    lastCheckedLabel: 'Official route review required',
+  };
+}
