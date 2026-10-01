@@ -300,4 +300,4 @@ export function getVisaCostSummary(input: {
   durationMonths?: number | null;
   durationYears?: number | null;
   dependantCount?: number | null;
-}
+}): VisaCostSummary {
