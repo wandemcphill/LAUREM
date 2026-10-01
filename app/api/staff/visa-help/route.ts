@@ -33,7 +33,7 @@ async function loadStaffCase(session:any){
   if(documentLinksError) throw documentLinksError;
   if(!staff) return null;
 
-  const app=application || {};
+  const app:any=application || {};
   const current=visaCase?.answers || {};
   const livingInUk=visaCase?.living_in_uk ?? (
     lower(app.living_in_uk)==='yes' ||
@@ -140,7 +140,7 @@ export async function POST(request:NextRequest){
     if(durationMonths<0 || durationMonths>120) return NextResponse.json({error:'Visa duration must be between 0 and 120 months.'},{status:422});
 
     const recommendation:VisaHelpRecommendation=recommendVisaHelp({
-      role,livingInUk,currentVisaType,currentVisaStartDate,currentVisaEndDate,
+      role,livingInUk,currentVisaType,currentVisaEndDate,
       studentCourseFinished:body.studentCourseFinished===null?null:bool(body.studentCourseFinished),
       jobStartsAfterCourse:body.jobStartsAfterCourse===null?null:bool(body.jobStartsAfterCourse),
       phdStudy24Months:body.phdStudy24Months===null?null:bool(body.phdStudy24Months),
