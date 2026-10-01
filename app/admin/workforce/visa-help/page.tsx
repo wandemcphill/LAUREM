@@ -149,7 +149,11 @@ export default function AdminVisaHelpPage(){
           {selected.staff_message&&<StaffNotice><strong>Staff message</strong><p>{selected.staff_message}</p></StaffNotice>}
         </StaffPanel>
         <StaffPanel>
-          <StaffSectionHeader title="Recommendation conditions" copy="The reasons and conditions returned by the screening engine."/>
+          <StaffSectionHeader title="Case communication and audit trail" copy="The private case conversation is the place for staff questions. The timeline below records workflow actions separately."/>
+      <div className="staff-home-panel-actions">{selected.conversation_id||selected.conversationId?<StaffAction primary href={'/admin/messages?conversation='+encodeURIComponent(selected.conversation_id||selected.conversationId)}>Open case conversation</StaffAction>:<StaffNotice><strong>No case conversation yet</strong><p>A case conversation is created when legal/support review is opened.</p></StaffNotice>}</div>
+      {selected.events?.length>0&&<div className="staff-panel-nested"><div className="staff-document-list">{selected.events.slice(0,15).map((event:any)=><article key={event.id} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-copy"><span className="staff-document-category">{event.actor_type} · {event.event_type.replaceAll('_',' ')}</span><h3>{new Date(event.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}</h3><p>{event.metadata?.title||event.metadata?.taskId||event.metadata?.to||event.metadata?.reason||'Workflow activity recorded.'}</p></div></div></article>)}</div></div>}
+      
+      <StaffSectionHeader title="Recommendation conditions" copy="The reasons and conditions returned by the screening engine."/>
           <p className="staff-card-copy">{selected.recommendation?.reason}</p>
           <div className="staff-home-lane-grid">{(selected.recommendation?.conditions||[]).map((item:string)=><article className="staff-home-lane" key={item}><StaffBadge tone="neutral">Condition</StaffBadge><span>{item}</span></article>)}</div>
         </StaffPanel>
@@ -209,7 +213,7 @@ export default function AdminVisaHelpPage(){
       </StaffPanel>
 
       <StaffPanel>
-        <StaffSectionHeader title="Legal / admin action" copy="Move the case through the workflow as evidence and review are completed."/>
+        <StaffSectionHeader title="Legal / admin action" copy="Move the case through the workflow as evidence and review are completed. The readiness gate is enforced server-side."/>
         <label className="staff-form-field"><span className="staff-form-label">Internal legal notes</span><textarea className="staff-form-input" rows={5} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Record evidence gaps, legal review notes, or the next action."/></label>
         <div className="staff-home-panel-actions">
           <StaffAction onClick={()=>void updateCase({status:'awaiting_staff',legalNotes:notes})}>Request more information</StaffAction>
