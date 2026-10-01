@@ -38,8 +38,10 @@ describe('LAUREM Visa Help sponsor-side application tracking', () => {
       identity_status:'completed',
       decision_status:'granted',
       right_to_work_status:'confirmed',
+      application_status:'submitted',
     });
     expect(errors).toContain('A CoS reference is required when the CoS status is issued.');
+    expect(errors).toContain('CoS issue date is required when the CoS status is issued.');
     expect(errors).toContain('Identity completion date is required when identity status is completed.');
     expect(errors).toContain('Decision date is required when a final decision is recorded.');
     expect(errors).toContain('Right-to-work check date is required when the status is confirmed.');
