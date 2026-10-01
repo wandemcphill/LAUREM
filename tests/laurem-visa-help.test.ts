@@ -55,10 +55,24 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(result.dependantPosition).toBe('generally_permitted');
   });
 
-  it('flags dependant restrictions for care-worker routes', () => {
+  it('routes new overseas care-worker cases to legal review and does not promise dependant eligibility', () => {
     const result = recommendVisaHelp({
       role:'Support Worker',
       livingInUk:false,
+      wantsDependants:true,
+    });
+    expect(result.route).toBe('legal_review_required');
+    expect(result.dependantPosition).toBe('restricted');
+    expect(result.decision).toBe('requires_legal_review');
+  });
+
+  it('flags dependant restrictions for an in-country care-worker route', () => {
+    const result = recommendVisaHelp({
+      role:'Support Worker',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
       wantsDependants:true,
     });
     expect(result.route).toBe('health_and_care_worker');
