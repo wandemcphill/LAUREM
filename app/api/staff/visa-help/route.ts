@@ -6,6 +6,7 @@ import { LAUREM_CURRENT_UK_VISA_TYPES } from '@/lib/laurem-visa-options';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
+import { getOrCreateVisaHelpConversation } from '@/lib/laurem-messaging';
 
 export const dynamic='force-dynamic';
 
@@ -14,16 +15,22 @@ function text(value:unknown,max=500){return typeof value==='string'?value.trim()
 
 async function loadStaffCase(session:any){
   const client=db();
-  const [{data:staff,error:staffError},{data:application,error:applicationError},{data:visaCase,error:visaCaseError},{data:documents,error:documentsError}]=await Promise.all([
+  const [{data:staff,error:staffError},{data:application,error:applicationError},{data:visaCase,error:visaCaseError},{data:documents,error:documentsError},{data:tasks,error:tasksError},{data:events,error:eventsError},{data:documentLinks,error:documentLinksError}]=await Promise.all([
     client.from('laurem_staff_profiles').select('id,application_id,laurem_id,full_name,email,job_title,start_date,employment_status,location,phone,address_line_1,address_line_2,city,county,postcode,country').eq('id',session.staff_id).maybeSingle(),
     client.from('recruitment_applications').select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship,qualifications,training,professional_experience,employment_history,application_data').eq('id', (await client.from('laurem_staff_profiles').select('application_id').eq('id',session.staff_id).maybeSingle()).data?.application_id || '').maybeSingle(),
     client.from('laurem_staff_visa_help_cases').select('*').eq('staff_id',session.staff_id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     client.from('laurem_staff_documents').select('id,title,description,original_filename,mime_type,file_size_bytes,issued_at').eq('staff_id',session.staff_id).eq('category','visa_help').eq('status','issued').order('issued_at',{ascending:false}),
+    client.from('laurem_staff_visa_help_tasks').select('*').eq('staff_id',session.staff_id).eq('visibility','staff').order('created_at',{ascending:false}),
+    client.from('laurem_staff_visa_help_events').select('id,event_type,actor_type,actor,metadata,created_at').eq('staff_id',session.staff_id).order('created_at',{ascending:false}).limit(100),
+    client.from('laurem_staff_visa_help_documents').select('id,document_id,checklist_key,status,reviewer_note,reviewed_by,reviewed_at,created_at,updated_at').eq('staff_id',session.staff_id).order('created_at',{ascending:false}),
   ]);
   if(staffError) throw staffError;
   if(applicationError && applicationError.code!=='PGRST116') throw applicationError;
   if(visaCaseError && visaCaseError.code!=='PGRST116') throw visaCaseError;
   if(documentsError) throw documentsError;
+  if(tasksError) throw tasksError;
+  if(eventsError) throw eventsError;
+  if(documentLinksError) throw documentLinksError;
   if(!staff) return null;
 
   const app=application || {};
@@ -54,7 +61,11 @@ async function loadStaffCase(session:any){
     recommendation:rec,
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
     documents:documents||[],
+    tasks:tasks||[],
+    events:events||[],
+    documentLinks:documentLinks||[],
     addresses:app.address?[String(app.address)]:[],
+    conversationId:visaCase?.conversation_id||null,
     costSummary:getVisaCostSummary({
       route:rec.route,
       outsideUk:!livingInUk,
@@ -263,6 +274,44 @@ export async function POST(request:NextRequest){
       actor:session.email,
       metadata:{route:recommendation.route,decision:recommendation.decision,legalRequested,selfComplete},
     });
+
+    if(finalSubmission && (legalRequested || recommendation.decision!=='provisional')){
+      const conversation=await getOrCreateVisaHelpConversation(client,session.staff_id,caseRow.id);
+      if(!caseRow.conversation_id){
+        const linked=await client.from('laurem_staff_visa_help_cases').update({conversation_id:conversation.id}).eq('id',caseRow.id).select('*').single();
+        if(linked.error) throw linked.error;
+        caseRow=linked.data;
+      }
+      const {data:existingLegalTask}=await client.from('laurem_staff_visa_help_tasks')
+        .select('id,status')
+        .eq('visa_help_case_id',caseRow.id)
+        .eq('task_type','action')
+        .eq('title','Complete LAUREM legal/support review')
+        .not('status','in','(cancelled,verified)')
+        .limit(1).maybeSingle();
+      if(!existingLegalTask){
+        await client.from('laurem_staff_visa_help_tasks').insert({
+          visa_help_case_id:caseRow.id,
+          staff_id:session.staff_id,
+          task_type:'action',
+          visibility:'internal',
+          title:'Complete LAUREM legal/support review',
+          description:'Review the immigration history, route screening, dependant position and supporting evidence. Record the confirmed route or identify further evidence required before submission readiness.',
+          required:true,
+          status:'open',
+          requested_by_actor_type:'system',
+          requested_by:'Visa Help workflow',
+        });
+        await client.from('laurem_staff_visa_help_events').insert({
+          visa_help_case_id:caseRow.id,
+          staff_id:session.staff_id,
+          event_type:'legal_review_task_created',
+          actor_type:'system',
+          actor:'Visa Help workflow',
+          metadata:{reason:legalRequested?'staff_requested_support':'screening_requires_review'},
+        });
+      }
+    }
 
     if(finalSubmission){
       await createLauremStaffNotification(client,{
