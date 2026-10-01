@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
       if (!doc || doc.staff_id !== session.staff_id || doc.category !== 'visa_help' || doc.status !== 'issued') {
         return NextResponse.json({ error:'The attached document is not available for this Visa Help case.' }, { status:422 });
       }
+      const { data:link, error:linkError } = await client.from('laurem_staff_visa_help_documents')
+        .select('id,visa_help_case_id,staff_id,document_id').eq('visa_help_case_id',task.visa_help_case_id).eq('staff_id',session.staff_id).eq('document_id',responseDocumentId).maybeSingle();
+      if (linkError) throw linkError;
+      if (!link) return NextResponse.json({error:'Upload the document through this Visa Help case before attaching it to a request.'},{status:422});
     }
 
     const now = new Date().toISOString();
