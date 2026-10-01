@@ -30,6 +30,7 @@ export default function StaffVisaHelpPage(){
  const [livingInUk,setLivingInUk]=useState('');
  const [targetWorkLocation,setTargetWorkLocation]=useState('');
  const [monthsWorkingForLaurem,setMonthsWorkingForLaurem]=useState('0');
+ const [durationMonths,setDurationMonths]=useState('');
  const [studentCourseFinished,setStudentCourseFinished]=useState('');
  const [jobStartsAfterCourse,setJobStartsAfterCourse]=useState('');
  const [phdStudy24Months,setPhdStudy24Months]=useState('');
@@ -79,6 +80,7 @@ export default function StaffVisaHelpPage(){
    setLivingInUk(c?.living_in_uk===true?'yes':c?.living_in_uk===false?'no':b.application?.living_in_uk?.toLowerCase()==='yes'?'yes':'');
    setTargetWorkLocation(c?.target_work_location||b.staff?.location||'');
    setMonthsWorkingForLaurem(String(a.monthsWorkingForLaurem??0));
+   setDurationMonths(String(a.durationMonths || (a.durationYears ? Number(a.durationYears)*12 : '')));
    setStudentCourseFinished(a.studentCourseFinished==null?'':String(a.studentCourseFinished));
    setJobStartsAfterCourse(a.jobStartsAfterCourse==null?'':String(a.jobStartsAfterCourse));
    setPhdStudy24Months(a.phdStudy24Months==null?'':String(a.phdStudy24Months));
@@ -106,6 +108,17 @@ export default function StaffVisaHelpPage(){
  const preliminary=data?.recommendation;
  const legalIntakeNeeded=legalRequested==='yes'||preliminary?.decision!=='provisional';
  const checklist=useMemo(()=>data?.case?.document_checklist||[],[data]);
+ useEffect(()=>{
+  if(!data||!durationMonths)return;
+  const controller=new AbortController();
+  const params=new URLSearchParams({durationMonths,dependantCount:String(dependants.length)});
+  fetch('/api/staff/visa-help?'+params.toString(),{cache:'no-store',signal:controller.signal})
+   .then(async r=>{const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Unable to refresh visa cost estimate.');return b;})
+   .then(b=>setData(prev=>prev?{...prev,costSummary:b.costSummary}:prev))
+   .catch(error=>{if(error?.name!=='AbortError')console.error(error);});
+  return ()=>controller.abort();
+ },[durationMonths,dependants.length]);
+
 
  async function save(action:'save'|'submit'){
   if(!data)return;
@@ -119,7 +132,7 @@ export default function StaffVisaHelpPage(){
     targetRole:data.staff.job_title||data.application.role_applied,
     livingInUk:livingInUk==='yes',
     currentVisaType,currentVisaStartDate,currentVisaEndDate,
-    targetWorkLocation,monthsWorkingForLaurem,
+    targetWorkLocation,monthsWorkingForLaurem,durationMonths,
     passportNumber,passportIssueDate,passportExpiryDate,passportCountry,ukStatusShareCode,ukviReference,ukviAccountEmail,rightToWorkStatus,rightToWorkProofProvided,
     studentCourseFinished:studentCourseFinished===''?null:studentCourseFinished==='true',
     jobStartsAfterCourse:jobStartsAfterCourse===''?null:jobStartsAfterCourse==='true',
@@ -237,7 +250,7 @@ export default function StaffVisaHelpPage(){
   </StaffPanel>}
 
   {step===4&&<StaffPanel>
-    <StaffSectionHeader title="Visa cost, IHS and decision timeline" copy="The figures below are an estimate based on the currently selected route, visa duration and number of applicants. LAUREM refreshes the underlying official guidance when this page is loaded."/>
+    <StaffSectionHeader title="Visa cost, IHS and decision timeline" copy="The figures below are an estimate based on the currently selected route, intended visa duration and number of applicants. Check the official GOV.UK links before payment; fee guidance is reviewed again after 8 October 2026."/>
     <div className="staff-form-grid">
       <SelectField label="Expected visa duration" value={durationYears} onChange={setDurationYears} options={[['1','1 year'],['2','2 years'],['3','3 years'],['4','4 years'],['5','5 years']]}/>
     </div>

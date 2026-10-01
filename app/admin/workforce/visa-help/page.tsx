@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
-type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;target_role:string;target_work_location:string;current_visa_type:string;current_visa_end_date:string;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];legal_notes:string|null;staff_message:string|null};
+type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;target_role:string;target_work_location:string;current_visa_type:string;current_visa_end_date:string;living_in_uk:boolean;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];documents:any[];costSummary:any;legal_notes:string|null;staff_message:string|null};
 
 export default function AdminVisaHelpPage(){
   const [rows,setRows]=useState<Row[]>([]);
@@ -71,6 +71,16 @@ export default function AdminVisaHelpPage(){
         <div className="staff-stat"><div className="staff-stat-value">{selected.current_visa_end_date||'Not set'}</div><div className="staff-stat-label">Current visa end</div></div>
         <div className="staff-stat"><div className="staff-stat-value">{Array.isArray(selected.dependants)?selected.dependants.length:0}</div><div className="staff-stat-label">Dependants</div></div>
       </div>
+      <StaffPanel>
+        <StaffSectionHeader title="Applicant cost estimate" copy="Same current GOV.UK-based estimate shown to the staff member. This is an estimate, not a payment instruction."/>
+        <div className="staff-visa-info-grid">
+          <Info label="Visa application fees" value={selected.costSummary?.estimatedApplicationFees==null?'Route/duration review required':'£'+Number(selected.costSummary.estimatedApplicationFees).toLocaleString('en-GB')}/>
+          <Info label="Estimated IHS" value={selected.costSummary?.estimatedIhsTotal==null?'Route/duration review required':selected.costSummary.ihsExempt?'£0':('£'+Number(selected.costSummary.estimatedIhsTotal).toLocaleString('en-GB'))}/>
+          <Info label="IHS chargeable period" value={selected.costSummary?.estimatedIhsChargeableMonths==null?'Not calculated':selected.costSummary.estimatedIhsChargeableMonths+' months'}/>
+          <Info label="Decision standard" value={selected.costSummary?.processingTime||'Route review required'}/>
+        </div>
+        {selected.costSummary?.feeReviewDueLabel&&<StaffNotice tone="warning"><strong>Fee freshness</strong><p>{selected.costSummary.feeReviewDueLabel}</p></StaffNotice>}
+      </StaffPanel>
       <div className="staff-workforce-grid">
         <StaffPanel>
           <StaffSectionHeader title="Staff answers" copy="Information supplied through the Visa Help questionnaire."/>
@@ -84,7 +94,7 @@ export default function AdminVisaHelpPage(){
             <Info label="Criminal convictions" value={String(selected.answers?.criminalConvictions??'Not answered')}/>
             <Info label="English evidence" value={selected.answers?.englishEvidence}/>
             <Info label="Maintenance evidence" value={selected.answers?.maintenanceEvidence}/>
-            <Info label="Passport number" value={selected.answers?.passportNumber}/>
+            <Info label="Passport number" value={selected.answers?.passportNumber} sensitive/>
             <Info label="Passport country" value={selected.answers?.passportCountry}/>
             <Info label="Passport expiry" value={selected.answers?.passportExpiryDate}/>
             <Info label="UKVI reference" value={selected.answers?.ukviReference}/>
@@ -126,4 +136,5 @@ export default function AdminVisaHelpPage(){
   </StaffPageInner></StaffPage>;
 }
 
-function Info({label,value}:{label:string;value:any}){return <div className="staff-visa-info"><span>{label}</span><strong>{value||'Not recorded'}</strong></div>;}
+function maskSensitive(value:any){const v=String(value||'').trim();if(!v)return 'Not recorded';return v.length<=4?'••••':'••••'+v.slice(-4);}
+function Info({label,value,sensitive=false}:{label:string;value:any;sensitive?:boolean}){return <div className="staff-visa-info"><span>{label}</span><strong>{sensitive?maskSensitive(value):(value||'Not recorded')}</strong></div>;}

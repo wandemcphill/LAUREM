@@ -55,10 +55,24 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(result.dependantPosition).toBe('generally_permitted');
   });
 
-  it('flags dependant restrictions for care-worker routes', () => {
+  it('routes new overseas care-worker cases to legal review and does not promise dependant eligibility', () => {
     const result = recommendVisaHelp({
       role:'Support Worker',
       livingInUk:false,
+      wantsDependants:true,
+    });
+    expect(result.route).toBe('legal_review_required');
+    expect(result.dependantPosition).toBe('restricted');
+    expect(result.decision).toBe('requires_legal_review');
+  });
+
+  it('flags dependant restrictions for an in-country care-worker route', () => {
+    const result = recommendVisaHelp({
+      role:'Support Worker',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
       wantsDependants:true,
     });
     expect(result.route).toBe('health_and_care_worker');
@@ -79,4 +93,39 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(keys).toContain('dependant_identity');
     expect(keys).toContain('relationship_evidence');
   });
+  it('calculates IHS in six-month blocks instead of multiplying whole years', () => {
+    const result = getVisaCostSummary({
+      route:'skilled_worker',
+      outsideUk:false,
+      durationMonths:16,
+      dependantCount:0,
+    });
+    expect(result.estimatedIhsChargeableMonths).toBe(18);
+    expect(result.estimatedIhsTotal).toBe(1552.5);
+    expect(result.totalEstimatedApplicantCost).toBe(2495.5);
+  });
+
+  it('does not charge IHS for a six-month-or-less Skilled Worker application made outside the UK', () => {
+    const result = getVisaCostSummary({
+      route:'skilled_worker',
+      outsideUk:true,
+      durationMonths:6,
+      dependantCount:0,
+    });
+    expect(result.estimatedIhsChargeableMonths).toBe(0);
+    expect(result.estimatedIhsTotal).toBe(0);
+  });
+
+  it('preserves the Health and Care IHS exemption for dependants', () => {
+    const result = getVisaCostSummary({
+      route:'health_and_care_worker',
+      outsideUk:false,
+      durationMonths:30,
+      dependantCount:2,
+    });
+    expect(result.estimatedApplicationFees).toBe(972);
+    expect(result.estimatedIhsTotal).toBe(0);
+    expect(result.totalEstimatedApplicantCost).toBe(972);
+  });
+
 });

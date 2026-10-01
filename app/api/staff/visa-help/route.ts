@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
-import { recommendVisaHelp, buildVisaHelpDocumentChecklist, type VisaHelpRecommendation } from '@/lib/laurem-visa-help';
+import { recommendVisaHelp, buildVisaHelpDocumentChecklist, getVisaCostSummary, type VisaHelpRecommendation } from '@/lib/laurem-visa-help';
 import { LAUREM_CURRENT_UK_VISA_TYPES } from '@/lib/laurem-visa-options';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { sendLauremEmail } from '@/lib/laurem-email';
@@ -49,6 +49,7 @@ async function loadStaffCase(session:any){
   return {
     staff,
     application:app,
+    livingInUk,
     case:visaCase,
     recommendation:rec,
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
@@ -57,6 +58,7 @@ async function loadStaffCase(session:any){
     costSummary:getVisaCostSummary({
       route:rec.route,
       outsideUk:!livingInUk,
+      durationMonths:Number(current.durationMonths||0)||null,
       durationYears:Number(current.durationYears||0)||null,
       dependantCount:Array.isArray(visaCase?.dependants)?visaCase.dependants.length:Number(current.dependantCount||0),
     }),
@@ -71,6 +73,17 @@ export async function GET(request:NextRequest){
   try{
     const data=await loadStaffCase(session);
     if(!data)return NextResponse.json({error:'Staff profile not found.'},{status:404});
+    const url=new URL(request.url);
+    const queryDurationMonths=Number(url.searchParams.get('durationMonths')||0);
+    const queryDependantCount=Number(url.searchParams.get('dependantCount')||-1);
+    if(queryDurationMonths>0 || queryDependantCount>=0){
+      data.costSummary=getVisaCostSummary({
+        route:data.recommendation.route,
+        outsideUk:!data.livingInUk,
+        durationMonths:queryDurationMonths>0?queryDurationMonths:data.costSummary?.durationMonths||null,
+        dependantCount:queryDependantCount>=0?queryDependantCount:(Array.isArray(data.case?.dependants)?data.case.dependants.length:0),
+      });
+    }
     return NextResponse.json(data);
   }catch(error){
     console.error(JSON.stringify({level:'error',event:'staff.visa_help.load_failed',staffId:session.staff_id,reason:error instanceof Error?error.message:String(error)}));
@@ -102,6 +115,7 @@ export async function POST(request:NextRequest){
     const rightToWorkStatus=body.rightToWorkStatus==null?'':String(body.rightToWorkStatus);
     const rightToWorkProofProvided=body.rightToWorkProofProvided==null?'':String(body.rightToWorkProofProvided);
     const monthsWorkingForLaurem=Number(body.monthsWorkingForLaurem||0);
+    const durationMonths=Number(body.durationMonths||0);
     const durationYears=Number(body.durationYears||0);
     const wantsDependants=bool(body.wantsDependants);
     const dependantsInsideUk=bool(body.dependantsInsideUk);
@@ -112,6 +126,7 @@ export async function POST(request:NextRequest){
     if(livingInUk && !currentVisaType) return NextResponse.json({error:'Select your current UK visa type so the route check can run.'},{status:422});
     if(currentVisaStartDate && currentVisaEndDate && currentVisaEndDate<currentVisaStartDate) return NextResponse.json({error:'Current visa end date cannot be before the start date.'},{status:422});
     if(monthsWorkingForLaurem<0 || monthsWorkingForLaurem>240) return NextResponse.json({error:'Months working for LAUREM must be between 0 and 240.'},{status:422});
+    if(durationMonths<0 || durationMonths>120) return NextResponse.json({error:'Visa duration must be between 0 and 120 months.'},{status:422});
 
     const recommendation:VisaHelpRecommendation=recommendVisaHelp({
       role,livingInUk,currentVisaType,currentVisaStartDate,currentVisaEndDate,
@@ -125,6 +140,7 @@ export async function POST(request:NextRequest){
     const costSummary=getVisaCostSummary({
       route:recommendation.route,
       outsideUk:!livingInUk,
+      durationMonths:durationMonths||null,
       durationYears:durationYears||null,
       dependantCount:Array.isArray(body.dependants)?body.dependants.length:0,
     });
@@ -163,6 +179,7 @@ export async function POST(request:NextRequest){
       dependantsInsideUk,
       dependants:Array.isArray(body.dependants)?body.dependants.slice(0,10):[],
       durationYears,
+      durationMonths,
       currentAddress:text(body.currentAddress,800),
       previousImmigrationRefusals:body.previousImmigrationRefusals,
       previousOverstayOrBreach:body.previousOverstayOrBreach,

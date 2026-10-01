@@ -274,22 +274,62 @@ export type VisaCostSummary = {
   estimatedApplicationFees: number | null;
   ihsPerPersonPerYear: number;
   estimatedIhsTotal: number | null;
+  estimatedIhsChargeableMonths: number | null;
   totalEstimatedApplicantCost: number | null;
   ihsExempt: boolean;
   durationBand: 'up_to_3_years' | 'over_3_years' | 'not_set';
+  durationMonths: number | null;
   processingTime: string;
   processingTimeInsideUk: string;
   processingTimeOutsideUk: string;
   processingStartsAfter: string;
   sourceUrls: string[];
   lastCheckedLabel: string;
+  feeReviewDueLabel: string;
 };
+
+function calculateIhs(input: { outsideUk: boolean; durationMonths: number; ratePerYear: number }) {
+  if (input.outsideUk && input.durationMonths <= 6) return { chargeableMonths: 0, amount: 0 };
+  const chargeableMonths = Math.ceil(input.durationMonths / 6) * 6;
+  return { chargeableMonths, amount: input.ratePerYear * chargeableMonths / 12 };
+}
 
 export function getVisaCostSummary(input: {
   route: VisaHelpRecommendation['route'];
   outsideUk: boolean;
+  durationMonths?: number | null;
   durationYears?: number | null;
   dependantCount?: number | null;
+}): VisaCostSummary {
+  const rawMonths = Number(input.durationMonths || 0) || (Number(input.durationYears || 0) > 0 ? Number(input.durationYears) * 12 : 0);
+  const durationMonths = Math.max(0, Math.min(120, Math.round(rawMonths)));
+  const dependantCount = Math.max(0, Math.min(20, Number(input.dependantCount || 0)));
+  const people = 1 + dependantCount;
+  const durationBand: VisaCostSummary['durationBand'] = durationMonths <= 0 ? 'not_set' : durationMonths <= 36 ? 'up_to_3_years' : 'over_3_years';
+  const base = {
+    currency: 'GBP' as const,
+    durationBand,
+    durationMonths: durationMonths || null,
+    processingStartsAfter: 'UKVI has received the online application, identity has been verified and the required documents have been provided.',
+    feeReviewDueLabel: 'Re-check official fee guidance after 8 October 2026 and before payment.',
+  };
+
+  if (input.route === 'health_and_care_worker') {
+    const fee = durationBand === 'up_to_3_years' ? 324 : durationBand === 'over_3_years' ? 628 : null;
+    const fees = fee == null ? null : fee * people;
+    return { ...base, applicationFeePerPerson: fee, estimatedApplicationFees: fees, ihsPerPersonPerYear: 0, estimatedIhsTotal: 0, estimatedIhsChargeableMonths: 0, totalEstimatedApplicantCost: fees, ihsExempt: true, processingTime: 'Usually 3 weeks', processingTimeInsideUk: 'Usually 3 weeks', processingTimeOutsideUk: 'Usually 3 weeks', sourceUrls: ['https://www.gov.uk/health-care-worker-visa/how-much-it-costs', 'https://www.gov.uk/healthcare-immigration-application/who-needs-pay', 'https://www.gov.uk/health-care-worker-visa/overview'], lastCheckedLabel: 'Based on GOV.UK guidance retrieved for 1 October 2026' };
+  }
+
+  if (input.route === 'skilled_worker' || input.route === 'outside_uk_skilled_worker') {
+    const fee = input.outsideUk ? (durationBand === 'up_to_3_years' ? 819 : durationBand === 'over_3_years' ? 1618 : null) : (durationBand === 'up_to_3_years' ? 943 : durationBand === 'over_3_years' ? 1865 : null);
+    const ihsRate = 1035;
+    const fees = fee == null ? null : fee * people;
+    const ihsResult = durationMonths > 0 ? calculateIhs({ outsideUk: input.outsideUk, durationMonths, ratePerYear: ihsRate }) : { chargeableMonths: null, amount: null };
+    const ihs = ihsResult.amount == null ? null : ihsResult.amount * people;
+    return { ...base, applicationFeePerPerson: fee, estimatedApplicationFees: fees, ihsPerPersonPerYear: ihsRate, estimatedIhsTotal: ihs, estimatedIhsChargeableMonths: ihsResult.chargeableMonths, totalEstimatedApplicantCost: fees == null || ihs == null ? null : fees + ihs, ihsExempt: false, processingTime: input.outsideUk ? 'Usually 3 weeks' : 'Usually 8 weeks', processingTimeInsideUk: 'Usually 8 weeks', processingTimeOutsideUk: 'Usually 3 weeks', sourceUrls: ['https://www.gov.uk/skilled-worker-visa/how-much-it-costs', 'https://www.gov.uk/healthcare-immigration-application/how-much-pay', 'https://www.gov.uk/government/publications/visa-regulations-revised-table/home-office-immigration-and-nationality-fees-8-april-2026', 'https://www.gov.uk/government/publications/long-term-work-visas-customer-service-standards'], lastCheckedLabel: 'Based on GOV.UK guidance retrieved for 1 October 2026' };
+  }
+
+  return { ...base, applicationFeePerPerson: null, estimatedApplicationFees: null, ihsPerPersonPerYear: 0, estimatedIhsTotal: null, estimatedIhsChargeableMonths: null, totalEstimatedApplicantCost: null, ihsExempt: false, processingTime: 'Requires route review', processingTimeInsideUk: 'Requires route review', processingTimeOutsideUk: 'Requires route review', sourceUrls: ['https://www.gov.uk/browse/visas-immigration'], lastCheckedLabel: 'Official route review required' };
 }): VisaCostSummary {
   const durationYears = Number(input.durationYears || 0);
   const dependantCount = Math.max(0, Number(input.dependantCount || 0));
