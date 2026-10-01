@@ -62,8 +62,7 @@ export default function StaffVisaSponsorshipPage(){
             : <div style={{display:'grid',gap:8}}>{data.applicationAddresses.map((address,index)=><div key={index} style={{padding:12,border:'1px solid var(--line)',borderRadius:10,whiteSpace:'pre-wrap'}}>{address}</div>)}</div>}
           <div className="staff-form-grid" style={{marginTop:12}}>
             <YesNoSelect id="address-is-current" label="Is the application address above still your current address?" value={addressIsCurrent} onChange={setAddressIsCurrent}/>
-            {addressIsCurrent==='no'&&<label className="staff-form-field"><span className="staff-form-label">Your current address *</span><textarea className="staff-form-input" rows={4} value={currentAddress} onChange={e=>setCurrentAddress(e.target.value)} required placeholder="Enter your current residential address"/></label>}
-            {!data.applicationAddresses?.length&&<label className="staff-form-field"><span className="staff-form-label">Your current address *</span><textarea className="staff-form-input" rows={4} value={currentAddress} onChange={e=>setCurrentAddress(e.target.value)} required placeholder="Enter your current residential address"/></label>}
+            {(addressIsCurrent==='no'||!data.applicationAddresses?.length)&&<label className="staff-form-field"><span className="staff-form-label">Your current address *</span><textarea className="staff-form-input" rows={4} value={currentAddress} onChange={e=>setCurrentAddress(e.target.value)} required placeholder="Enter your current residential address"/></label>}
             <YesNoSelect id="address-proof-provided" label="Have you provided proof of this current address to LAUREM Admin as part of your application?" value={addressProofProvided} onChange={setAddressProofProvided}/>
           </div>
         </div>
