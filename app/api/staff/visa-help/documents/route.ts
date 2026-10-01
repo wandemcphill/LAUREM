@@ -12,6 +12,8 @@ export async function POST(request:NextRequest){
 
   try{
     const form=await request.formData();
+    const checklistKey=typeof form.get('checklistKey')==='string'?String(form.get('checklistKey')).trim().slice(0,120):null;
+    const taskId=typeof form.get('taskId')==='string'?String(form.get('taskId')).trim():null;
     const title=typeof form.get('title')==='string'?String(form.get('title')).trim().slice(0,160):'';
     const fileEntry=form.get('file');
     const file=fileEntry instanceof File && fileEntry.size>0?fileEntry:null;
@@ -27,6 +29,14 @@ export async function POST(request:NextRequest){
 
     const bytes=new Uint8Array(await file.arrayBuffer());
     const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,180);
+    const {data:caseRow,error:caseError}=await client.from('laurem_staff_visa_help_cases').select('id,status').eq('staff_id',session.staff_id).not('status','eq','closed').not('status','eq','submitted').order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(caseError)throw caseError;
+    if(!caseRow)return NextResponse.json({error:'Save your Visa Help case before uploading supporting documents.'},{status:409});
+    if(taskId){
+      const {data:task,error:taskError}=await client.from('laurem_staff_visa_help_tasks').select('id,visa_help_case_id,staff_id,status').eq('id',taskId).maybeSingle();
+      if(taskError)throw taskError;
+      if(!task || task.staff_id!==session.staff_id || task.visa_help_case_id!==caseRow.id || !['open','rejected'].includes(task.status))return NextResponse.json({error:'The selected Visa Help request is not available for this upload.'},{status:422});
+    }
     const storagePath='visa-help/'+session.staff_id+'/'+randomUUID()+'-'+safeName;
     const {error:uploadError}=await client.storage.from('laurem-private-documents').upload(storagePath,bytes,{contentType:file.type,upsert:false});
     if(uploadError)throw uploadError;
@@ -52,6 +62,41 @@ export async function POST(request:NextRequest){
       issued_at:new Date().toISOString(),
     }).select('id,title,description,original_filename,mime_type,file_size_bytes,issued_at').single();
     if(documentError)throw documentError;
+
+    await client.from('laurem_staff_visa_help_documents').insert({
+      visa_help_case_id:caseRow.id,
+      staff_id:session.staff_id,
+      document_id:document.id,
+      checklist_key:checklistKey,
+      status:'submitted',
+    });
+
+    if(taskId){
+      await client.from('laurem_staff_visa_help_tasks').update({
+        response_document_id:document.id,
+        response_text:null,
+        status:'submitted',
+        submitted_at:new Date().toISOString(),
+        updated_at:new Date().toISOString(),
+      }).eq('id',taskId).eq('staff_id',session.staff_id);
+      await client.from('laurem_staff_visa_help_events').insert({
+        visa_help_case_id:caseRow.id,
+        staff_id:session.staff_id,
+        event_type:'visa_help_task_submitted',
+        actor_type:'staff',
+        actor:session.email,
+        metadata:{taskId,taskType:'document',responseDocumentId:document.id,checklistKey},
+      });
+    } else {
+      await client.from('laurem_staff_visa_help_events').insert({
+        visa_help_case_id:caseRow.id,
+        staff_id:session.staff_id,
+        event_type:'visa_help_document_uploaded',
+        actor_type:'staff',
+        actor:session.email,
+        metadata:{documentId:document.id,checklistKey},
+      });
+    }
 
     await client.from('laurem_staff_document_events').insert({
       document_id:document.id,

@@ -24,6 +24,7 @@ export default function AdminMessagesPage() {
   }
 
   useEffect(() => { void load(); }, []);
+  useEffect(() => { const desired=new URLSearchParams(window.location.search).get('conversation'); if(desired)void openConversation(desired); }, []);
 
   async function reply() {
     const message = draft.trim();

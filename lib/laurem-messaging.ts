@@ -195,3 +195,28 @@ export async function getStaffConversationSummaries(client: SupabaseClient, staf
     };
   });
 }
+
+
+export async function getOrCreateVisaHelpConversation(client: SupabaseClient, staffId: string, caseId: string) {
+  const key = `visa-help:${caseId}`;
+  const existing = await client.from('laurem_staff_message_conversations')
+    .select('id,direct_key,created_at,updated_at,last_message_at')
+    .eq('direct_key', key).maybeSingle();
+  if (existing.data) return existing.data;
+
+  const { data: conversation, error } = await client.from('laurem_staff_message_conversations')
+    .insert({ direct_key: key, created_by_staff_id: staffId })
+    .select('id,direct_key,created_at,updated_at,last_message_at').single();
+  if (error || !conversation) {
+    const retry = await client.from('laurem_staff_message_conversations')
+      .select('id,direct_key,created_at,updated_at,last_message_at')
+      .eq('direct_key', key).maybeSingle();
+    if (retry.data) return retry.data;
+    throw error || new Error('Unable to create Visa Help conversation.');
+  }
+
+  const { error: participantError } = await client.from('laurem_staff_message_participants')
+    .insert({ conversation_id: conversation.id, staff_id: staffId });
+  if (participantError) throw participantError;
+  return conversation;
+}
