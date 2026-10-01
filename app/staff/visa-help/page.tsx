@@ -251,7 +251,22 @@ export default function StaffVisaHelpPage(){
     <StaffSectionHeader title="2. Dependants and family" copy="Each dependant is treated as a separate immigration application. Some care occupations have additional dependant restrictions."/>
     <div className="staff-modern-form">
       <YesNo label="Do you want your partner or children to apply as your dependants?" value={wantsDependants} onChange={setWantsDependants}/>
-      {wantsDependants==='true'&&<><YesNo label="Are any of those dependants currently in the UK?" value={dependantsInsideUk} onChange={setDependantsInsideUk}/>{dependants.map((dep,index)=><div key={index} className="staff-panel-nested"><StaffSectionHeader title={'Dependant '+(index+1)} copy="Capture the identity and current immigration position so the route can be checked properly."/><div className="staff-form-grid"><SelectField label="Relationship" value={dep.relationship} onChange={v=>updateDependant(index,'relationship',v)} options={[['partner','Partner / spouse / civil partner'],['child','Child']]}/><TextField label="Full name" value={dep.fullName} onChange={v=>updateDependant(index,'fullName',v)}/><DateField label="Date of birth" value={dep.dateOfBirth} onChange={v=>updateDependant(index,'dateOfBirth',v)}/><TextField label="Nationality" value={dep.nationality} onChange={v=>updateDependant(index,'nationality',v)}/><SelectField label="Current location" value={dep.currentLocation} onChange={v=>updateDependant(index,'currentLocation',v)} options={[['UK','United Kingdom'],['outside_uk','Outside the UK']]}/><SelectField label="Current visa type" value={dep.currentVisaType} onChange={v=>updateDependant(index,'currentVisaType',v)} options={data.visaTypes.map(x=>[x.value,x.label])}/><DateField label="Current visa end date" value={dep.currentVisaEndDate} onChange={v=>updateDependant(index,'currentVisaEndDate',v)}/>{dep.relationship==='child'&&<><YesNo label="Was the child born in the UK?" value={dep.bornInUk} onChange={v=>updateDependant(index,'bornInUk',v)}/><YesNo label="Is the child's other parent also sponsored as a care worker or senior care worker?" value={dep.otherParentSponsored} onChange={v=>updateDependant(index,'otherParentSponsored',v)}/></>}<StaffAction onClick={()=>setDependants(rows=>rows.filter((_,i)=>i!==index))}>Remove dependant</StaffAction></div>)}<StaffAction onClick={()=>setDependants(rows=>[...rows,blankDependant()])}>+ Add dependant</StaffAction></>}
+      {wantsDependants==='true'&&(
+        <>
+          <YesNo label="Are any of those dependants currently in the UK?" value={dependantsInsideUk} onChange={setDependantsInsideUk}/>
+          {dependants.map((dep,index)=>(
+            <DependantEditor
+              key={index}
+              dependant={dep}
+              index={index}
+              visaTypes={data.visaTypes}
+              onChange={updateDependant}
+              onRemove={()=>setDependants(rows=>rows.filter((_,i)=>i!==index))}
+            />
+          ))}
+          <StaffAction onClick={()=>setDependants(rows=>[...rows,blankDependant()])}>+ Add dependant</StaffAction>
+        </>
+      )}
       {preliminary?.dependantPosition==='restricted'&&<StaffNotice tone="warning"><strong>Dependant rules need careful review</strong><p>This job appears to use an occupation where current UK rules restrict dependant applications, subject to specific exceptions. LAUREM will not promise dependant eligibility from this screen.</p></StaffNotice>}
       <div className="staff-home-panel-actions"><StaffAction onClick={()=>void save('save')}>Save progress</StaffAction><StaffAction onClick={()=>setStep(1)}>Back</StaffAction><StaffAction primary onClick={()=>setStep(3)}>Continue to documents</StaffAction></div>
     </div>
@@ -324,6 +339,26 @@ export default function StaffVisaHelpPage(){
   </StaffPanel>}
 
  </StaffPageInner></StaffPage>;
+}
+
+function DependantEditor({dependant,index,visaTypes,onChange,onRemove}:{dependant:Dependant;index:number;visaTypes:any[];onChange:(index:number,key:keyof Dependant,value:string)=>void;onRemove:()=>void}){
+ return <div className="staff-panel-nested">
+  <StaffSectionHeader title={'Dependant '+(index+1)} copy="Capture the identity and current immigration position so the route can be checked properly."/>
+  <div className="staff-form-grid">
+   <SelectField label="Relationship" value={dependant.relationship} onChange={v=>onChange(index,'relationship',v)} options={[['partner','Partner / spouse / civil partner'],['child','Child']]}/>
+   <TextField label="Full name" value={dependant.fullName} onChange={v=>onChange(index,'fullName',v)}/>
+   <DateField label="Date of birth" value={dependant.dateOfBirth} onChange={v=>onChange(index,'dateOfBirth',v)}/>
+   <TextField label="Nationality" value={dependant.nationality} onChange={v=>onChange(index,'nationality',v)}/>
+   <SelectField label="Current location" value={dependant.currentLocation} onChange={v=>onChange(index,'currentLocation',v)} options={[['UK','United Kingdom'],['outside_uk','Outside the UK']]}/>
+   <SelectField label="Current visa type" value={dependant.currentVisaType} onChange={v=>onChange(index,'currentVisaType',v)} options={visaTypes.map(x=>[x.value,x.label])}/>
+   <DateField label="Current visa end date" value={dependant.currentVisaEndDate} onChange={v=>onChange(index,'currentVisaEndDate',v)}/>
+   {dependant.relationship==='child'&&<div className="staff-form-grid">
+    <YesNo label="Was the child born in the UK?" value={dependant.bornInUk} onChange={v=>onChange(index,'bornInUk',v)}/>
+    <YesNo label="Is the child's other parent also sponsored as a care worker or senior care worker?" value={dependant.otherParentSponsored} onChange={v=>onChange(index,'otherParentSponsored',v)}/>
+   </div>}
+  </div>
+  <StaffAction onClick={onRemove}>Remove dependant</StaffAction>
+ </div>;
 }
 
 function SelectField({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[][]}){return <label className="staff-form-field"><span className="staff-form-label">{label}</span><select className="staff-form-input" value={value} onChange={e=>onChange(e.target.value)}><option value="">Select</option>{options.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>;}
