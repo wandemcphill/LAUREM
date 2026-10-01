@@ -294,7 +294,7 @@ export default function StaffVisaHelpPage(){
   {step===4&&<StaffPanel>
     <StaffSectionHeader title="Visa cost, IHS and decision timeline" copy="The figures below are an estimate based on the currently selected route, intended visa duration and number of applicants. Check the official GOV.UK links before payment; fee guidance is reviewed again after 8 October 2026."/>
     <div className="staff-form-grid">
-      <SelectField label="Expected visa duration" value={durationYears} onChange={setDurationYears} options={[['1','1 year'],['2','2 years'],['3','3 years'],['4','4 years'],['5','5 years']]}/>
+      <SelectField label="Expected visa duration" value={durationMonths} onChange={setDurationMonths} options={[['6','6 months'],['12','1 year'],['18','18 months'],['24','2 years'],['30','30 months'],['36','3 years'],['42','42 months'],['48','4 years'],['54','54 months'],['60','5 years']]}/>
     </div>
     {data.costSummary&&<div className="staff-home-lane-grid">
       <article className="staff-home-lane"><StaffBadge tone="neutral">Visa application fee</StaffBadge><strong>{data.costSummary.applicationFeePerPerson==null?'Route review required':'£'+Number(data.costSummary.applicationFeePerPerson).toLocaleString('en-GB')+' per person'}</strong><span>{data.costSummary.estimatedApplicationFees==null?'Final fee depends on the confirmed route and duration.':'Estimated application fees for '+(1+dependants.length)+' applicant'+(dependants.length===0?'':'s')+': £'+Number(data.costSummary.estimatedApplicationFees).toLocaleString('en-GB')}</span></article>
