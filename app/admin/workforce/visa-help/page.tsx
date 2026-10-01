@@ -12,6 +12,14 @@ export default function AdminVisaHelpPage(){
   const [filter,setFilter]=useState<'all'|'legal'|'self'|'review'>('all');
   const [selected,setSelected]=useState<Row|null>(null);
   const [notes,setNotes]=useState('');
+  const [confirmedRoute,setConfirmedRoute]=useState('');
+  const [legalReviewCompleted,setLegalReviewCompleted]=useState(false);
+  const [requestType,setRequestType]=useState<'information'|'document'|'action'>('information');
+  const [requestTitle,setRequestTitle]=useState('');
+  const [requestDescription,setRequestDescription]=useState('');
+  const [requestDueAt,setRequestDueAt]=useState('');
+  const [taskAction,setTaskAction]=useState('');
+  const [documentAction,setDocumentAction]=useState('');
 
   async function load(){
     setLoading(true);setError('');
@@ -22,7 +30,7 @@ export default function AdminVisaHelpPage(){
       setRows(b.cases||[]);
       if(selected){
         const fresh=(b.cases||[]).find((x:Row)=>x.id===selected.id);
-        if(fresh){setSelected(fresh);setNotes(fresh.legal_notes||'');}
+        if(fresh){setSelected(fresh);setNotes(fresh.legal_notes||'');setConfirmedRoute(fresh.confirmed_route||'');setLegalReviewCompleted(Boolean(fresh.legal_review_completed));}
       }
     }catch(e){setError(e instanceof Error?e.message:'Unable to load Visa Help cases.');}
     finally{setLoading(false);}
@@ -30,6 +38,7 @@ export default function AdminVisaHelpPage(){
   useEffect(()=>{void load();},[]);
 
   async function updateCase(patch:Record<string,any>){
+
     if(!selected)return;
     setError('');
     try{
@@ -38,6 +47,40 @@ export default function AdminVisaHelpPage(){
       if(!r.ok)throw new Error(b.error||'Unable to update case.');
       await load();
     }catch(e){setError(e instanceof Error?e.message:'Unable to update case.');}
+  }
+
+  async function createRequest(){
+    if(!selected||!requestTitle.trim())return;
+    setError('');
+    try{
+      const r=await fetch('/api/admin/workforce/visa-help/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:selected.id,taskType:requestType,title:requestTitle,description:requestDescription,dueAt:requestDueAt||null,required:true})});
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(b.error||'Unable to create request.');
+      setRequestTitle('');setRequestDescription('');setRequestDueAt('');
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:'Unable to create request.');}
+  }
+
+  async function reviewTask(taskId:string,action:'verify'|'reject'|'reopen'|'cancel'){
+    setTaskAction(taskId+':'+action);setError('');
+    try{
+      const r=await fetch('/api/admin/workforce/visa-help/tasks',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({taskId,action,reviewerNote:notes})});
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(b.error||'Unable to update request.');
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:'Unable to update request.');}
+    finally{setTaskAction('');}
+  }
+
+  async function reviewDocument(linkId:string,action:'accept'|'reject'){
+    setDocumentAction(linkId+':'+action);setError('');
+    try{
+      const r=await fetch('/api/admin/workforce/visa-help/documents',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({linkId,action,reviewerNote:notes})});
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(b.error||'Unable to review document.');
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:'Unable to review document.');}
+    finally{setDocumentAction('');}
   }
 
   if(loading)return <StaffLoading label="Loading Visa Help queue…"/>;
@@ -59,12 +102,12 @@ export default function AdminVisaHelpPage(){
       {!visible.length?<div className="staff-empty">No cases match this view.</div>:
       <div className="staff-document-list">{visible.map(row=><article key={row.id} className={'staff-document-card'+(row.legal_team_requested?' staff-document-card--attention':'')}>
         <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">V</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{row.updated_at?new Date(row.updated_at).toLocaleDateString('en-GB',{dateStyle:'medium'}):'Case'}</span><StaffBadge tone={row.legal_team_requested?'attention':'neutral'}>{row.legal_team_requested?'Legal help requested':row.status.replaceAll('_',' ')}</StaffBadge></div><h3>{row.staff?.full_name||'Staff member'}</h3><p>{row.target_role||row.staff?.job_title||'Role not recorded'} · {row.recommendation?.title||row.selected_route}</p><div className="staff-document-meta">Current visa: {row.current_visa_type||'Not recorded'}{row.current_visa_end_date?' · Expires '+row.current_visa_end_date:''} · Dependants: {Array.isArray(row.dependants)?row.dependants.length:0}</div></div></div>
-        <div className="staff-document-actions"><StaffAction primary onClick={()=>{setSelected(row);setNotes(row.legal_notes||'');}}>Open case</StaffAction></div>
+        <div className="staff-document-actions"><StaffAction primary onClick={()=>{setSelected(row);setNotes(row.legal_notes||'');setConfirmedRoute(row.confirmed_route||'');setLegalReviewCompleted(Boolean(row.legal_review_completed));}}>Open case</StaffAction></div>
       </article>)}</div>}
     </StaffPanel>
 
     {selected&&<StaffPanel>
-      <StaffSectionHeader title={selected.staff?.full_name||'Visa Help case'} copy="Case review. The preliminary engine is a screening aid; legal/support staff can override the workflow after reviewing the evidence."/>
+      <StaffSectionHeader title={selected.staff?.full_name||'Visa Help case'} copy="Case review. The screening engine is a decision aid. Final route confirmation, evidence review and readiness remain under LAUREM staff/legal control."/>
       <div className="staff-stat-grid">
         <div className="staff-stat"><div className="staff-stat-value">{selected.recommendation?.title||'Review'}</div><div className="staff-stat-label">Preliminary route</div></div>
         <div className="staff-stat"><div className="staff-stat-value">{selected.recommendation?.decision||'unknown'}</div><div className="staff-stat-label">Screening decision</div></div>
@@ -122,6 +165,49 @@ export default function AdminVisaHelpPage(){
         {!selected.dependants?.length?<div className="staff-empty">No dependants were entered.</div>:
         <div className="staff-document-list">{selected.dependants.map((dep:any,index:number)=><article key={index} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-copy"><span className="staff-document-category">{dep.relationship||'Dependant'}</span><h3>{dep.fullName||'Name not recorded'}</h3><p>{dep.currentLocation||'Location not recorded'} · Current visa: {dep.currentVisaType||'Not recorded'}</p><div className="staff-document-meta">DOB {dep.dateOfBirth||'Not set'} · Nationality {dep.nationality||'Not set'}</div></div></div></article>)}</div>}
       </StaffPanel>
+      <StaffPanel>
+        <StaffSectionHeader title="Readiness control" copy="The server blocks submission readiness until the required case conditions are met."/>
+        <div className="staff-visa-info-grid">
+          <Info label="Readiness" value={selected.readiness?.ready?'Ready':'Blocked'}/>
+          <Info label="Required requests verified" value={selected.readiness?.verifiedRequiredTasks+'/'+(selected.readiness?.verifiedRequiredTasks+selected.readiness?.openRequiredTasks)}/>
+          <Info label="Legal review" value={selected.legal_review_completed?'Completed':'Pending'}/>
+          <Info label="Confirmed route" value={selected.confirmed_route||'Not confirmed'}/>
+        </div>
+        {selected.readiness?.issues?.length>0&&<StaffNotice tone="warning"><strong>Gate blockers</strong>{selected.readiness.issues.map((issue:string)=><p key={issue}>{issue}</p>)}</StaffNotice>}
+        <div className="staff-form-grid">
+          <label className="staff-form-field"><span className="staff-form-label">Confirmed route</span><select className="staff-form-input" value={confirmedRoute} onChange={e=>setConfirmedRoute(e.target.value)}><option value="">Use preliminary route</option><option value="health_and_care_worker">Health and Care Worker</option><option value="skilled_worker">Skilled Worker</option><option value="outside_uk_skilled_worker">Skilled Worker from outside UK</option><option value="legal_review_required">Legal review required</option><option value="not_switchable_from_current_permission">Not switchable on current permission</option></select></label>
+          <label className="staff-check-row"><input type="checkbox" checked={legalReviewCompleted} onChange={e=>setLegalReviewCompleted(e.target.checked)}/><span>Legal/support review completed</span></label>
+        </div>
+        <div className="staff-home-panel-actions"><StaffAction onClick={()=>void updateCase({confirmedRoute:confirmedRoute||null,legalReviewCompleted,legalNotes:notes})}>Save review decision</StaffAction><StaffAction primary onClick={()=>void updateCase({status:'ready_for_submission',confirmedRoute:confirmedRoute||null,legalReviewCompleted,legalNotes:notes})}>Mark ready for submission</StaffAction><StaffAction onClick={()=>void updateCase({status:'submitted',legalNotes:notes})}>Record submitted</StaffAction></div>
+      </StaffPanel>
+
+      <StaffPanel>
+        <StaffSectionHeader title="Create a case request" copy="Create an explicit, trackable request instead of putting evidence gaps only into free-text notes."/>
+        <div className="staff-form-grid">
+          <label className="staff-form-field"><span className="staff-form-label">Request type</span><select className="staff-form-input" value={requestType} onChange={e=>setRequestType(e.target.value as any)}><option value="information">Information</option><option value="document">Document</option><option value="action">Action</option></select></label>
+          <label className="staff-form-field"><span className="staff-form-label">Due date</span><input className="staff-form-input" type="datetime-local" value={requestDueAt} onChange={e=>setRequestDueAt(e.target.value)}/></label>
+          <label className="staff-form-field" style={{gridColumn:'1 / -1'}}><span className="staff-form-label">Title</span><input className="staff-form-input" value={requestTitle} onChange={e=>setRequestTitle(e.target.value)} placeholder="e.g. Upload current eVisa evidence"/></label>
+          <label className="staff-form-field" style={{gridColumn:'1 / -1'}}><span className="staff-form-label">Instructions</span><textarea className="staff-form-input" rows={4} value={requestDescription} onChange={e=>setRequestDescription(e.target.value)} placeholder="Tell the staff member exactly what is needed and why." /></label>
+        </div>
+        <StaffAction primary onClick={()=>void createRequest()} disabled={!requestTitle.trim()}>Create request</StaffAction>
+      </StaffPanel>
+
+      <StaffPanel>
+        <StaffSectionHeader title="Case requests" copy="Each request has its own lifecycle and must be verified before it stops blocking the readiness gate."/>
+        {!selected.tasks?.length?<div className="staff-empty">No structured requests yet.</div>:<div className="staff-document-list">{selected.tasks.filter((task:any)=>task.status!=='cancelled').map((task:any)=><article key={task.id} className="staff-document-card">
+          <div className="staff-document-main"><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{task.task_type}{task.required?' · required':''}</span><StaffBadge tone={task.status==='verified'?'live':task.status==='rejected'?'danger':task.status==='submitted'?'attention':'neutral'}>{task.status}</StaffBadge></div><h3>{task.title}</h3><p>{task.description}</p><div className="staff-document-meta">{task.requested_by} · Created {new Date(task.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}{task.due_at?' · Due '+new Date(task.due_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):''}</div></div></div>
+          <div className="staff-document-actions">{task.status==='submitted'&&<><StaffAction primary onClick={()=>void reviewTask(task.id,'verify')} disabled={taskAction.startsWith(task.id)}>{taskAction===task.id+':verify'?'Verifying…':'Verify'}</StaffAction><StaffAction onClick={()=>void reviewTask(task.id,'reject')} disabled={taskAction.startsWith(task.id)}>Reject</StaffAction></>}{task.status==='rejected'&&<StaffAction onClick={()=>void reviewTask(task.id,'reopen')} disabled={taskAction.startsWith(task.id)}>Reopen</StaffAction>}</div>
+        </article>)}</div>}
+      </StaffPanel>
+
+      <StaffPanel>
+        <StaffSectionHeader title="Evidence review" copy="Submitted documents are separate from accepted evidence. Reviewers can record a decision against the exact case link."/>
+        {!selected.documentLinks?.length?<div className="staff-empty">No case-linked evidence yet.</div>:<div className="staff-document-list">{selected.documentLinks.map((link:any)=><article key={link.id} className="staff-document-card">
+          <div className="staff-document-main"><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{link.checklist_key||'General evidence'}</span><StaffBadge tone={link.status==='accepted'?'live':link.status==='rejected'?'danger':'attention'}>{link.status}</StaffBadge></div><h3>{(selected.documents||[]).find((doc:any)=>doc.id===link.document_id)?.title||'Visa Help document'}</h3><p>{(selected.documents||[]).find((doc:any)=>doc.id===link.document_id)?.original_filename||'Portal upload'}</p><div className="staff-document-meta">{link.reviewed_by?'Reviewed by '+link.reviewed_by:'Awaiting review'}{link.reviewer_note?' · '+link.reviewer_note:''}</div></div></div>
+          <div className="staff-document-actions">{link.status!=='accepted'&&<StaffAction primary onClick={()=>void reviewDocument(link.id,'accept')} disabled={documentAction.startsWith(link.id)}>Accept</StaffAction>}{link.status!=='rejected'&&<StaffAction onClick={()=>void reviewDocument(link.id,'reject')} disabled={documentAction.startsWith(link.id)}>Reject</StaffAction>}</div>
+        </article>)}</div>}
+      </StaffPanel>
+
       <StaffPanel>
         <StaffSectionHeader title="Legal / admin action" copy="Move the case through the workflow as evidence and review are completed."/>
         <label className="staff-form-field"><span className="staff-form-label">Internal legal notes</span><textarea className="staff-form-input" rows={5} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Record evidence gaps, legal review notes, or the next action."/></label>
