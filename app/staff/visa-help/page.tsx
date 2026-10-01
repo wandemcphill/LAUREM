@@ -51,6 +51,7 @@ export default function StaffVisaHelpPage(){
  const [consent,setConsent]=useState(false);
  const [staffMessage,setStaffMessage]=useState('');
  const [uploadTitle,setUploadTitle]=useState('');
+ const [uploadChecklistKey,setUploadChecklistKey]=useState('');
  const [uploadFile,setUploadFile]=useState<File|null>(null);
  const [uploading,setUploading]=useState(false);
  const [taskResponses,setTaskResponses]=useState<Record<string,string>>({});
@@ -169,11 +170,12 @@ export default function StaffVisaHelpPage(){
   try{
    const form=new FormData();
    form.append('title',uploadTitle);
+   if(uploadChecklistKey)form.append('checklistKey',uploadChecklistKey);
    form.append('file',uploadFile);
    const r=await fetch('/api/staff/visa-help/documents',{method:'POST',body:form});
    const b=await r.json().catch(()=>({}));
    if(!r.ok)throw new Error(b.error||'Unable to upload document.');
-   setUploadTitle('');setUploadFile(null);
+   setUploadTitle('');setUploadChecklistKey('');setUploadFile(null);
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Unable to upload document.');}
   finally{setUploading(false);}
@@ -283,7 +285,7 @@ export default function StaffVisaHelpPage(){
       <TextField label="Maintenance evidence" value={maintenanceEvidence} onChange={setMaintenanceEvidence} placeholder="For example: personal funds evidence or sponsor maintenance confirmation."/>
       <StaffSectionHeader title="Document checklist" copy="Required items change with the selected route and your circumstances. Upload what you already have; LAUREM can identify missing items during review."/>
       <div className="staff-home-lane-grid">{checklist.map((item:any)=><article key={item.key} className="staff-home-lane"><StaffBadge tone={item.required?'attention':'neutral'}>{item.required?'Required':'Conditional'}</StaffBadge><strong>{item.label}</strong><span>{data.documents.some((doc:any)=>doc.title.toLowerCase()===item.label.toLowerCase())?'Uploaded to portal':'Not yet matched to an upload'}</span></article>)}</div>
-      <div className="staff-panel-nested"><StaffSectionHeader title="Upload a supporting document" copy="Use this for passport, visa evidence, relationship documents, English evidence, bank statements or other materials requested for your case."/><div className="staff-form-grid"><TextField label="Document title" value={uploadTitle} onChange={setUploadTitle} placeholder="e.g. Current eVisa evidence"/><label className="staff-form-field"><span className="staff-form-label">File</span><input className="staff-form-input" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg" onChange={e=>setUploadFile(e.target.files?.[0]||null)}/></label></div><StaffAction onClick={()=>void upload()} disabled={uploading}>{uploading?'Uploading…':'Upload document securely'}</StaffAction></div>
+      <div className="staff-panel-nested"><StaffSectionHeader title="Upload a supporting document" copy="Classify the evidence when possible. This lets LAUREM review it against a specific checklist item rather than guessing from the filename."/><div className="staff-form-grid"><TextField label="Document title" value={uploadTitle} onChange={setUploadTitle} placeholder="e.g. Current eVisa evidence"/><SelectField label="What does this document support?" value={uploadChecklistKey} onChange={setUploadChecklistKey} options={[['','General case evidence'],...checklist.map((item:any)=>[item.key,item.label])]}/><label className="staff-form-field"><span className="staff-form-label">File</span><input className="staff-form-input" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg" onChange={e=>setUploadFile(e.target.files?.[0]||null)}/></label></div><StaffAction onClick={()=>void upload()} disabled={uploading}>{uploading?'Uploading…':'Upload document securely'}</StaffAction></div>
       {data.documents.length>0&&<div className="staff-document-list">{data.documents.map((doc:any)=><article key={doc.id} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">V</div><div className="staff-document-copy"><h3>{doc.title}</h3><p>{doc.description||'Private Visa Help document'}</p><div className="staff-document-meta">{doc.original_filename||'Portal document'} · {new Date(doc.issued_at).toLocaleDateString('en-GB',{dateStyle:'medium'})}</div></div></div><div className="staff-document-actions"><StaffAction href={'/staff/documents/'+encodeURIComponent(doc.id)}>Open</StaffAction></div></article>)}</div>}
       <div className="staff-home-panel-actions"><StaffAction onClick={()=>void save('save')}>Save progress</StaffAction><StaffAction onClick={()=>setStep(2)}>Back</StaffAction><StaffAction primary onClick={()=>setStep(4)}>Continue</StaffAction></div>
     </div>
