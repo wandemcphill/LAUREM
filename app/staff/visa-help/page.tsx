@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
 type Dependant={relationship:string;fullName:string;dateOfBirth:string;nationality:string;currentLocation:string;currentVisaType:string;currentVisaEndDate:string;bornInUk:string;otherParentSponsored:string};
-type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];addresses:string[]};
+type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];addresses:string[];conversationId:string|null};
 const blankDependant=():Dependant=>({relationship:'',fullName:'',dateOfBirth:'',nationality:'',currentLocation:'',currentVisaType:'',currentVisaEndDate:'',bornInUk:'',otherParentSponsored:''});
 
 export default function StaffVisaHelpPage(){
@@ -53,6 +53,9 @@ export default function StaffVisaHelpPage(){
  const [uploadTitle,setUploadTitle]=useState('');
  const [uploadFile,setUploadFile]=useState<File|null>(null);
  const [uploading,setUploading]=useState(false);
+ const [taskResponses,setTaskResponses]=useState<Record<string,string>>({});
+ const [taskDocumentIds,setTaskDocumentIds]=useState<Record<string,string>>({});
+ const [taskSaving,setTaskSaving]=useState<string>('');
 
  async function load(){
   setLoading(true);setError('');
@@ -176,6 +179,22 @@ export default function StaffVisaHelpPage(){
   finally{setUploading(false);}
  }
 
+ async function respondToTask(taskId:string){
+  const responseText=(taskResponses[taskId]||'').trim();
+  const responseDocumentId=taskDocumentIds[taskId]||null;
+  if(!responseText&&!responseDocumentId){setError('Add a written response or select an uploaded document before submitting the request.');return;}
+  setTaskSaving(taskId);setError('');
+  try{
+   const r=await fetch('/api/staff/visa-help/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({taskId,responseText,responseDocumentId})});
+   const b=await r.json().catch(()=>({}));
+   if(!r.ok)throw new Error(b.error||'Unable to submit the Visa Help request.');
+   setTaskResponses(current=>({...current,[taskId]:''}));
+   setTaskDocumentIds(current=>({...current,[taskId]:''}));
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:'Unable to submit the Visa Help request.');}
+  finally{setTaskSaving('');}
+ }
+
  function updateDependant(index:number,key:keyof Dependant,value:string){
   setDependants(rows=>rows.map((row,i)=>i===index?{...row,[key]:value}:row));
  }
@@ -186,6 +205,27 @@ export default function StaffVisaHelpPage(){
  return <StaffPage className="staff-page--visa-help"><StaffPageInner>
   <StaffPageHeader eyebrow="IMMIGRATION SUPPORT" title="Visa Help Centre" subtitle="Answer a guided set of questions, receive a preliminary route assessment, then choose self-completion or LAUREM legal/support assistance." actions={<><StaffAction onClick={()=>void load()}>Refresh</StaffAction><StaffAction href="/staff/visa-sponsorship">Visa & Sponsorship</StaffAction></>}/>
   {error&&<StaffNotice tone="danger"><strong>Visa Help needs attention</strong><p>{error}</p></StaffNotice>}
+  <StaffPanel>
+    <StaffSectionHeader title="Case workspace" copy="This area stays active after submission. LAUREM can request information or evidence here, and every request/response is recorded against your case."/>
+    <div className="staff-home-lane-grid">
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Case status</StaffBadge><strong>{data.case?.status?data.case.status.replaceAll('_',' '):'Draft'}</strong><span>Last updated {data.case?.updated_at?new Date(data.case.updated_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet submitted'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.tasks?.some((x:any)=>x.required&&['open','rejected'].includes(x.status))?'attention':'neutral'}>Requests</StaffBadge><strong>{data.tasks?.filter((x:any)=>x.status!=='cancelled'&&x.status!=='verified').length||0} outstanding</strong><span>{data.tasks?.filter((x:any)=>x.status==='verified').length||0} verified request{(data.tasks?.filter((x:any)=>x.status==='verified').length||0)===1?'':'s'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone={data.case?.legal_review_completed?'live':'neutral'}>Legal review</StaffBadge><strong>{data.case?.legal_review_completed?'Completed':'Not completed'}</strong><span>{data.case?.confirmed_route||data.recommendation?.title||'Route assessment pending'}</span></article>
+      <article className="staff-home-lane"><StaffBadge tone="neutral">Conversation</StaffBadge><strong>{data.conversationId?'Open with LAUREM':'Available after support review'}</strong><span>{data.conversationId?'Use the private case thread for questions and follow-up.':'A private case thread will be created when support review is opened.'}</span></article>
+    </div>
+    {data.conversationId&&<div className="staff-home-panel-actions"><StaffAction primary href={'/staff/messages?conversation='+encodeURIComponent(data.conversationId)}>Open case conversation</StaffAction></div>}
+    {data.tasks?.length>0&&<div className="staff-document-list">
+      {data.tasks.filter((task:any)=>task.status!=='cancelled').map((task:any)=><article key={task.id} className={'staff-document-card'+(task.required&&task.status!=='verified'?' staff-document-card--attention':'')}>
+        <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">!</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{task.task_type}</span><StaffBadge tone={task.status==='verified'?'live':task.status==='rejected'?'danger':task.status==='submitted'?'attention':'neutral'}>{task.status}</StaffBadge></div><h3>{task.title}</h3><p>{task.description||'LAUREM has requested an action on your Visa Help case.'}</p><div className="staff-document-meta">{task.required?'Required request':'Optional request'}{task.due_at?' · Due '+new Date(task.due_at).toLocaleString('en-GB',{dateStyle:'medium'}):''}</div></div></div>
+        {['open','rejected'].includes(task.status)&&<div className="staff-modern-form" style={{width:'100%',marginTop:12}}>
+          <TextArea label="Your response" value={taskResponses[task.id]||''} onChange={value=>setTaskResponses(current=>({...current,[task.id]:value}))} placeholder="Respond to LAUREM's request."/>
+          <SelectField label="Attach an uploaded Visa Help document" value={taskDocumentIds[task.id]||''} onChange={value=>setTaskDocumentIds(current=>({...current,[task.id]:value}))} options={data.documents.map((doc:any)=>[doc.id,doc.title])}/>
+          <div className="staff-home-panel-actions"><StaffAction primary onClick={()=>void respondToTask(task.id)} disabled={taskSaving===task.id}>{taskSaving===task.id?'Submitting…':'Submit response'}</StaffAction></div>
+        </div>}
+      </article>)}
+    </div>}
+    {data.events?.length>0&&<div className="staff-panel-nested"><StaffSectionHeader title="Case timeline" copy="A chronological audit trail of the Visa Help workflow."/><div className="staff-document-list">{data.events.slice(0,12).map((event:any)=><article key={event.id} className="staff-document-card"><div className="staff-document-main"><div className="staff-document-copy"><span className="staff-document-category">{event.actor_type} · {event.event_type.replaceAll('_',' ')}</span><h3>{new Date(event.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}</h3><p>{event.metadata?.title||event.metadata?.to||event.metadata?.reason||'Workflow activity recorded.'}</p></div></div></article>)}</div></div>}
+  </StaffPanel>
   <div className="staff-stat-grid">
    {[['1','Your situation'],['2','Dependants'],['3','Documents'],['4','Choose help']].map(item=><div key={item[0]} className="staff-stat"><div className="staff-stat-value">{item[0]}</div><div className="staff-stat-label">{item[1]}</div></div>)}
   </div>
