@@ -82,6 +82,19 @@ export function recommendVisaHelp(input: {
   } = getVisaHelpRules(input.role);
 
   const currentVisa = String(input.currentVisaType || '').trim();
+
+  if (!occupation) {
+    return {
+      route: 'legal_review_required',
+      title: 'Sponsored occupation needs review',
+      decision: 'requires_legal_review',
+      reason: 'LAUREM could not match the staff role to a configured sponsored occupation code. Confirm the actual sponsored duties and occupation code before selecting an immigration route.',
+      dependantPosition: 'separate_assessment',
+      conditions: ['Confirm the role, sponsored duties and occupation code with LAUREM before submission.'],
+      blockedReasons: ['No configured sponsored occupation match for the recorded role.'],
+      sourceUrls: ['https://www.gov.uk/guidance/immigration-rules/immigration-rules-appendix-skilled-occupations'],
+    };
+  }
   const student = currentVisa === 'Student visa';
   const prohibited = BLOCKED_SWITCH_TYPES.has(currentVisa);
   const expired = Boolean(input.currentVisaEndDate && input.currentVisaEndDate < new Date().toISOString().slice(0, 10));
