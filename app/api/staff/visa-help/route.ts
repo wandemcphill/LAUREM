@@ -127,6 +127,8 @@ export async function POST(request:NextRequest){
     const selfComplete=bool(body.selfCompleteSelected);
     const finalSubmission=action==='submit';
     const legalConsent=bool(body.consentToLegalSupport);
+    if(passportIssueDate && passportExpiryDate && passportExpiryDate<passportIssueDate)return NextResponse.json({error:'Passport expiry date cannot be before the issue date.'},{status:422});
+    if(finalSubmission && legalRequested && (!passportNumber || !passportExpiryDate || !passportCountry))return NextResponse.json({error:'Legal-team support requires your passport number, passport expiry date and passport country before submission.'},{status:422});
     if(finalSubmission && legalRequested && !legalConsent){
       return NextResponse.json({error:'Please confirm consent for LAUREM legal/support staff to review the immigration information you provide.'},{status:422});
     }
