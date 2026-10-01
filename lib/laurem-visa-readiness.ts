@@ -67,6 +67,39 @@ export function buildLauremVisaReadiness(input: {
     );
   }
 
+  items.push(
+    {
+      key: 'address_current',
+      label: 'Application address confirmed as current or updated',
+      ready: info.address_is_current === 'yes' || (info.address_is_current === 'no' && present(info.current_address)),
+    },
+    {
+      key: 'address_proof',
+      label: 'Proof of current address provided to LAUREM',
+      ready: info.address_proof_provided === 'yes',
+    },
+  );
+
+  if (pathway === 'visa_switch') {
+    items.push(
+      {
+        key: 'right_to_work_status',
+        label: 'Right to work in the UK confirmed',
+        ready: info.right_to_work_status === 'yes',
+      },
+      {
+        key: 'right_to_work_proof',
+        label: 'Right-to-work proof provided to LAUREM',
+        ready: info.right_to_work_proof_provided === 'yes',
+      },
+      {
+        key: 'uk_status_share_code',
+        label: 'UK status share code recorded when required',
+        ready: (info.right_to_work_status !== 'no' && info.right_to_work_proof_provided !== 'no') || present(info.uk_status_share_code),
+      },
+    );
+  }
+
   const missing = items.filter((item) => !item.ready).map((item) => item.label);
   const ready = missing.length === 0;
 
