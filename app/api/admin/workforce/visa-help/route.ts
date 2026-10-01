@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { getVisaCostSummary } from '@/lib/laurem-visa-help';
 
 export async function GET(request:NextRequest){
  const session=readAdminSession(request);
@@ -20,7 +21,7 @@ export async function GET(request:NextRequest){
   const caseIds=rows.map((x:any)=>x.id);
   const {data:documents,error:docError}=caseIds.length?await client.from('laurem_staff_documents').select('id,staff_id,title,original_filename,issued_at').eq('category','visa_help').eq('status','issued').in('staff_id',staffIds).order('issued_at',{ascending:false}):{data:[],error:null};
   if(docError)throw docError;
-  return NextResponse.json({cases:rows.map((row:any)=>({...row,staff:(staff||[]).find((s:any)=>s.id===row.staff_id)||null,documents:(documents||[]).filter((d:any)=>d.staff_id===row.staff_id)})),counts:{
+  return NextResponse.json({cases:rows.map((row:any)=>({...row,staff:(staff||[]).find((s:any)=>s.id===row.staff_id)||null,documents:(documents||[]).filter((d:any)=>d.staff_id===row.staff_id),costSummary:getVisaCostSummary({route:row.selected_route,outsideUk:!row.living_in_uk,durationMonths:Number(row.answers?.durationMonths||0)||null,durationYears:Number(row.answers?.durationYears||0)||null,dependantCount:Array.isArray(row.dependants)?row.dependants.length:0})})),counts:{
    open:rows.length,
    legal:rows.filter((x:any)=>x.legal_team_requested).length,
    awaitingDocuments:rows.filter((x:any)=>x.status==='awaiting_documents').length,
