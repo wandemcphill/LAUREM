@@ -1,5 +1,6 @@
-import VisaHelpApplicationTrackingPanel from '@/components/VisaHelpApplicationTrackingPanel';
 'use client';
+
+import VisaHelpApplicationTrackingPanel from '@/components/VisaHelpApplicationTrackingPanel';
 
 import { useEffect, useState } from 'react';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
