@@ -95,8 +95,20 @@ export function validateVisaHelpApplicationTrackingPatch(input: Record<string, u
     if (String(input[field]).length > max) errors.push(field + ' is too long.');
   }
 
+  if (input.cos_status === 'requested' && !String(input.cos_requested_at || '').trim()) {
+    errors.push('CoS request date is required when the CoS status is requested.');
+  }
   if (input.cos_status === 'issued' && !String(input.cos_reference || '').trim()) {
     errors.push('A CoS reference is required when the CoS status is issued.');
+  }
+  if (input.cos_status === 'issued' && !String(input.cos_issued_at || '').trim()) {
+    errors.push('CoS issue date is required when the CoS status is issued.');
+  }
+  if (input.application_status === 'submitted' && !String(input.application_submitted_at || '').trim()) {
+    errors.push('Application submission date is required when the application status is submitted.');
+  }
+  if (input.identity_status === 'scheduled' && !String(input.identity_appointment_at || '').trim()) {
+    errors.push('Identity appointment date is required when identity status is scheduled.');
   }
   if (input.identity_status === 'completed' && !String(input.identity_completed_at || '').trim()) {
     errors.push('Identity completion date is required when identity status is completed.');
