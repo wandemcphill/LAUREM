@@ -26,6 +26,22 @@ function lowerString(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+function extractApplicationAddresses(application: Record<string, any> | null | undefined) {
+  const values: unknown[] = [
+    application?.address,
+    application?.application_data?.address,
+    application?.application_data?.current_address,
+    application?.application_data?.postal_address,
+  ];
+  if (Array.isArray(application?.application_data?.addresses)) {
+    values.push(...application.application_data.addresses);
+  }
+  return Array.from(new Set(values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)));
+}
+
 function roleBasedPathway(role: string | null | undefined, application: Record<string, unknown> | null | undefined): LauremVisaPathway | null {
   if (isInternationalNurseRole(role)) return 'international_sponsorship';
   if (isApplicationInUk(application) && isUkSwitchSplitRole(role)) return 'visa_switch';
@@ -53,7 +69,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   if (!staff) return null;
 
   const { data: application, error: appError } = await client.from('recruitment_applications')
-    .select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship')
+    .select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship,application_data')
     .eq('id', staff.application_id)
     .maybeSingle();
   if (appError) throw appError;
@@ -118,6 +134,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   return {
     staff,
     application,
+    applicationAddresses: extractApplicationAddresses(application),
     recommendation: {
       ...recommendation,
       label: visaPathwayLabel(recommendation.pathway),
@@ -236,6 +253,12 @@ export async function PATCH(request: NextRequest) {
   const passportNumber = typeof body?.passportNumber === 'string' ? body.passportNumber.trim().slice(0,80) : '';
   const passportExpiryDate = typeof body?.passportExpiryDate === 'string' ? body.passportExpiryDate : '';
   const passportCountry = typeof body?.passportCountry === 'string' ? body.passportCountry.trim().slice(0,120) : '';
+  const addressIsCurrent = typeof body?.addressIsCurrent === 'string' ? body.addressIsCurrent.trim().toLowerCase() : '';
+  const addressProofProvided = typeof body?.addressProofProvided === 'string' ? body.addressProofProvided.trim().toLowerCase() : '';
+  const currentAddress = typeof body?.currentAddress === 'string' ? body.currentAddress.trim().slice(0,500) : '';
+  const rightToWorkStatus = typeof body?.rightToWorkStatus === 'string' ? body.rightToWorkStatus.trim().toLowerCase() : '';
+  const rightToWorkProofProvided = typeof body?.rightToWorkProofProvided === 'string' ? body.rightToWorkProofProvided.trim().toLowerCase() : '';
+  const ukStatusShareCode = typeof body?.ukStatusShareCode === 'string' ? body.ukStatusShareCode.trim().slice(0,40) : '';
 
   try {
     const client = db();
@@ -253,9 +276,15 @@ export async function PATCH(request: NextRequest) {
     if (!passportNumber) missingCandidateFields.push('Passport number');
     if (!passportExpiryDate) missingCandidateFields.push('Passport expiry');
     if (!passportCountry) missingCandidateFields.push('Passport country');
+    if (!['yes', 'no'].includes(addressIsCurrent)) missingCandidateFields.push('Whether your application address is still current');
+    if (addressIsCurrent === 'no' && !currentAddress) missingCandidateFields.push('Current address');
+    if (!['yes', 'no'].includes(addressProofProvided)) missingCandidateFields.push('Whether address proof has been provided to LAUREM');
     if (currentCase.pathway === 'visa_switch') {
       if (!currentVisaType) missingCandidateFields.push('Current UK visa type');
       if (!currentVisaExpiryDate) missingCandidateFields.push('Current UK visa expiry');
+      if (!['yes', 'no'].includes(rightToWorkStatus)) missingCandidateFields.push('Whether you have the right to work in the UK');
+      if (!['yes', 'no'].includes(rightToWorkProofProvided)) missingCandidateFields.push('Whether right-to-work proof has been provided to LAUREM');
+      if ((rightToWorkStatus === 'no' || rightToWorkProofProvided === 'no') && !ukStatusShareCode) missingCandidateFields.push('UK status share code');
     }
     if (missingCandidateFields.length > 0) {
       return NextResponse.json({
@@ -271,6 +300,12 @@ export async function PATCH(request: NextRequest) {
       passport_number: passportNumber || null,
       passport_expiry_date: passportExpiryDate || null,
       passport_country: passportCountry || null,
+      address_is_current: addressIsCurrent,
+      current_address: currentAddress || null,
+      address_proof_provided: addressProofProvided,
+      right_to_work_status: currentCase.pathway === 'visa_switch' ? rightToWorkStatus : null,
+      right_to_work_proof_provided: currentCase.pathway === 'visa_switch' ? rightToWorkProofProvided : null,
+      uk_status_share_code: currentCase.pathway === 'visa_switch' ? (ukStatusShareCode || null) : null,
       last_updated_by: 'staff',
       last_updated_at: new Date().toISOString(),
     };
