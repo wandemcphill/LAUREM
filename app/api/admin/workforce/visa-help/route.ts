@@ -10,7 +10,7 @@ export async function GET(request:NextRequest){
  try{
   const client=db();
   const {data:cases,error}=await client.from('laurem_staff_visa_help_cases')
-   .select('id,staff_id,application_id,status,current_visa_type,current_visa_start_date,current_visa_end_date,living_in_uk,target_role,target_work_location,selected_route,confirmed_route,recommendation,answers,dependants,document_checklist,legal_team_requested,self_complete_selected,consent_to_legal_support,assigned_to,legal_review_completed,legal_review_completed_by,legal_review_completed_at,submission_ready_at,staff_message,legal_notes,submitted_at,reviewed_at,created_at,updated_at')
+   .select('id,staff_id,application_id,status,current_visa_type,current_visa_start_date,current_visa_end_date,living_in_uk,target_role,target_work_location,selected_route,confirmed_route,conversation_id,recommendation,answers,dependants,document_checklist,legal_team_requested,self_complete_selected,consent_to_legal_support,assigned_to,legal_review_completed,legal_review_completed_by,legal_review_completed_at,submission_ready_at,staff_message,legal_notes,submitted_at,reviewed_at,created_at,updated_at')
    .not('status','in','(closed,submitted)')
    .order('updated_at',{ascending:false})
    .limit(200);
