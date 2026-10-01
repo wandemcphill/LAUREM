@@ -60,9 +60,14 @@ export function buildLauremVisaReadiness(input: {
         ready: present(info.current_visa_type),
       },
       {
-        key: 'current_visa_expiry',
-        label: 'Current UK visa expiry recorded',
-        ready: present(info.current_visa_expiry_date),
+        key: 'current_visa_start',
+        label: 'Current UK visa start date recorded',
+        ready: present(info.current_visa_start_date),
+      },
+      {
+        key: 'current_visa_end',
+        label: 'Current UK visa end date recorded',
+        ready: present(info.current_visa_end_date) || present(info.current_visa_expiry_date),
       },
     );
   }
