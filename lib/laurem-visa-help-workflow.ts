@@ -33,8 +33,9 @@ export function evaluateVisaHelpReadiness(input: {
   if (input.recommendation?.decision === 'not_switchable' && !input.confirmedRoute) {
     issues.push('The current immigration permission does not support the screened route. A confirmed alternative route is required before submission readiness.');
   }
-  if (input.recommendation && input.recommendation.decision !== 'provisional' && !input.legalReviewCompleted) {
-    issues.push('Legal/support review must be completed before a non-routine case can be marked ready.');
+  if (input.recommendation && input.recommendation.decision !== 'provisional') {
+    if (!input.legalReviewCompleted) issues.push('Legal/support review must be completed before a non-routine case can be marked ready.');
+    if (!String(input.confirmedRoute || '').trim()) issues.push('The reviewer must record the confirmed immigration route for a non-routine case.');
   }
   if (input.livingInUk && !String(input.currentVisaType || '').trim()) {
     issues.push('Current UK immigration permission has not been recorded.');
