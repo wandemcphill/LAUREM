@@ -84,6 +84,14 @@ export default function AdminVisaHelpPage(){
             <Info label="Criminal convictions" value={String(selected.answers?.criminalConvictions??'Not answered')}/>
             <Info label="English evidence" value={selected.answers?.englishEvidence}/>
             <Info label="Maintenance evidence" value={selected.answers?.maintenanceEvidence}/>
+            <Info label="Passport number" value={selected.answers?.passportNumber}/>
+            <Info label="Passport country" value={selected.answers?.passportCountry}/>
+            <Info label="Passport expiry" value={selected.answers?.passportExpiryDate}/>
+            <Info label="UKVI reference" value={selected.answers?.ukviReference}/>
+            <Info label="UKVI account email" value={selected.answers?.ukviAccountEmail}/>
+            <Info label="Status share code" value={selected.answers?.ukStatusShareCode}/>
+            <Info label="Right to work" value={selected.answers?.rightToWorkStatus}/>
+            <Info label="RTW evidence supplied" value={selected.answers?.rightToWorkProofProvided}/>
           </div>
           {selected.staff_message&&<StaffNotice><strong>Staff message</strong><p>{selected.staff_message}</p></StaffNotice>}
         </StaffPanel>
@@ -93,6 +101,12 @@ export default function AdminVisaHelpPage(){
           <div className="staff-home-lane-grid">{(selected.recommendation?.conditions||[]).map((item:string)=><article className="staff-home-lane" key={item}><StaffBadge tone="neutral">Condition</StaffBadge><span>{item}</span></article>)}</div>
         </StaffPanel>
       </div>
+      <StaffPanel>
+        <StaffSectionHeader title="Document readiness" copy="Route-specific evidence expected by the screening workflow and the files currently attached to the staff record."/>
+        <div className="staff-home-lane-grid">{(selected.document_checklist||[]).map((item:any)=><article className="staff-home-lane" key={item.key}><StaffBadge tone={item.required?'attention':'neutral'}>{item.required?'Required':'Conditional'}</StaffBadge><strong>{item.label}</strong><span>{(selected.documents||[]).some((doc:any)=>String(doc.title||'').toLowerCase()===String(item.label||'').toLowerCase())?'Matched uploaded file':'Awaiting evidence / review'}</span></article>)}</div>
+        {(selected.documents||[]).length>0&&<div className="staff-document-meta">Uploaded Visa Help files: {(selected.documents||[]).map((doc:any)=>doc.title).join(' · ')}</div>}
+      </StaffPanel>
+
       <StaffPanel>
         <StaffSectionHeader title="Dependants" copy="Each dependant is captured separately so legal/support staff can assess identity, location, relationship and immigration position."/>
         {!selected.dependants?.length?<div className="staff-empty">No dependants were entered.</div>:
