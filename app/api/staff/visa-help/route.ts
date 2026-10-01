@@ -8,11 +8,24 @@ import { sendLauremEmail } from '@/lib/laurem-email';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { getOrCreateVisaHelpConversation } from '@/lib/laurem-messaging';
 import { monitorVisaHelpCase } from '@/lib/laurem-visa-help-monitor';
+import { buildInitialVisaHelpMilestones } from '@/lib/laurem-visa-help-milestones';
 
 export const dynamic='force-dynamic';
 
 function bool(value:unknown){return value===true||value==='true'||value==='yes';}
 function text(value:unknown,max=500){return typeof value==='string'?value.trim().slice(0,max):'';}
+
+async function ensureVisaHelpMilestones(client:any,input:any){
+  if(!input.caseId)return [];
+  const initial=buildInitialVisaHelpMilestones(input);
+  if(initial.length) {
+    const {error}=await client.from('laurem_staff_visa_help_milestones').upsert(initial,{onConflict:'visa_help_case_id,milestone_type',ignoreDuplicates:true});
+    if(error)throw error;
+  }
+  const {data,error}=await client.from('laurem_staff_visa_help_milestones').select('*').eq('visa_help_case_id',input.caseId).order('position',{ascending:true});
+  if(error)throw error;
+  return data||[];
+}
 
 async function loadStaffCase(session:any){
   const client=db();
@@ -53,6 +66,16 @@ async function loadStaffCase(session:any){
     wantsDependants:current.wantsDependants,
     dependantsInsideUk:current.dependantsInsideUk,
   });
+  const milestones=visaCase ? await ensureVisaHelpMilestones(client,{
+    staffId:session.staff_id,
+    caseId:visaCase.id,
+    recommendationDecision:rec.decision,
+    legalTeamRequested:Boolean(visaCase.legal_team_requested),
+    caseStatus:visaCase.status,
+    submittedAt:visaCase.submitted_at,
+    outsideUk:!livingInUk,
+  }) : [];
+
 
   return {
     staff,
@@ -63,6 +86,7 @@ async function loadStaffCase(session:any){
     visaTypes:LAUREM_CURRENT_UK_VISA_TYPES,
     documents:documents||[],
     tasks:tasks||[],
+    milestones,
     monitor:monitorVisaHelpCase({
       status:visaCase?.status,
       currentVisaEndDate:visaCase?.current_visa_end_date,

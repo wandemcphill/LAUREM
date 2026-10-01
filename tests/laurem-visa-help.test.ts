@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
 import { deriveVisaHelpCaseStatus, evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
 import { monitorVisaHelpCase } from '@/lib/laurem-visa-help-monitor';
+import { buildInitialVisaHelpMilestones, calculateVisaDecisionDueAt } from '@/lib/laurem-visa-help-milestones';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
@@ -283,6 +284,34 @@ describe('LAUREM Visa Help decision engine', () => {
     });
     expect(result.severity).toBe('attention');
     expect(result.nextAction).toContain('legal/support review');
+  });
+
+  it('builds the canonical Visa Help milestone sequence without requiring admin setup', () => {
+    const milestones = buildInitialVisaHelpMilestones({
+      staffId:'staff-1',
+      caseId:'case-1',
+      recommendationDecision:'provisional',
+      legalTeamRequested:false,
+      caseStatus:'triaged',
+      submittedAt:null,
+      outsideUk:true,
+    });
+    expect(milestones.map(item=>item.milestone_type)).toEqual([
+      'assessment','support_review','documents','cos','application','identity','decision','post_decision'
+    ]);
+    expect(milestones.find(item=>item.milestone_type==='assessment')?.status).toBe('completed');
+    expect(milestones.find(item=>item.milestone_type==='support_review')?.status).toBe('skipped');
+  });
+
+  it('calculates a planning date for the published UKVI decision window without presenting it as a guarantee', () => {
+    expect(calculateVisaDecisionDueAt({
+      submittedAt:'2026-10-01T10:00:00Z',
+      outsideUk:true,
+    })).toBe('2026-10-22T10:00:00.000Z');
+    expect(calculateVisaDecisionDueAt({
+      submittedAt:'2026-10-01T10:00:00Z',
+      outsideUk:false,
+    })).toBe('2026-11-26T10:00:00.000Z');
   });
 
 });
