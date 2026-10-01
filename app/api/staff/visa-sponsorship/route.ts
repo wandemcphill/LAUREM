@@ -80,6 +80,9 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
     currentCountry: application.current_country || application.country_of_residence,
   });
 
+  const applicationAddresses = extractApplicationAddresses(application);
+  const { application_data: _applicationData, ...applicationForStaff } = application;
+
   const rolePathway = roleBasedPathway(staff.job_title || application.role_applied, application);
 
   const { data: visaCase, error: caseError } = await client.from('laurem_staff_visa_cases')
@@ -133,8 +136,8 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
 
   return {
     staff,
-    application,
-    applicationAddresses: extractApplicationAddresses(application),
+    application: applicationForStaff,
+    applicationAddresses,
     recommendation: {
       ...recommendation,
       label: visaPathwayLabel(recommendation.pathway),
