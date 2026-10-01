@@ -22,6 +22,8 @@ const secondary:NavItem[]=[
  {href:'/staff/payroll',label:'Payroll',short:'Pay'},
  {href:'/staff/availability',label:'Work Preferences',short:'Rota'},
  {href:'/staff/compliance',label:'DBS & PVG',short:'Checks'},
+ {href:'/staff/laurem-assurance',label:'LAUREM Assurance',short:'Trust'},
+ {href:'/staff/visa-help',label:'Visa Help',short:'Help'},
  {href:'/staff/visa-sponsorship',label:'Visa & Sponsorship',short:'Visa'},
 ];
 function isActive(pathname:string,href:string){return href==='/staff'?pathname==='/staff':pathname.startsWith(href);}

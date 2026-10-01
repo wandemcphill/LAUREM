@@ -1,0 +1,250 @@
+import { getLauremSponsorshipOccupation } from '@/lib/laurem-sponsorship-occupation';
+
+export const VISA_HELP_STATUSES = [
+  'draft',
+  'triaged',
+  'awaiting_staff',
+  'legal_review',
+  'awaiting_documents',
+  'ready_for_submission',
+  'submitted',
+  'closed',
+] as const;
+export type VisaHelpStatus = (typeof VISA_HELP_STATUSES)[number];
+
+export type VisaHelpRecommendation = {
+  route:
+    | 'health_and_care_worker'
+    | 'skilled_worker'
+    | 'outside_uk_skilled_worker'
+    | 'legal_review_required'
+    | 'not_switchable_from_current_permission';
+  title: string;
+  decision: 'provisional' | 'requires_legal_review' | 'not_switchable';
+  reason: string;
+  dependantPosition: 'generally_permitted' | 'restricted' | 'separate_assessment';
+  conditions: string[];
+  blockedReasons: string[];
+  sourceUrls: string[];
+};
+
+const BLOCKED_SWITCH_TYPES = new Set([
+  'Standard Visitor visa',
+  'Short-term study visa',
+  'Seasonal Worker visa',
+  'Domestic worker in a private household visa',
+  'Standard Visitor visa',
+  'Parent of a Child Student visa',
+  'Immigration bail',
+  'No current UK immigration permission',
+]);
+
+function lower(value: unknown) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+export function getVisaHelpRules(role: string | null | undefined) {
+  const occupation = getLauremSponsorshipOccupation(role);
+  const code = occupation?.code || '';
+  const roleLower = lower(role);
+  const isNurse = code === '2237' || roleLower.includes('nurse');
+  const isCareRole = ['6135', '6136'].includes(code);
+  const isNursingAssistant = code === '6131';
+  const needsThreeMonths = ['6131', '6135', '6136'].includes(code);
+
+  return {
+    occupation,
+    code,
+    isNurse,
+    isCareRole,
+    isNursingAssistant,
+    needsThreeMonths,
+  };
+}
+
+export function recommendVisaHelp(input: {
+  role: string;
+  livingInUk: boolean;
+  currentVisaType?: string | null;
+  currentVisaEndDate?: string | null;
+  studentCourseFinished?: boolean | null;
+  jobStartsAfterCourse?: boolean | null;
+  phdStudy24Months?: boolean | null;
+  monthsWorkingForLaurem?: number | null;
+  wantsDependants?: boolean | null;
+  dependantsInsideUk?: boolean | null;
+}) : VisaHelpRecommendation {
+  const {
+    occupation,
+    isNurse,
+    isCareRole,
+    needsThreeMonths,
+  } = getVisaHelpRules(input.role);
+
+  const currentVisa = String(input.currentVisaType || '').trim();
+
+  if (!occupation) {
+    return {
+      route: 'legal_review_required',
+      title: 'Sponsored occupation needs review',
+      decision: 'requires_legal_review',
+      reason: 'LAUREM could not match the staff role to a configured sponsored occupation code. Confirm the actual sponsored duties and occupation code before selecting an immigration route.',
+      dependantPosition: 'separate_assessment',
+      conditions: ['Confirm the role, sponsored duties and occupation code with LAUREM before submission.'],
+      blockedReasons: ['No configured sponsored occupation match for the recorded role.'],
+      sourceUrls: ['https://www.gov.uk/guidance/immigration-rules/immigration-rules-appendix-skilled-occupations'],
+    };
+  }
+  const student = currentVisa === 'Student visa';
+  const prohibited = BLOCKED_SWITCH_TYPES.has(currentVisa);
+  const expired = Boolean(input.currentVisaEndDate && input.currentVisaEndDate < new Date().toISOString().slice(0, 10));
+
+  if (!input.livingInUk) {
+    const route = isNurse || isCareRole || isNursingAssistant
+      ? 'health_and_care_worker'
+      : 'outside_uk_skilled_worker';
+    return {
+      route,
+      title: route === 'health_and_care_worker' ? 'Health and Care Worker visa' : 'Skilled Worker visa from outside the UK',
+      decision: 'provisional',
+      reason: 'The staff record indicates the applicant is outside the UK. LAUREM can complete sponsor-side preparation, while the applicant completes the relevant visa application from outside the UK.',
+      dependantPosition: isCareRole ? 'restricted' : 'generally_permitted',
+      conditions: [
+        'A valid Certificate of Sponsorship is required.',
+        occupation?.code ? 'The occupation code used by LAUREM must match the actual sponsored duties.' : 'The sponsored occupation code must be confirmed before submission.',
+        'Identity, English-language and other documentary requirements depend on the route and applicant circumstances.',
+      ],
+      blockedReasons: [],
+      sourceUrls: [
+        'https://www.gov.uk/skilled-worker-visa/apply-from-outside-the-uk',
+        'https://www.gov.uk/health-care-worker-visa',
+      ],
+    };
+  }
+
+  if (!currentVisa) {
+    return {
+      route: 'legal_review_required',
+      title: 'Immigration route needs review',
+      decision: 'requires_legal_review',
+      reason: 'The applicant is in the UK but has not identified their current immigration permission. Do not select a switch route until the current permission is confirmed.',
+      dependantPosition: 'separate_assessment',
+      conditions: ['Upload or provide current UK immigration permission before legal review.'],
+      blockedReasons: [],
+      sourceUrls: ['https://www.gov.uk/skilled-worker-visa/switch-to-this-visa'],
+    };
+  }
+
+  if (prohibited) {
+    return {
+      route: 'not_switchable_from_current_permission',
+      title: 'Do not switch in-country on this permission',
+      decision: 'not_switchable',
+      reason: 'GOV.UK excludes this current permission from in-country switching to the Skilled Worker route. The application needs an outside-UK strategy or legal review.',
+      dependantPosition: 'separate_assessment',
+      conditions: ['Do not submit an in-country Skilled Worker switch on this current permission.'],
+      blockedReasons: [`Current permission: ${currentVisa}`],
+      sourceUrls: ['https://www.gov.uk/skilled-worker-visa/switch-to-this-visa'],
+    };
+  }
+
+  if (expired) {
+    return {
+      route: 'legal_review_required',
+      title: 'Current permission date requires immediate review',
+      decision: 'requires_legal_review',
+      reason: 'The current visa end date recorded in the case is before today. LAUREM should not make a routine switch recommendation until status and any application already lodged are checked.',
+      dependantPosition: 'separate_assessment',
+      conditions: ['Confirm current eVisa/status and whether an extension or application has already been submitted.'],
+      blockedReasons: ['Recorded current visa end date has passed.'],
+      sourceUrls: ['https://www.gov.uk/browse/visas-immigration'],
+    };
+  }
+
+  if (student && !(input.studentCourseFinished || input.jobStartsAfterCourse || input.phdStudy24Months)) {
+    return {
+      route: 'legal_review_required',
+      title: 'Student route conditions not yet satisfied',
+      decision: 'requires_legal_review',
+      reason: 'A Student visa holder can only switch under the Skilled Worker rules when the applicable course or work-start requirement is met, or the PhD exception applies.',
+      dependantPosition: isCareRole ? 'restricted' : 'generally_permitted',
+      conditions: [
+        'Confirm course completion or that the sponsored job starts after the course finishes.',
+        'For a PhD exception, confirm at least 24 months of full-time study where required.',
+      ],
+      blockedReasons: ['Student visa switching conditions have not been established.'],
+      sourceUrls: ['https://www.gov.uk/skilled-worker-visa/switch-to-this-visa'],
+    };
+  }
+
+  if (needsThreeMonths && Number(input.monthsWorkingForLaurem || 0) < 3) {
+    return {
+      route: 'legal_review_required',
+      title: 'Three-month sponsor employment checkpoint',
+      decision: 'requires_legal_review',
+      reason: 'For the care and nursing-assistant occupation codes covered by the current Health and Care Worker guidance, switching from another UK visa requires at least 3 months of lawful work in the sponsored job for the sponsor.',
+      dependantPosition: isCareRole ? 'restricted' : 'generally_permitted',
+      conditions: [
+        'Record the date lawful work for LAUREM started.',
+        'Confirm at least 3 months have been completed before relying on this switch route.',
+        'Keep the current visa valid and obtain legal review if the timing is close to expiry.',
+      ],
+      blockedReasons: ['Less than 3 months of lawful work for LAUREM is recorded.'],
+      sourceUrls: ['https://www.gov.uk/health-care-worker-visa/your-job'],
+    };
+  }
+
+  return {
+    route: 'health_and_care_worker',
+    title: 'Health and Care Worker visa',
+    decision: 'provisional',
+    reason: 'The applicant appears potentially switchable into the sponsored Health and Care Worker route, subject to the final occupation, salary, sponsor and personal eligibility checks.',
+    dependantPosition: isCareRole ? 'restricted' : 'generally_permitted',
+    conditions: [
+      'A Certificate of Sponsorship and eligible sponsored job are required.',
+      'English-language and documentary requirements must be satisfied or an accepted exemption must apply.',
+      'Apply before current permission expires and follow the application instructions for identity and biometrics.',
+    ],
+    blockedReasons: [],
+    sourceUrls: [
+      'https://www.gov.uk/health-care-worker-visa',
+      'https://www.gov.uk/skilled-worker-visa/documents-you-must-provide',
+      'https://www.gov.uk/skilled-worker-visa/knowledge-of-english',
+    ],
+  };
+}
+
+export function buildVisaHelpDocumentChecklist(input: {
+  role: string;
+  route: VisaHelpRecommendation['route'];
+  outsideUk: boolean;
+  hasDependants: boolean;
+}) {
+  const rules = getVisaHelpRules(input.role);
+  const checklist = [
+    { key: 'passport', label: 'Valid passport or identity document', required: true },
+    { key: 'current_immigration_status', label: 'Current UK immigration permission / eVisa evidence', required: !input.outsideUk },
+    { key: 'cos', label: 'Certificate of Sponsorship reference', required: true },
+    { key: 'english', label: 'Evidence of English or an applicable exemption', required: true },
+    { key: 'employment', label: 'LAUREM employment contract / offer and job details', required: true },
+    { key: 'occupation_code', label: 'Sponsored occupation code confirmation', required: true },
+    { key: 'maintenance', label: 'Maintenance funds evidence or sponsor maintenance confirmation, where required', required: true },
+    { key: 'travel_immigration_history', label: 'Relevant travel and UK immigration history', required: true },
+    { key: 'criminal_record', label: 'Criminal record certificate, where the route requires one', required: Boolean(input.outsideUk) },
+    { key: 'tb_certificate', label: 'TB test certificate, where nationality/residence makes it applicable', required: false },
+    { key: 'translations', label: 'Certified translations for documents not in English or Welsh', required: false },
+  ];
+
+  if (rules.isNurse) {
+    checklist.push({ key: 'professional_registration', label: 'NMC / professional registration evidence where applicable', required: true });
+    checklist.push({ key: 'professional_english', label: 'Professional-body English assessment evidence, where relied upon', required: false });
+  }
+
+  if (input.hasDependants) {
+    checklist.push({ key: 'dependant_identity', label: 'Dependants passports / identity documents', required: true });
+    checklist.push({ key: 'relationship_evidence', label: 'Marriage, civil partnership, birth or other relationship evidence', required: true });
+    checklist.push({ key: 'dependant_immigration', label: 'Dependants current immigration permission and expiry dates, where in the UK', required: true });
+  }
+
+  return checklist;
+}
