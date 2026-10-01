@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildVisaHelpDocumentChecklist, recommendVisaHelp } from '@/lib/laurem-visa-help';
+import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
