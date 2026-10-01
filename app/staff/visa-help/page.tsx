@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
 type Dependant={relationship:string;fullName:string;dateOfBirth:string;nationality:string;currentLocation:string;currentVisaType:string;currentVisaEndDate:string;bornInUk:string;otherParentSponsored:string};
-type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;visaTypes:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];addresses:string[];conversationId:string|null};
+type Data={staff:any;application:any;case:any;recommendation:any;costSummary:any;monitor:any;visaTypes:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];addresses:string[];conversationId:string|null};
 const blankDependant=():Dependant=>({relationship:'',fullName:'',dateOfBirth:'',nationality:'',currentLocation:'',currentVisaType:'',currentVisaEndDate:'',bornInUk:'',otherParentSponsored:''});
 
 export default function StaffVisaHelpPage(){
@@ -209,7 +209,9 @@ export default function StaffVisaHelpPage(){
   {error&&<StaffNotice tone="danger"><strong>Visa Help needs attention</strong><p>{error}</p></StaffNotice>}
   <StaffPanel>
     <StaffSectionHeader title="Case workspace" copy="This area stays active after submission. LAUREM can request information or evidence here, and every request/response is recorded against your case."/>
+    {data.monitor?.flags?.length>0&&<StaffNotice tone={data.monitor.severity==='urgent'?'danger':'warning'}><strong>{data.monitor.severity==='urgent'?'Urgent Visa Help attention':'Visa Help attention'}</strong>{data.monitor.flags.map((flag:string)=><p key={flag}>{flag}</p>)}<p><strong>Next action:</strong> {data.monitor.nextAction}</p></StaffNotice>}
     <div className="staff-home-lane-grid">
+      <article className="staff-home-lane"><StaffBadge tone={data.monitor?.severity==='urgent'?'danger':data.monitor?.severity==='attention'?'attention':'neutral'}>Priority</StaffBadge><strong>{data.monitor?.severity||'normal'}</strong><span>{data.monitor?.nextAction||'No immediate deadline detected.'}</span></article>
       <article className="staff-home-lane"><StaffBadge tone="neutral">Case status</StaffBadge><strong>{data.case?.status?data.case.status.replaceAll('_',' '):'Draft'}</strong><span>Last updated {data.case?.updated_at?new Date(data.case.updated_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet submitted'}</span></article>
       <article className="staff-home-lane"><StaffBadge tone={data.tasks?.some((x:any)=>x.required&&['open','rejected'].includes(x.status))?'attention':'neutral'}>Requests</StaffBadge><strong>{data.tasks?.filter((x:any)=>x.status!=='cancelled'&&x.status!=='verified').length||0} outstanding</strong><span>{data.tasks?.filter((x:any)=>x.status==='verified').length||0} verified request{(data.tasks?.filter((x:any)=>x.status==='verified').length||0)===1?'':'s'}</span></article>
       <article className="staff-home-lane"><StaffBadge tone={data.case?.legal_review_completed?'live':'neutral'}>Legal review</StaffBadge><strong>{data.case?.legal_review_completed?'Completed':'Not completed'}</strong><span>{data.case?.confirmed_route||data.recommendation?.title||'Route assessment pending'}</span></article>

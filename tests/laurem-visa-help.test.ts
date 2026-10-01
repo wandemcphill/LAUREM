@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
 import { deriveVisaHelpCaseStatus, evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
+import { monitorVisaHelpCase } from '@/lib/laurem-visa-help-monitor';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
@@ -239,6 +240,49 @@ describe('LAUREM Visa Help decision engine', () => {
       legalTeamRequested:true,
       recommendationDecision:'provisional',
     })).toBe('awaiting_documents');
+  });
+
+  it('marks a case urgent when the recorded current visa expires within 7 days', () => {
+    const result = monitorVisaHelpCase({
+      now:new Date('2026-10-01T12:00:00Z'),
+      currentVisaEndDate:'2026-10-06',
+      tasks:[],
+      recommendationDecision:'provisional',
+    });
+    expect(result.severity).toBe('urgent');
+    expect(result.daysToVisaExpiry).toBe(5);
+    expect(result.nextAction).toContain('current visa expiry');
+  });
+
+  it('marks overdue required staff requests urgent and prioritises the overdue request', () => {
+    const result = monitorVisaHelpCase({
+      now:new Date('2026-10-01T12:00:00Z'),
+      currentVisaEndDate:'2027-06-01',
+      tasks:[{
+        title:'Upload current eVisa evidence',
+        required:true,
+        status:'open',
+        visibility:'staff',
+        dueAt:'2026-09-30T12:00:00Z',
+      }],
+      recommendationDecision:'provisional',
+    });
+    expect(result.severity).toBe('urgent');
+    expect(result.overdueRequiredTasks).toBe(1);
+    expect(result.nextAction).toContain('Upload current eVisa evidence');
+  });
+
+  it('marks a non-urgent legal review as attention rather than urgent', () => {
+    const result = monitorVisaHelpCase({
+      now:new Date('2026-10-01T12:00:00Z'),
+      currentVisaEndDate:'2027-06-01',
+      tasks:[],
+      legalTeamRequested:true,
+      recommendationDecision:'requires_legal_review',
+      legalReviewCompleted:false,
+    });
+    expect(result.severity).toBe('attention');
+    expect(result.nextAction).toContain('legal/support review');
   });
 
 });

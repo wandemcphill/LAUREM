@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
 
-type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;confirmed_route:string|null;conversation_id:string|null;legal_review_completed:boolean;legal_review_completed_by:string|null;legal_review_completed_at:string|null;submission_ready_at:string|null;target_role:string;target_work_location:string;current_visa_type:string;current_visa_end_date:string;living_in_uk:boolean;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];readiness:any;costSummary:any;legal_notes:string|null;staff_message:string|null};
+type Row={id:string;status:string;legal_team_requested:boolean;self_complete_selected:boolean;selected_route:string;confirmed_route:string|null;conversation_id:string|null;legal_review_completed:boolean;legal_review_completed_by:string|null;legal_review_completed_at:string|null;submission_ready_at:string|null;target_role:string;target_work_location:string;monitor:any;current_visa_type:string;current_visa_end_date:string;living_in_uk:boolean;updated_at:string;created_at:string;staff:any;recommendation:any;answers:any;dependants:any[];document_checklist:any[];documents:any[];documentLinks:any[];tasks:any[];events:any[];readiness:any;costSummary:any;legal_notes:string|null;staff_message:string|null};
 
 export default function AdminVisaHelpPage(){
   const [rows,setRows]=useState<Row[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
-  const [filter,setFilter]=useState<'all'|'legal'|'self'|'review'>('all');
+  const [filter,setFilter]=useState<'all'|'legal'|'self'|'review'|'urgent'>('all');
   const [selected,setSelected]=useState<Row|null>(null);
   const [notes,setNotes]=useState('');
   const [confirmedRoute,setConfirmedRoute]=useState('');
@@ -84,7 +84,7 @@ export default function AdminVisaHelpPage(){
   }
 
   if(loading)return <StaffLoading label="Loading Visa Help queue…"/>;
-  const visible=rows.filter(row=>filter==='all'||(filter==='legal'&&row.legal_team_requested)||(filter==='self'&&row.self_complete_selected)||(filter==='review'&&['legal_review','awaiting_documents'].includes(row.status)));
+  const visible=rows.filter(row=>filter==='all'||(filter==='legal'&&row.legal_team_requested)||(filter==='self'&&row.self_complete_selected)||(filter==='review'&&['legal_review','awaiting_documents'].includes(row.status))||(filter==='urgent'&&row.monitor?.severity==='urgent'));
 
   return <StaffPage><StaffPageInner>
     <StaffPageHeader eyebrow="WORKFORCE · IMMIGRATION" title="Visa Help Queue" subtitle="Review preliminary route assessments, legal-support requests, dependant information, document readiness and staff questions." actions={<StaffAction onClick={()=>void load()}>Refresh</StaffAction>}/>
@@ -97,11 +97,11 @@ export default function AdminVisaHelpPage(){
     </div>
     <StaffPanel>
       <div className="staff-home-panel-actions">
-        {(['all','legal','self','review'] as const).map(value=><StaffAction key={value} primary={filter===value} onClick={()=>setFilter(value)}>{value==='all'?'All':value==='legal'?'Legal queue':value==='self'?'Self-complete':'Needs review'}</StaffAction>)}
+        {(['all','legal','self','review','urgent'] as const).map(value=><StaffAction key={value} primary={filter===value} onClick={()=>setFilter(value)}>{value==='all'?'All':value==='legal'?'Legal queue':value==='self'?'Self-complete':'Needs review'}</StaffAction>)}
       </div>
       {!visible.length?<div className="staff-empty">No cases match this view.</div>:
       <div className="staff-document-list">{visible.map(row=><article key={row.id} className={'staff-document-card'+(row.legal_team_requested?' staff-document-card--attention':'')}>
-        <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">V</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{row.updated_at?new Date(row.updated_at).toLocaleDateString('en-GB',{dateStyle:'medium'}):'Case'}</span><StaffBadge tone={row.legal_team_requested?'attention':'neutral'}>{row.legal_team_requested?'Legal help requested':row.status.replaceAll('_',' ')}</StaffBadge></div><h3>{row.staff?.full_name||'Staff member'}</h3><p>{row.target_role||row.staff?.job_title||'Role not recorded'} · {row.recommendation?.title||row.selected_route}</p><div className="staff-document-meta">Current visa: {row.current_visa_type||'Not recorded'}{row.current_visa_end_date?' · Expires '+row.current_visa_end_date:''} · Dependants: {Array.isArray(row.dependants)?row.dependants.length:0}</div></div></div>
+        <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">V</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{row.updated_at?new Date(row.updated_at).toLocaleDateString('en-GB',{dateStyle:'medium'}):'Case'}</span><StaffBadge tone={row.legal_team_requested?'attention':'neutral'}>{row.legal_team_requested?'Legal help requested':row.status.replaceAll('_',' ')}</StaffBadge></div><h3>{row.staff?.full_name||'Staff member'}</h3><p>{row.target_role||row.staff?.job_title||'Role not recorded'} · {row.recommendation?.title||row.selected_route}</p><div className="staff-document-meta">Current visa: {row.current_visa_type||'Not recorded'}{row.current_visa_end_date?' · Expires '+row.current_visa_end_date:''} · Dependants: {Array.isArray(row.dependants)?row.dependants.length:0}</div>{row.monitor?.severity!=='normal'&&<div className="staff-document-meta"><StaffBadge tone={row.monitor.severity==='urgent'?'danger':'attention'}>{row.monitor.severity}</StaffBadge> · {row.monitor.nextAction}</div>}</div></div>
         <div className="staff-document-actions"><StaffAction primary onClick={()=>{setSelected(row);setNotes(row.legal_notes||'');setConfirmedRoute(row.confirmed_route||'');setLegalReviewCompleted(Boolean(row.legal_review_completed));}}>Open case</StaffAction></div>
       </article>)}</div>}
     </StaffPanel>
