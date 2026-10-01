@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
   const description = typeof body?.description === 'string' ? body.description.trim().slice(0,4000) : '';
   const required = body?.required !== false;
   const visibility = body?.visibility === 'internal' ? 'internal' : 'staff';
-  const dueAt = typeof body?.dueAt === 'string' && body.dueAt ? body.dueAt : null;
+  const rawDueAt = typeof body?.dueAt === 'string' && body.dueAt ? body.dueAt : null;
+  const dueAt = rawDueAt ? new Date(rawDueAt).toISOString() : null;
   if (!caseId || !['information','document','action'].includes(taskType) || !title) {
     return NextResponse.json({ error:'Case, request type and title are required.' }, { status:400 });
   }
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
       .select('id,staff_id,status,conversation_id').eq('id',caseId).maybeSingle();
     if (caseError) throw caseError;
     if (!caseRow) return NextResponse.json({ error:'Visa Help case not found.' }, { status:404 });
+    if (['closed','submitted'].includes(caseRow.status)) return NextResponse.json({ error:'This Visa Help case is no longer accepting new requests.' }, { status:409 });
 
     const { data:task, error:taskError} = await client.from('laurem_staff_visa_help_tasks')
       .insert({
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
       .select('*').single();
     if (taskError) throw taskError;
 
-    const nextStatus=taskType==='document'?'awaiting_documents':'awaiting_staff';
+    const nextStatus=visibility==='internal'?'legal_review':taskType==='document'?'awaiting_documents':'awaiting_staff';
     await client.from('laurem_staff_visa_help_cases').update({status:nextStatus,updated_at:new Date().toISOString()}).eq('id',caseId);
 
     await client.from('laurem_staff_visa_help_events').insert({
@@ -104,6 +106,10 @@ export async function PATCH(request: NextRequest) {
       .select('*').eq('id',taskId).maybeSingle();
     if(taskError)throw taskError;
     if(!task)return NextResponse.json({error:'Visa Help request not found.'},{status:404});
+    if(action==='verify'&&task.status!=='submitted')return NextResponse.json({error:'Only a submitted request can be verified.'},{status:409});
+    if(action==='reject'&&task.status!=='submitted')return NextResponse.json({error:'Only a submitted request can be rejected.'},{status:409});
+    if(action==='reopen'&&task.status!=='rejected')return NextResponse.json({error:'Only a rejected request can be reopened.'},{status:409});
+    if(action==='cancel'&&['verified','cancelled'].includes(task.status))return NextResponse.json({error:'This request cannot be cancelled in its current state.'},{status:409});
     const status=action==='verify'?'verified':action==='reject'?'rejected':action==='reopen'?'open':'cancelled';
     const now=new Date().toISOString();
     const {data:updated,error:updateError}=await client.from('laurem_staff_visa_help_tasks').update({
