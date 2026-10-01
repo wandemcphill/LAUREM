@@ -49,7 +49,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(page).toContain('Current UK visa start date *');
     expect(page).toContain('Current UK visa end date *');
     expect(page).toContain('required={isVisaSwitch}');
-    expect(page).toContain("setPassportCountry(info.passport_country||'');");
+    expect(page).toContain("setPassportCountry(normalisePassportCountry(info.passport_country||''));");
     expect(page).not.toContain("setPassportCountry(info.passport_country||b.application?.nationality||'');");
     expect(route).toContain('missingCandidateFields');
     expect(route).toContain('Please complete the required sponsorship details:');
