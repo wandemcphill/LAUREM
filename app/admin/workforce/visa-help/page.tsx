@@ -20,6 +20,7 @@ export default function AdminVisaHelpPage(){
   const [requestDueAt,setRequestDueAt]=useState('');
   const [taskAction,setTaskAction]=useState('');
   const [documentAction,setDocumentAction]=useState('');
+  const [milestoneSaving,setMilestoneSaving]=useState('');
 
   async function load(){
     setLoading(true);setError('');
@@ -70,6 +71,17 @@ export default function AdminVisaHelpPage(){
       await load();
     }catch(e){setError(e instanceof Error?e.message:'Unable to update request.');}
     finally{setTaskAction('');}
+  }
+
+  async function updateMilestone(milestoneId:string,status:string){
+    setMilestoneSaving(milestoneId);setError('');
+    try{
+      const r=await fetch('/api/admin/workforce/visa-help/milestones',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({milestoneId,status})});
+      const b=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(b.error||'Unable to update milestone.');
+      await load();
+    }catch(e){setError(e instanceof Error?e.message:'Unable to update milestone.');}
+    finally{setMilestoneSaving('');}
   }
 
   async function reviewDocument(linkId:string,action:'accept'|'reject'){
@@ -158,6 +170,14 @@ export default function AdminVisaHelpPage(){
           <div className="staff-home-lane-grid">{(selected.recommendation?.conditions||[]).map((item:string)=><article className="staff-home-lane" key={item}><StaffBadge tone="neutral">Condition</StaffBadge><span>{item}</span></article>)}</div>
         </StaffPanel>
       </div>
+      <StaffPanel>
+        <StaffSectionHeader title="Visa Help milestones" copy="Structured case progress. Reviewers can move milestones as evidence and external application events are confirmed."/>
+        {!selected.milestones?.length?<div className="staff-empty">No milestones have been created for this case yet.</div>:<div className="staff-document-list">{selected.milestones.map((milestone:any)=><article key={milestone.id} className="staff-document-card">
+          <div className="staff-document-main"><div className="staff-document-icon" aria-hidden="true">{milestone.status==='completed'?'✓':'•'}</div><div className="staff-document-copy"><div className="staff-document-topline"><span className="staff-document-category">{milestone.milestone_type.replaceAll('_',' ')}</span><StaffBadge tone={milestone.status==='completed'?'live':milestone.status==='in_progress'?'attention':'neutral'}>{milestone.status}</StaffBadge></div><h3>{milestone.title}</h3><p>{milestone.due_at?'Target '+new Date(milestone.due_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'No target date'}</p>{milestone.notes&&<div className="staff-document-meta">{milestone.notes}</div>}</div></div>
+          <div className="staff-document-actions"><select className="staff-form-input" value={milestone.status} onChange={e=>void updateMilestone(milestone.id,e.target.value)} disabled={milestoneSaving===milestone.id}><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="skipped">Skipped</option></select></div>
+        </article>)}</div>}
+      </StaffPanel>
+
       <StaffPanel>
         <StaffSectionHeader title="Document readiness" copy="Route-specific evidence expected by the screening workflow and the files currently attached to the staff record."/>
         <div className="staff-home-lane-grid">{(selected.document_checklist||[]).map((item:any)=><article className="staff-home-lane" key={item.key}><StaffBadge tone={item.required?'attention':'neutral'}>{item.required?'Required':'Conditional'}</StaffBadge><strong>{item.label}</strong><span>{(selected.documents||[]).some((doc:any)=>String(doc.title||'').toLowerCase()===String(item.label||'').toLowerCase())?'Matched uploaded file':'Awaiting evidence / review'}</span></article>)}</div>
