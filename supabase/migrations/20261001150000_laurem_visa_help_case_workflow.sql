@@ -59,19 +59,17 @@ create unique index if not exists laurem_staff_visa_help_cases_conversation_idx
 alter table public.laurem_staff_visa_help_tasks
   add column if not exists visibility text not null default 'staff';
 
-do $
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid='public.laurem_staff_visa_help_tasks'::regclass
-      and conname='laurem_staff_visa_help_tasks_visibility_check'
-  ) then
-    alter table public.laurem_staff_visa_help_tasks
-      add constraint laurem_staff_visa_help_tasks_visibility_check
-      check (visibility in ('staff','internal'));
-  end if;
-end $;
-
+DO 'BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid=''public.laurem_staff_visa_help_tasks''::regclass
+      AND conname=''laurem_staff_visa_help_tasks_visibility_check''
+  ) THEN
+    ALTER TABLE public.laurem_staff_visa_help_tasks
+      ADD CONSTRAINT laurem_staff_visa_help_tasks_visibility_check
+      CHECK (visibility IN (''staff'',''internal''));
+  END IF;
+END';
 alter table public.laurem_staff_visa_help_cases
   add column if not exists confirmed_route text,
   add column if not exists legal_review_completed boolean not null default false,
