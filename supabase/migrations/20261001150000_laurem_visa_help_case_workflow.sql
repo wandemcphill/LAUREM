@@ -53,6 +53,13 @@ create unique index if not exists laurem_staff_visa_help_cases_conversation_idx
   on public.laurem_staff_visa_help_cases(conversation_id)
   where conversation_id is not null;
 
+alter table public.laurem_staff_visa_help_cases
+  add column if not exists confirmed_route text,
+  add column if not exists legal_review_completed boolean not null default false,
+  add column if not exists legal_review_completed_by text,
+  add column if not exists legal_review_completed_at timestamptz,
+  add column if not exists submission_ready_at timestamptz;
+
 alter table public.laurem_staff_messages
   add column if not exists idempotency_key text;
 
