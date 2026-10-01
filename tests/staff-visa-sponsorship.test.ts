@@ -44,7 +44,7 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(page).toContain('Passport number *');
     expect(page).toContain('Passport expiry *');
     expect(page).toContain('Passport country *');
-    expect(page).toContain("required={c.pathway==='visa_switch'}");
+    expect(page).toContain('required={isVisaSwitch}');
     expect(page).toContain("setPassportCountry(info.passport_country||'');");
     expect(page).not.toContain("setPassportCountry(info.passport_country||b.application?.nationality||'');");
     expect(route).toContain('missingCandidateFields');
@@ -71,8 +71,8 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(route).toContain('right_to_work_status');
     expect(route).toContain('right_to_work_proof_provided');
     expect(route).toContain('uk_status_share_code');
-    expect(countries).toContain("'NG'");
-    expect(countries).toContain("'GB'");
+    expect(countries).toContain(' NG ');
+    expect(countries).toContain(' GB ');
     expect(visas).toContain("'Student visa'");
     expect(visas).toContain("'Graduate visa'");
     expect(visas).toContain("'Skilled Worker visa'");
