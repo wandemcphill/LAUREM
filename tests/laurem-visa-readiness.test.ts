@@ -11,6 +11,10 @@ const base = {
     passport_country: 'NG',
     current_visa_type: 'Graduate',
     current_visa_expiry_date: '2027-06-01',
+    address_is_current: 'yes',
+    address_proof_provided: 'yes',
+    right_to_work_status: 'yes',
+    right_to_work_proof_provided: 'yes',
   },
 };
 
@@ -35,10 +39,47 @@ describe('LAUREM visa operational readiness', () => {
         passport_number: 'P1234567',
         passport_expiry_date: '2030-12-01',
         passport_country: 'NG',
+        address_is_current: 'yes',
+        address_proof_provided: 'yes',
       },
       invoiceStatus: 'paid',
     });
     expect(ready.ready).toBe(true);
+  });
+
+  it('requires a current address and UK right-to-work confirmation for switch cases', () => {
+    const addressMissing = buildLauremVisaReadiness({
+      ...base,
+      invoiceStatus: 'paid',
+      additionalInformation: { ...base.additionalInformation, address_is_current: 'no', current_address: '12 New Street', address_proof_provided: 'yes' },
+    });
+    expect(addressMissing.ready).toBe(false);
+    expect(addressMissing.missing).toContain('Application address confirmed as current or updated');
+
+    const proofMissing = buildLauremVisaReadiness({
+      ...base,
+      invoiceStatus: 'paid',
+      additionalInformation: { ...base.additionalInformation, address_is_current: 'yes', address_proof_provided: 'no', right_to_work_status: 'yes', right_to_work_proof_provided: 'yes' },
+    });
+    expect(proofMissing.ready).toBe(false);
+    expect(proofMissing.missing).toContain('Proof of current address provided to LAUREM');
+
+    const shareCodeRequired = buildLauremVisaReadiness({
+      ...base,
+      invoiceStatus: 'paid',
+      additionalInformation: { ...base.additionalInformation, right_to_work_status: 'yes', right_to_work_proof_provided: 'no' },
+    });
+    expect(shareCodeRequired.ready).toBe(false);
+    expect(shareCodeRequired.missing).toContain('UK status share code recorded when required');
+
+    const withShareCode = buildLauremVisaReadiness({
+      ...base,
+      invoiceStatus: 'paid',
+      additionalInformation: { ...base.additionalInformation, right_to_work_status: 'yes', right_to_work_proof_provided: 'no', uk_status_share_code: 'ABC123XYZ' },
+    });
+    expect(withShareCode.ready).toBe(false);
+    expect(withShareCode.missing).toContain('Right-to-work proof provided to LAUREM');
+    expect(withShareCode.missing).not.toContain('UK status share code recorded when required');
   });
 
   it('gates SMS preparation and submission on readiness', () => {
