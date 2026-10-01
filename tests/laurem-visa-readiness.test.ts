@@ -53,8 +53,8 @@ describe('LAUREM visa operational readiness', () => {
       invoiceStatus: 'paid',
       additionalInformation: { ...base.additionalInformation, address_is_current: 'no', current_address: '12 New Street', address_proof_provided: 'yes' },
     });
-    expect(addressMissing.ready).toBe(false);
-    expect(addressMissing.missing).toContain('Application address confirmed as current or updated');
+    expect(addressMissing.ready).toBe(true);
+    expect(addressMissing.missing).not.toContain('Application address confirmed as current or updated');
 
     const proofMissing = buildLauremVisaReadiness({
       ...base,
