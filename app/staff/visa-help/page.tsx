@@ -30,6 +30,7 @@ export default function StaffVisaHelpPage(){
  const [livingInUk,setLivingInUk]=useState('');
  const [targetWorkLocation,setTargetWorkLocation]=useState('');
  const [monthsWorkingForLaurem,setMonthsWorkingForLaurem]=useState('0');
+ const [durationMonths,setDurationMonths]=useState('');
  const [studentCourseFinished,setStudentCourseFinished]=useState('');
  const [jobStartsAfterCourse,setJobStartsAfterCourse]=useState('');
  const [phdStudy24Months,setPhdStudy24Months]=useState('');
