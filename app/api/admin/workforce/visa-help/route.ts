@@ -29,6 +29,22 @@ export async function GET(request:NextRequest){
   if(eventError)throw eventError;
   const {data:documentLinks,error:linkError}=caseIds.length?await client.from('laurem_staff_visa_help_documents').select('*').in('visa_help_case_id',caseIds).order('created_at',{ascending:false}):{data:[],error:null};
   if(linkError)throw linkError;
+  const {data:existingMilestones,error:existingMilestoneError}=caseIds.length?await client.from('laurem_staff_visa_help_milestones').select('id,visa_help_case_id,milestone_type').in('visa_help_case_id',caseIds):{data:[],error:null};
+  if(existingMilestoneError)throw existingMilestoneError;
+  const existingKeys=new Set((existingMilestones||[]).map((m:any)=>m.visa_help_case_id+':'+m.milestone_type));
+  const missingMilestones=rows.flatMap((row:any)=>buildInitialVisaHelpMilestones({
+    staffId:row.staff_id,
+    caseId:row.id,
+    recommendationDecision:row.recommendation?.decision,
+    legalTeamRequested:Boolean(row.legal_team_requested),
+    caseStatus:row.status,
+    submittedAt:row.submitted_at,
+    outsideUk:!row.living_in_uk,
+  }).filter((m:any)=>!existingKeys.has(row.id+':'+m.milestone_type)));
+  if(missingMilestones.length){
+    const {error:seedError}=await client.from('laurem_staff_visa_help_milestones').upsert(missingMilestones,{onConflict:'visa_help_case_id,milestone_type',ignoreDuplicates:true});
+    if(seedError)throw seedError;
+  }
   const {data:milestones,error:milestoneError}=caseIds.length?await client.from('laurem_staff_visa_help_milestones').select('*').in('visa_help_case_id',caseIds).order('position',{ascending:true}):{data:[],error:null};
   if(milestoneError)throw milestoneError;
   const {data:documents,error:docError}=caseIds.length?await client.from('laurem_staff_documents').select('id,staff_id,title,original_filename,issued_at').eq('category','visa_help').eq('status','issued').in('staff_id',staffIds).order('issued_at',{ascending:false}):{data:[],error:null};
