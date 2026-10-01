@@ -79,4 +79,39 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(keys).toContain('dependant_identity');
     expect(keys).toContain('relationship_evidence');
   });
+  it('calculates IHS in six-month blocks instead of multiplying whole years', () => {
+    const result = getVisaCostSummary({
+      route:'skilled_worker',
+      outsideUk:false,
+      durationMonths:16,
+      dependantCount:0,
+    });
+    expect(result.estimatedIhsChargeableMonths).toBe(18);
+    expect(result.estimatedIhsTotal).toBe(1552.5);
+    expect(result.totalEstimatedApplicantCost).toBe(2495.5);
+  });
+
+  it('does not charge IHS for a six-month-or-less Skilled Worker application made outside the UK', () => {
+    const result = getVisaCostSummary({
+      route:'skilled_worker',
+      outsideUk:true,
+      durationMonths:6,
+      dependantCount:0,
+    });
+    expect(result.estimatedIhsChargeableMonths).toBe(0);
+    expect(result.estimatedIhsTotal).toBe(0);
+  });
+
+  it('preserves the Health and Care IHS exemption for dependants', () => {
+    const result = getVisaCostSummary({
+      route:'health_and_care_worker',
+      outsideUk:false,
+      durationMonths:30,
+      dependantCount:2,
+    });
+    expect(result.estimatedApplicationFees).toBe(972);
+    expect(result.estimatedIhsTotal).toBe(0);
+    expect(result.totalEstimatedApplicantCost).toBe(972);
+  });
+
 });
