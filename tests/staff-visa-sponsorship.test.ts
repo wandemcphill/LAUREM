@@ -52,6 +52,33 @@ describe('LAUREM staff visa sponsorship workflow', () => {
     expect(route).toContain("currentCase.pathway === 'visa_switch'");
   });
 
+  it('uses complete country and current UK visa option lists and captures address/right-to-work checks', () => {
+    const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
+    const route = readFileSync('app/api/staff/visa-sponsorship/route.ts', 'utf8');
+    const countries = readFileSync('lib/laurem-country-options.ts', 'utf8');
+    const visas = readFileSync('lib/laurem-visa-options.ts', 'utf8');
+    expect(page).toContain('LAUREM_COUNTRY_OPTIONS.map');
+    expect(page).toContain('LAUREM_CURRENT_UK_VISA_TYPES.map');
+    expect(page).toContain('Is the application address above still your current address?');
+    expect(page).toContain('Have you provided proof of this current address to LAUREM Admin as part of your application?');
+    expect(page).toContain('Do you currently have the right to work in the UK?');
+    expect(page).toContain('Have you provided your right-to-work proof to LAUREM Admin as part of your application?');
+    expect(page).toContain('UK status share code');
+    expect(route).toContain('applicationAddresses');
+    expect(route).toContain('address_is_current');
+    expect(route).toContain('address_proof_provided');
+    expect(route).toContain('right_to_work_status');
+    expect(route).toContain('right_to_work_proof_provided');
+    expect(route).toContain('uk_status_share_code');
+    expect(countries).toContain("'NG'");
+    expect(countries).toContain("'GB'");
+    expect(visas).toContain("'Student visa'");
+    expect(visas).toContain("'Graduate visa'");
+    expect(visas).toContain("'Skilled Worker visa'");
+    expect(visas).toContain("'Health and Care Worker visa'");
+    expect(visas).toContain("'Other / not listed'");
+  });
+
   it('provides the staff-facing invoice and persistent CoS download', () => {
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     expect(page).toContain('LAUREM invoice');
