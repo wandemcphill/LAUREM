@@ -65,7 +65,8 @@ async function loadStaffCase(session:any){
     monthsWorkingForLaurem:current.monthsWorkingForLaurem,
     wantsDependants:current.wantsDependants,
     dependantsInsideUk:current.dependantsInsideUk,
-  })  const milestones=visaCase ? await ensureVisaHelpMilestones(client,{
+  });
+  const milestones=visaCase ? await ensureVisaHelpMilestones(client,{
     staffId:session.staff_id,
     caseId:visaCase.id,
     recommendationDecision:rec.decision,
@@ -74,7 +75,7 @@ async function loadStaffCase(session:any){
     submittedAt:visaCase.submitted_at,
     outsideUk:!livingInUk,
   }) : [];
-;
+
 
   return {
     staff,
