@@ -27,19 +27,8 @@ function lowerString(value: unknown) {
 }
 
 function extractApplicationAddresses(application: Record<string, any> | null | undefined) {
-  const values: unknown[] = [
-    application?.address,
-    application?.application_data?.address,
-    application?.application_data?.current_address,
-    application?.application_data?.postal_address,
-  ];
-  if (Array.isArray(application?.application_data?.addresses)) {
-    values.push(...application.application_data.addresses);
-  }
-  return Array.from(new Set(values
-    .flatMap((value) => Array.isArray(value) ? value : [value])
-    .map((value) => String(value || '').trim())
-    .filter(Boolean)));
+  const address = String(application?.address || '').trim();
+  return address ? [address] : [];
 }
 
 function roleBasedPathway(role: string | null | undefined, application: Record<string, unknown> | null | undefined): LauremVisaPathway | null {
@@ -69,7 +58,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   if (!staff) return null;
 
   const { data: application, error: appError } = await client.from('recruitment_applications')
-    .select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship,application_data')
+    .select('id,full_name,email,phone,date_of_birth,nationality,country_of_residence,address,role_applied,start_date,living_in_uk,current_country,work_permission,requires_sponsorship')
     .eq('id', staff.application_id)
     .maybeSingle();
   if (appError) throw appError;
@@ -81,7 +70,7 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   });
 
   const applicationAddresses = extractApplicationAddresses(application);
-  const { application_data: _applicationData, ...applicationForStaff } = application;
+  const applicationForStaff = application;
 
   const rolePathway = roleBasedPathway(staff.job_title || application.role_applied, application);
 
