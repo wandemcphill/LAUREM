@@ -55,11 +55,13 @@ export async function PATCH(request:NextRequest){
  if(status&&!allowed.has(status))return NextResponse.json({error:'Invalid Visa Help status.'},{status:400});
  try{
   const client=db();
-  const {data:existing,error:loadError}=await client.from('laurem_staff_visa_help_cases').select('id,staff_id,status,living_in_uk,current_visa_type,recommendation,answers,dependants,confirmed_route,legal_review_completed').eq('id',caseId).maybeSingle();
+  const {data:existing,error:loadError}=await client.from('laurem_staff_visa_help_cases').select('id,staff_id,status,living_in_uk,current_visa_type,recommendation,answers,dependants,document_checklist,confirmed_route,legal_review_completed').eq('id',caseId).maybeSingle();
   if(loadError)throw loadError;
   if(!existing)return NextResponse.json({error:'Visa Help case not found.'},{status:404});
   const {data:tasks,error:taskError}=await client.from('laurem_staff_visa_help_tasks').select('task_type,title,required,status').eq('visa_help_case_id',caseId);
   if(taskError)throw taskError;
+  const {data:documentLinks,error:linkError}=await client.from('laurem_staff_visa_help_documents').select('checklist_key,status').eq('visa_help_case_id',caseId);
+  if(linkError)throw linkError;
   const effectiveConfirmedRoute=confirmedRoute!==null?confirmedRoute:existing.confirmed_route;
   const effectiveLegalReviewCompleted=legalReviewCompleted!==null?legalReviewCompleted:Boolean(existing.legal_review_completed);
   if(status==='ready_for_submission'){
