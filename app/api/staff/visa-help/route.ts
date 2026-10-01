@@ -294,6 +294,7 @@ export async function POST(request:NextRequest){
           visa_help_case_id:caseRow.id,
           staff_id:session.staff_id,
           task_type:'action',
+          visibility:'internal',
           title:'Complete LAUREM legal/support review',
           description:'Review the immigration history, route screening, dependant position and supporting evidence. Record the confirmed route or identify further evidence required before submission readiness.',
           required:true,
