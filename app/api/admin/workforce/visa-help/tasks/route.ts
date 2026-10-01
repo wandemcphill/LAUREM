@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
   const required = body?.required !== false;
   const visibility = body?.visibility === 'internal' ? 'internal' : 'staff';
   const rawDueAt = typeof body?.dueAt === 'string' && body.dueAt ? body.dueAt : null;
-  const dueAt = rawDueAt ? new Date(rawDueAt).toISOString() : null;
+  const parsedDueAt = rawDueAt ? new Date(rawDueAt) : null;
+  if(parsedDueAt && Number.isNaN(parsedDueAt.getTime())) return NextResponse.json({error:'Due date is invalid.'},{status:422});
+  const dueAt = parsedDueAt ? parsedDueAt.toISOString() : null;
   if (!caseId || !['information','document','action'].includes(taskType) || !title) {
     return NextResponse.json({ error:'Case, request type and title are required.' }, { status:400 });
   }
