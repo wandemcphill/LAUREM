@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
 import { getVisaCostSummary } from '@/lib/laurem-visa-help';
 import { evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
+import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 
 export async function GET(request:NextRequest){
  const session=readAdminSession(request);
@@ -84,6 +85,23 @@ export async function PATCH(request:NextRequest){
    visa_help_case_id:caseId,staff_id:existing.staff_id,event_type:'admin_case_update',actor_type:'admin',actor:session.email,
    metadata:{from:existing.status,to:status||existing.status,assignedTo,hasNotes:Boolean(legalNotes)}
   });
+  if(status && status!==existing.status){
+    const labels:Record<string,string>={
+      awaiting_staff:'LAUREM needs more information from you',
+      awaiting_documents:'LAUREM needs additional visa documents',
+      legal_review:'Your Visa Help case is under legal/support review',
+      ready_for_submission:'Your Visa Help case is marked ready for submission',
+      submitted:'Your Visa Help case is marked submitted',
+      closed:'Your Visa Help case has been closed',
+    };
+    await createLauremStaffNotification(client,{
+      staffId:existing.staff_id,
+      category:'compliance',
+      title:labels[status]||'Your Visa Help case was updated',
+      body:'LAUREM updated your Visa Help case status to '+status.replaceAll('_',' ')+'.',
+      actionUrl:'/staff/visa-help',
+    });
+  }
   return NextResponse.json({case:data});
  }catch(error){
   console.error(JSON.stringify({level:'error',event:'admin.visa_help.update_failed',caseId,reason:error instanceof Error?error.message:String(error)}));
