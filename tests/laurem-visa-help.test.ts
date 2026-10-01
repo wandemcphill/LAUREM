@@ -184,10 +184,50 @@ describe('LAUREM Visa Help decision engine', () => {
       passportNumber:'P1234567',
       passportCountry:'Nigeria',
       passportExpiryDate:'2030-01-01',
+      documentChecklist:[
+        {key:'current_immigration_status',required:true},
+        {key:'cos',required:true},
+        {key:'english',required:true},
+        {key:'employment',required:true},
+        {key:'occupation_code',required:true},
+        {key:'maintenance',required:true},
+        {key:'travel_immigration_history',required:true},
+        {key:'professional_registration',required:true},
+      ],
+      documentLinks:[
+        {checklist_key:'current_immigration_status',status:'accepted'},
+        {checklist_key:'english',status:'accepted'},
+        {checklist_key:'maintenance',status:'accepted'},
+        {checklist_key:'travel_immigration_history',status:'accepted'},
+        {checklist_key:'professional_registration',status:'accepted'},
+      ],
       tasks:[],
     });
     expect(result.ready).toBe(true);
     expect(result.openRequiredTasks).toBe(0);
+  });
+
+  it('blocks readiness when a required evidence item has only been submitted, not accepted', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      documentChecklist:[{key:'english',required:true}],
+      documentLinks:[{checklist_key:'english',status:'submitted'}],
+      tasks:[],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.issues.join(' ')).toContain('required evidence item');
   });
 
 });
