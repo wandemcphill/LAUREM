@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession } from '@/lib/laurem-staff-auth';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
-import { nextCaseStatusAfterTaskResponse } from '@/lib/laurem-visa-help-workflow';
+import { deriveVisaHelpCaseStatus } from '@/lib/laurem-visa-help-workflow';
 
 export async function GET(request: NextRequest) {
   const session = await getStaffSession(request);
@@ -62,8 +62,21 @@ export async function POST(request: NextRequest) {
       .eq('id',taskId).eq('staff_id',session.staff_id).select('*').single();
     if (updateError) throw updateError;
 
+    const {data:caseRow,error:caseError}=await client.from('laurem_staff_visa_help_cases')
+      .select('id,legal_team_requested,recommendation')
+      .eq('id',task.visa_help_case_id).eq('staff_id',session.staff_id).single();
+    if(caseError)throw caseError;
+    const {data:allTasks,error:allTasksError}=await client.from('laurem_staff_visa_help_tasks')
+      .select('task_type,required,status,visibility')
+      .eq('visa_help_case_id',task.visa_help_case_id);
+    if(allTasksError)throw allTasksError;
+    const nextStatus=deriveVisaHelpCaseStatus({
+      tasks:(allTasks||[]) as any,
+      legalTeamRequested:Boolean(caseRow.legal_team_requested),
+      recommendationDecision:caseRow.recommendation?.decision,
+    });
     await client.from('laurem_staff_visa_help_cases')
-      .update({ status:nextCaseStatusAfterTaskResponse(task.task_type), updated_at:now })
+      .update({ status:nextStatus, updated_at:now })
       .eq('id',task.visa_help_case_id).eq('staff_id',session.staff_id);
 
     await client.from('laurem_staff_visa_help_events').insert({
