@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildVisaHelpDocumentChecklist, getVisaCostSummary, recommendVisaHelp } from '@/lib/laurem-visa-help';
+import { evaluateVisaHelpReadiness } from '@/lib/laurem-visa-help-workflow';
 
 describe('LAUREM Visa Help decision engine', () => {
   it('blocks an in-country Standard Visitor switch', () => {
@@ -126,6 +127,67 @@ describe('LAUREM Visa Help decision engine', () => {
     expect(result.estimatedApplicationFees).toBe(972);
     expect(result.estimatedIhsTotal).toBe(0);
     expect(result.totalEstimatedApplicantCost).toBe(972);
+  });
+
+  it('blocks readiness when required requests remain unverified', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      tasks:[{task_type:'information',title:'Confirm UKVI reference',required:true,status:'submitted'}],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.openRequiredTasks).toBe(1);
+  });
+
+  it('requires a confirmed route as well as legal review for non-routine cases', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Support Worker',
+      livingInUk:false,
+      wantsDependants:true,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:false,
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      legalReviewCompleted:true,
+      tasks:[{task_type:'action',title:'Complete LAUREM legal/support review',required:true,status:'verified'}],
+    });
+    expect(result.ready).toBe(false);
+    expect(result.issues.join(' ')).toContain('confirmed immigration route');
+  });
+
+  it('allows a routine nurse case through readiness when identity and required requests are complete', () => {
+    const recommendation = recommendVisaHelp({
+      role:'Registered Nurse',
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      currentVisaEndDate:'2027-06-01',
+      monthsWorkingForLaurem:3,
+    });
+    const result = evaluateVisaHelpReadiness({
+      recommendation,
+      livingInUk:true,
+      currentVisaType:'Graduate visa',
+      passportNumber:'P1234567',
+      passportCountry:'Nigeria',
+      passportExpiryDate:'2030-01-01',
+      tasks:[],
+    });
+    expect(result.ready).toBe(true);
+    expect(result.openRequiredTasks).toBe(0);
   });
 
 });
