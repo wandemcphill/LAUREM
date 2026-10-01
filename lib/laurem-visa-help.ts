@@ -33,6 +33,7 @@ const BLOCKED_SWITCH_TYPES = new Set([
   'Short-term study visa',
   'Seasonal Worker visa',
   'Domestic worker in a private household visa',
+  'Standard Visitor visa',
   'Parent of a Child Student visa',
   'Immigration bail',
   'No current UK immigration permission',
@@ -81,7 +82,7 @@ export function recommendVisaHelp(input: {
   } = getVisaHelpRules(input.role);
 
   const currentVisa = String(input.currentVisaType || '').trim();
-  const student = currentVisa.toLowerCase().includes('student visa');
+  const student = currentVisa === 'Student visa';
   const prohibited = BLOCKED_SWITCH_TYPES.has(currentVisa);
   const expired = Boolean(input.currentVisaEndDate && input.currentVisaEndDate < new Date().toISOString().slice(0, 10));
 
