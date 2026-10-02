@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 export type StaffCommand={href:string;label:string;keywords?:string[];section?:string};
 
 const commands:StaffCommand[]=[
+ {href:'/staff/requests',label:'My Requests',keywords:['requests','cases','pending','action'],section:'Workspace'},
  {href:'/staff',label:'Staff Home',keywords:['dashboard','overview'],section:'Workspace'},
  {href:'/staff/week',label:'My Week',keywords:['week','schedule','overview','timesheets','leave'],section:'Workspace'},
  {href:'/staff/shifts',label:'My Shifts',keywords:['schedule','calendar','rota'],section:'Work'},
