@@ -7,6 +7,7 @@ describe('staff request centre', () => {
   it('adds a unified self-service request surface without replacing source workflows', () => {
     const page = source('app/staff/requests/page.tsx');
     const shell = source('components/StaffShell.tsx');
+    const palette = source('components/StaffCommandPalette.tsx');
 
     for (const endpoint of [
       '/api/staff/leave',
@@ -31,6 +32,8 @@ describe('staff request centre', () => {
     expect(page).toContain('In review');
     expect(shell).toContain("href:'/staff/requests'");
     expect(shell).toContain("label:'My Requests'");
+    expect(palette).toContain("href:'/staff/requests'");
+    expect(palette).toContain('keywords:[\'requests\',\'cases\',\'pending\',\'action\']');
   });
 
   it('keeps the request centre as a navigation layer rather than duplicating write APIs', () => {
