@@ -102,9 +102,9 @@ export default function StaffRequestsPage() {
       }
 
       const bodies = await Promise.all(responses.map((response) => response.json().catch(() => ({}))));
-      const critical = responses.slice(0, 3).find((response) => !response.ok);
-      if (critical) {
-        const body = bodies[responses.indexOf(critical)];
+      const failedIndex = responses.findIndex((response) => !response.ok);
+      if (failedIndex >= 0) {
+        const body = bodies[failedIndex];
         throw new Error(body?.error || 'Unable to load your request centre.');
       }
 
