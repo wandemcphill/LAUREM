@@ -16,6 +16,7 @@ const primary:NavItem[]=[
  {href:'/staff/documents',label:'Documents',short:'Docs',badge:'documents'},
 ];
 const secondary:NavItem[]=[
+ {href:'/staff/requests',label:'My Requests',short:'Cases'},
  {href:'/staff/attendance',label:'Attendance',short:'Attend'},
  {href:'/staff/leave',label:'Leave',short:'Leave'},
  {href:'/staff/training',label:'Training',short:'Train'},

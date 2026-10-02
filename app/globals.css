@@ -1067,3 +1067,88 @@ button, input { font: inherit; }
 @media(max-width:1000px){.staff-home-link-grid,.staff-home-readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-home-lane-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-home-mini-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.staff-home-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:800px){.staff-home-grid,.staff-home-grid--wide{grid-template-columns:1fr}.staff-home-identity{grid-template-columns:auto minmax(0,1fr)}.staff-home-identity>.staff-action{grid-column:1/-1;width:100%}.staff-home-next-shift{grid-template-columns:1fr}.staff-home-next-shift>.staff-action{width:100%}}
 @media(max-width:600px){.staff-home-command-actions>*{flex:1 1 140px}.staff-home-link-grid,.staff-home-readiness-grid,.staff-home-lane-grid,.staff-home-info-grid{grid-template-columns:1fr}.staff-home-mini-grid,.staff-home-pay-grid{grid-template-columns:1fr 1fr}.staff-home-cos-top{display:grid}.staff-home-actions>*{flex:1 1 150px}}
+
+/* Staff request centre */
+.staff-request-list {
+  display: grid;
+  gap: 12px;
+}
+
+.staff-request-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.staff-request-item-main {
+  min-width: 0;
+}
+
+.staff-request-item-top {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.staff-request-item h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.staff-request-meta,
+.staff-request-updated {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.staff-request-updated {
+  margin-top: 7px;
+  font-weight: 500;
+}
+
+.staff-request-state-list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-request-state-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 13px;
+  background: var(--soft);
+}
+
+.staff-request-state-row > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .staff-request-item {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-request-item > .staff-action,
+  .staff-request-item > .staff-action-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .staff-request-state-row {
+    grid-template-columns: 1fr;
+  }
+}
