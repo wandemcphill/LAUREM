@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     output.push({
       ...conversation,
-      team: getLauremMessageTarget(conversation.inbox_team),
+      team: ids.length === 1 ? getLauremMessageTarget(conversation.inbox_team) : null,
       participants: (staff || []).map((person: any) => {
         const mailbox = (mailboxes || []).find((item: any) => item.staff_id === person.id);
         return { ...person, address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null };
