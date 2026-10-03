@@ -1196,3 +1196,93 @@ button, input { font: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Admin portal responsive layer */
+.admin-message-centre-layout {
+  min-width: 0;
+}
+.admin-message-centre-layout > aside,
+.admin-message-centre-layout > section {
+  min-width: 0;
+}
+.admin-message-centre-layout button {
+  max-width: 100%;
+}
+.admin-message-centre-layout textarea {
+  min-width: 0;
+}
+.admin-schedule-layout {
+  min-width: 0;
+}
+.admin-schedule-layout > * {
+  min-width: 0;
+}
+.admin-lifecycle-gate-card {
+  min-width: 0;
+}
+.admin-lifecycle-gates > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-application-secondary-layout > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-message-centre-layout {
+    grid-template-columns: 1fr !important;
+    min-height: 0 !important;
+  }
+
+  .admin-message-centre-layout > aside {
+    border-right: 0 !important;
+    border-bottom: 1px solid #e5eaf0;
+    max-height: 290px;
+    overflow-y: auto;
+  }
+
+  .admin-message-centre-layout > section {
+    min-height: 520px;
+  }
+
+  .admin-schedule-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-application-secondary-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-messages-page {
+    padding: 14px !important;
+  }
+
+  .admin-message-centre-layout > aside {
+    max-height: 250px;
+  }
+
+  .admin-message-centre-layout > section {
+    min-height: 500px;
+  }
+
+  .admin-schedule-page {
+    padding-top: 20px !important;
+  }
+
+  .admin-schedule-title {
+    font-size: 30px !important;
+    line-height: 1.08;
+  }
+
+  .admin-lifecycle-gates {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-lifecycle-gates {
+    grid-template-columns: 1fr !important;
+  }
+}
