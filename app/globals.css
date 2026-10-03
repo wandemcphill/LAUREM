@@ -193,7 +193,43 @@ button, input { font: inherit; }
   background: #2c6d5c;
 }
 
+.staff-nav-message-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 11px;
+  background: rgba(255,255,255,.08);
+  color: #f6fffb;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.staff-nav-message-trigger:hover {
+  background: rgba(255,255,255,.13);
+}
+.staff-nav-message-trigger:focus-visible,
+.staff-nav-message-trigger--compact:focus-visible {
+  outline: 3px solid #8dcdb9;
+  outline-offset: 2px;
+}
+.staff-nav-message-trigger--compact {
+  min-height: 34px;
+  width: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+.staff-nav-message-trigger--compact:hover {
+  background: var(--pale);
+}
 .staff-sidebar-footer {
+
   display: grid;
   gap: 4px;
   margin-top: auto;
@@ -297,6 +333,12 @@ button, input { font: inherit; }
     border-radius: 10px;
     font-size: 14px;
   }
+  .staff-mobile-header-actions {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   .staff-mobile-profile {
     color: var(--accent);
     text-decoration: none;
@@ -380,6 +422,8 @@ button, input { font: inherit; }
 .staff-mobile-brand:focus-visible,
 .staff-mobile-profile:focus-visible,
 .staff-bottom-link:focus-visible,
+.staff-nav-message-trigger:focus-visible,
+.staff-nav-message-trigger--compact:focus-visible,
 .staff-skip-link:focus-visible {
   outline: 3px solid #8dcdb9;
   outline-offset: 2px;
