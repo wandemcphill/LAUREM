@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
+import { getLauremMessageTarget } from '@/lib/laurem-messaging';
 
 export async function GET(req: NextRequest) {
   const session = readAdminSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const client = db();
   const { data: conversations, error } = await client.from('laurem_staff_message_conversations')
-    .select('id,created_at,updated_at,last_message_at,admin_last_read_at')
+    .select('id,created_at,updated_at,last_message_at,admin_last_read_at,inbox_team')
     .order('last_message_at', { ascending: false, nullsFirst: false });
   if (error) return NextResponse.json({ error: 'Unable to load message centre.' }, { status: 500 });
 
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
 
     output.push({
       ...conversation,
+      team: getLauremMessageTarget(conversation.inbox_team),
       participants: (staff || []).map((person: any) => {
         const mailbox = (mailboxes || []).find((item: any) => item.staff_id === person.id);
         return { ...person, address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null };
