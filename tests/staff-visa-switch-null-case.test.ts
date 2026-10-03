@@ -6,6 +6,6 @@ describe('staff Visa Switch workspace', () => {
     const page = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     expect(page).toContain("const c=data.case;const invoice=data.invoice;");
     expect(page).toContain("const isVisaSwitch=c?.pathway==='visa_switch';");
-    expect(page).toContain("{!c?<StaffPanel className="staff-visa-request-panel">");
+    expect(page).toContain('{!c?<StaffPanel className="staff-visa-request-panel">');
   });
 });
