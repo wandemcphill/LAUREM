@@ -129,7 +129,7 @@ export default function StaffMessagesPage() {
             <span style={{fontSize:10,color:'var(--muted)'}}>{rows.length}</span>
           </div>
 
-          {loading?<div className="staff-empty">Loading conversations...</div>:!rows.length?<div className="staff-empty">No conversations yet. Start by messaging LAUREM Admin / HR.</div>:rows.map((row)=><button key={row.id} className={'staff-message-list-item'+(active===row.id?' is-active':'')} onClick={()=>void openConversation(row.id)} disabled={opening===row.id}>
+          {loading?<div className="staff-empty">Loading conversations...</div>:!rows.length?<div className="staff-empty">No conversations yet. Choose Admin, Management or Recruitment above to start a conversation.</div>:rows.map((row)=><button key={row.id} className={'staff-message-list-item'+(active===row.id?' is-active':'')} onClick={()=>void openConversation(row.id)} disabled={opening===row.id}>
             <div style={{display:'flex',justifyContent:'space-between',gap:8}}><span className="staff-message-list-name">{row.other?.full_name||row.other?.display||'LAUREM Admin'}</span>{row.unread&&<span className="staff-badge staff-badge--attention" style={{minHeight:22,padding:'3px 7px'}}>New</span>}</div>
             {row.other?.job_title&&<div className="staff-message-list-preview">{row.other.job_title}</div>}
             {row.latest?.body&&<div className="staff-message-list-preview">{row.latest.body}</div>}
@@ -139,7 +139,7 @@ export default function StaffMessagesPage() {
         <section className="staff-message-pane" aria-label="Conversation">
           {!active ? <div style={{margin:'auto',padding:28,textAlign:'center',color:'var(--muted)'}}>
             <div style={{fontSize:18,fontWeight:900,color:'var(--ink)'}}>Select a conversation</div>
-            <p style={{maxWidth:430,lineHeight:1.6}}>Choose a conversation from the list or start a new message to LAUREM Admin / HR.</p>
+            <p style={{maxWidth:430,lineHeight:1.6}}>Choose a conversation from the list or start a new message to Admin, Management or Recruitment.</p>
           </div> : <>
             <header className="staff-message-pane-header">
               <div className="staff-eyebrow">Conversation</div>
