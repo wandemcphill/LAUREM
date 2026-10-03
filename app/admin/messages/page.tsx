@@ -64,7 +64,7 @@ export default function AdminMessagesPage() {
             {visible.map((row) => (
               <button key={row.id} onClick={() => void openConversation(row.id)} style={{ width: '100%', textAlign: 'left', border: 0, background: active === row.id ? '#e6fffb' : '#fff', padding: 12, borderRadius: 10, marginBottom: 6 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:8, alignItems:'center' }}><strong style={{ minWidth:0 }}>{row.participants.map((p: any) => p.full_name).join(' ↔ ')}</strong>{row.unreadByAdmin&&<span style={{ fontSize:10, fontWeight:900, color:'#b42318' }}>NEW</span>}</div>
-                <span style={{ display:'inline-flex', marginTop:5, padding:'4px 7px', borderRadius:999, background:'#e8f5ef', color:'#245b4d', fontSize:9, fontWeight:900, textTransform:'uppercase', letterSpacing:'.05em' }}>{row.team?.label || 'LAUREM Admin'}</span>
+                <span style={{ display:'inline-flex', marginTop:5, padding:'4px 7px', borderRadius:999, background:'#e8f5ef', color:'#245b4d', fontSize:9, fontWeight:900, textTransform:'uppercase', letterSpacing:'.05em' }}>{row.team?.label || (row.participants.length > 1 ? 'Staff' : 'LAUREM Admin')}</span>
                 <div style={{ fontSize: 12, color: '#627d98' }}>{row.participants.map((p: any) => p.address).filter(Boolean).join(' · ')}</div>
                 <div style={{ fontSize: 12, color: '#829ab1' }}>{row.latest?.body || ''}</div>
               </button>
@@ -77,7 +77,7 @@ export default function AdminMessagesPage() {
                 Conversation with {activeRow?.participants?.map((p:any)=>p.full_name).join(' · ') || 'staff'}
               </div>
               <div style={{ flex: 1, padding: 18, display: 'grid', alignContent: 'start', gap: 10 }}>
-                {messages.map((message) => <div key={message.id} style={{ justifySelf: message.sender_admin_email ? 'end' : 'start', maxWidth: '80%', background: message.sender_admin_email ? '#0f766e' : '#f4f7fb', color: message.sender_admin_email ? '#fff' : '#243b53', borderRadius: 14, padding: 12 }}><div style={{ fontSize: 11, fontWeight: 800 }}>{message.sender_admin_email ? 'LAUREM Admin' : 'Staff'}</div><div style={{ whiteSpace: 'pre-wrap' }}>{message.body}</div><small>{new Date(message.created_at).toLocaleString('en-GB')}</small></div>)}
+                {messages.map((message) => <div key={message.id} style={{ justifySelf: message.sender_admin_email ? 'end' : 'start', maxWidth: '80%', background: message.sender_admin_email ? '#0f766e' : '#f4f7fb', color: message.sender_admin_email ? '#fff' : '#243b53', borderRadius: 14, padding: 12 }}><div style={{ fontSize: 11, fontWeight: 800 }}>{message.sender_admin_email ? (activeRow?.team?.label || 'LAUREM Admin') : 'Staff'}</div><div style={{ whiteSpace: 'pre-wrap' }}>{message.body}</div><small>{new Date(message.created_at).toLocaleString('en-GB')}</small></div>)}
               </div>
               <div style={{ padding: 14, borderTop: '1px solid #edf2f7', display: 'flex', gap: 8 }}><textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={2} style={{ flex: 1, padding: 10, border: '1px solid #cbd5e1', borderRadius: 10 }} /><button onClick={() => void reply()} style={{ padding: '10px 16px', border: 0, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 900 }}>Reply</button></div>
             </>}
