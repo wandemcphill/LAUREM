@@ -2,6 +2,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const LAUREM_MESSAGE_NAMESPACES = ['lauremcare', 'lauremnurse', 'lauremstaff'] as const;
 
+export const LAUREM_MESSAGE_TEAM_TARGETS = [
+  { key: 'admin', label: 'LAUREM Admin', description: 'HR, portal access, policies and general staff support.' },
+  { key: 'management', label: 'Management', description: 'Assignments, shifts, workplace matters and operational support.' },
+  { key: 'recruitment', label: 'Recruitment', description: 'Recruitment, onboarding, contracts and hiring questions.' },
+] as const;
+
+export type LauremMessageTeam = (typeof LAUREM_MESSAGE_TEAM_TARGETS)[number]['key'];
+
+export function getLauremMessageTarget(value: string | null | undefined) {
+  return LAUREM_MESSAGE_TEAM_TARGETS.find((target) => target.key === value) || null;
+}
+
 export function namespaceForRole(role: string | null | undefined) {
   const value = (role || '').toLowerCase();
   if (value.includes('nurse')) return 'lauremnurse';
@@ -71,7 +83,7 @@ export function directKey(a: string, b: string) {
 export async function getOrCreateConversation(client: SupabaseClient, a: string, b: string) {
   const key = directKey(a, b);
   const existing = await client.from('laurem_staff_message_conversations')
-    .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
+    .select('id,direct_key,inbox_team,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
   if (existing.data) return existing.data;
 
   const { data: conversation, error } = await client.from('laurem_staff_message_conversations')
@@ -79,7 +91,7 @@ export async function getOrCreateConversation(client: SupabaseClient, a: string,
     .select('id,direct_key,created_at,updated_at,last_message_at').single();
   if (error || !conversation) {
     const retry = await client.from('laurem_staff_message_conversations')
-      .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
+      .select('id,direct_key,inbox_team,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
     if (retry.data) return retry.data;
     throw error || new Error('Unable to create conversation.');
   }
@@ -91,15 +103,15 @@ export async function getOrCreateConversation(client: SupabaseClient, a: string,
   return conversation;
 }
 
-export async function getOrCreateAdminConversation(client: SupabaseClient, staffId: string) {
-  const key = `admin:${staffId}`;
+export async function getOrCreateAdminConversation(client: SupabaseClient, staffId: string, team: LauremMessageTeam = 'admin') {
+  const key = `${team}:${staffId}`;
   const existing = await client.from('laurem_staff_message_conversations')
     .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
   if (existing.data) return existing.data;
 
   const { data: conversation, error } = await client.from('laurem_staff_message_conversations')
-    .insert({ direct_key: key, created_by_staff_id: null })
-    .select('id,direct_key,created_at,updated_at,last_message_at').single();
+    .insert({ direct_key: key, created_by_staff_id: null, inbox_team: team })
+    .select('id,direct_key,inbox_team,created_at,updated_at,last_message_at').single();
   if (error || !conversation) {
     const retry = await client.from('laurem_staff_message_conversations')
       .select('id,direct_key,created_at,updated_at,last_message_at').eq('direct_key', key).maybeSingle();
@@ -126,7 +138,7 @@ export async function getStaffConversationSummaries(client: SupabaseClient, staf
 
   const { data: conversations, error: conversationError } = await client
     .from('laurem_staff_message_conversations')
-    .select('id,updated_at,last_message_at')
+    .select('id,updated_at,last_message_at,inbox_team')
     .in('id', conversationIds)
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -189,7 +201,13 @@ export async function getStaffConversationSummaries(client: SupabaseClient, staf
 
     return {
       ...conversation,
-      other: other ? { name: other.full_name, jobTitle: other.job_title } : { name: 'LAUREM Admin / HR', jobTitle: 'Recruitment & Staff Support' },
+      other: other
+        ? { name: other.full_name, jobTitle: other.job_title }
+        : {
+            name: getLauremMessageTarget(conversation.inbox_team)?.label || 'LAUREM Admin',
+            jobTitle: getLauremMessageTarget(conversation.inbox_team)?.description || 'LAUREM staff support',
+            team: conversation.inbox_team || 'admin',
+          },
       latest,
       unread,
     };
