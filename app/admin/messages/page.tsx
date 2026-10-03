@@ -48,11 +48,11 @@ export default function AdminMessagesPage() {
   });
 
   return (
-    <main style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: 'system-ui', padding: 24, color: '#102a43' }}>
-      <div style={{ maxWidth: 1250, margin: '0 auto' }}>
+    <main className="admin-messages-page" style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: 'system-ui', padding: 24, color: '#102a43' }}>
+      <div className="admin-message-centre" style={{ maxWidth: 1250, margin: '0 auto' }}>
         <h1>LAUREM Message Centre</h1>
         <p style={{ color: '#627d98' }}>Admin-only oversight of private staff conversations, routed by Admin, Management and Recruitment team.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '390px 1fr', minHeight: 700, background: '#fff', border: '1px solid #e5eaf0', borderRadius: 16, overflow: 'hidden' }}>
+        <div className="admin-message-centre-layout" style={{ display: 'grid', gridTemplateColumns: '390px 1fr', minHeight: 700, background: '#fff', border: '1px solid #e5eaf0', borderRadius: 16, overflow: 'hidden' }}>
           <aside style={{ padding: 14, borderRight: '1px solid #edf2f7' }}>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search staff, LAUREM ID or handle" style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 8 }} />
             <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 12, background: '#fff' }} aria-label="Filter messages by team">
