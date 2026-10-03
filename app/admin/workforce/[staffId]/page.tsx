@@ -90,7 +90,7 @@ type PayrollEntry = { id: string; payroll_period_id: string; approved_hours: num
 type Task = { id: string; category: string; title: string; description: string | null; required: boolean; status: string; acknowledgement_required: boolean; acknowledged_at: string | null; completed_at: string | null; notes: string | null };
 type Audit = { id: string; entity_type: string | null; entity_id: string | null; event_type: string; actor: string | null; details: Record<string, unknown> | null; created_at: string };
 
-type OperationalState = {
+type Placement = { id:string; version:number; training_location:string|null; principal_work_location:string; hourly_rate:number; weekly_hours:number; effective_from:string; status:string; contract_document_id:string|null; issued_at:string|null; issued_by:string|null };\ntype PlacementPayload = { placement:Placement|null; latestRotaRequest:any|null };\n\ntype OperationalState = {
   level: 'clear' | 'active' | 'attention' | 'blocked';
   status: string;
   label: string;
@@ -124,7 +124,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [photoFailed, setPhotoFailed] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);\n\n  const [placement, setPlacement] = useState<Placement|null>(null);\n  const [latestRotaRequest, setLatestRotaRequest] = useState<any|null>(null);\n  const [placementWorkLocation, setPlacementWorkLocation] = useState('');\n  const [placementTrainingLocation, setPlacementTrainingLocation] = useState('');\n  const [placementEffectiveFrom, setPlacementEffectiveFrom] = useState('');\n  const [placementWeeklyHours, setPlacementWeeklyHours] = useState('37.5');\n  const [placementHourlyRate, setPlacementHourlyRate] = useState('');
 
   const [showEditDetails, setShowEditDetails] = useState(false);
   const [editJobTitle, setEditJobTitle] = useState('');
@@ -153,7 +153,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       setEditJobTitle(body.staff.job_title || '');
       setEditLocation(body.staff.location || '');
       setEditManagerId(body.staff.manager_id || '');
-      setEditRtwPathway(body.staff.right_to_work_pathway || 'unknown');
+      setEditRtwPathway(body.staff.right_to_work_pathway || 'unknown');\n      const placementResponse = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}/placement`, { cache: 'no-store' });\n      if (placementResponse.ok) {\n        const placementBody = await placementResponse.json();\n        setPlacement(placementBody.placement || null);\n        setLatestRotaRequest(placementBody.latestRotaRequest || null);\n        setPlacementWorkLocation(placementBody.placement?.principal_work_location || body.staff.location || '');\n        setPlacementTrainingLocation(placementBody.placement?.training_location || placementBody.latestRotaRequest?.preferred_training_location || '');\n        setPlacementEffectiveFrom(placementBody.placement?.effective_from || new Date().toISOString().slice(0,10));\n        setPlacementWeeklyHours(String(placementBody.placement?.weekly_hours || '37.5'));\n        setPlacementHourlyRate(placementBody.placement?.hourly_rate != null ? String(placementBody.placement.hourly_rate) : '');\n      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load staff record.');
     }
@@ -227,6 +227,34 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to update staff status.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function issueFinalPlacementContract() {
+    if (!placementWorkLocation.trim() || !placementEffectiveFrom || !placementHourlyRate.trim() || !placementWeeklyHours.trim()) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}/placement`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          principalWorkLocation: placementWorkLocation.trim(),
+          trainingLocation: placementTrainingLocation || null,
+          effectiveFrom: placementEffectiveFrom,
+          weeklyHours: Number(placementWeeklyHours),
+          hourlyRate: Number(placementHourlyRate),
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Unable to issue the final assignment contract.');
+      await load();
+      setNotice('Final assignment contract issued. The staff member can now review and sign it in Documents.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to issue the final assignment contract.');
     } finally {
       setBusy(false);
     }
@@ -419,7 +447,7 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       )}
 
       {tab === 'Employment' && (
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginTop: 20 }}>
+        <section style={{ display: 'grid', gap: 16, marginTop: 20 }}>
           <article className="card" style={{ padding: 20 }}>
             <h2 style={{ marginTop: 0 }}>Authoritative Employment Record</h2>
             <dl style={{ margin: 0 }}>
@@ -433,6 +461,78 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
               <Row label="Start Date" value={dateOnly(s.start_date)} />
               <Row label="End Date" value={dateOnly(s.end_date)} />
             </dl>
+          </article>
+
+          <article className="card" style={{ padding: 20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:16, flexWrap:'wrap', alignItems:'start' }}>
+              <div>
+                <div style={{ color:'var(--accent)', fontWeight:900, letterSpacing:'.07em', fontSize:12 }}>PLACEMENT & FINAL TERMS</div>
+                <h2 style={{ margin:'6px 0' }}>Final assignment contract</h2>
+                <p style={{ margin:0, color:'var(--muted)', maxWidth:760, lineHeight:1.6 }}>
+                  The original accepted employment contract remains unchanged. Use this workflow to record the actual assignment-specific pay and principal work location after the staff member completes their portal preferences.
+                </p>
+              </div>
+              {placement?.status === 'issued' && <span style={{ ...badge('issued'), color:'#176b4f', background:'#e8f7ee' }}>Issued · v{placement.version}</span>}
+            </div>
+
+            <div style={{ marginTop:16, padding:14, borderRadius:10, background:'#f7fafc', border:'1px solid var(--line)' }}>
+              <strong>Staff Portal preference</strong>
+              {latestRotaRequest ? (
+                <div style={{ marginTop:7, color:'var(--muted)', fontSize:13, lineHeight:1.6 }}>
+                  Status: {String(latestRotaRequest.status).replaceAll('_',' ')}
+                  {' · '}
+                  Training: {latestRotaRequest.preferred_training_location || 'Not selected'}
+                  {' · '}
+                  Regions: {Array.isArray(latestRotaRequest.regions) && latestRotaRequest.regions.length ? latestRotaRequest.regions.join(', ') : 'None selected'}
+                </div>
+              ) : (
+                <div style={{ marginTop:7, color:'#9a3412', fontSize:13 }}>No work-preference request has been submitted yet. Ask the staff member to complete Work Preferences in the Staff Portal.</div>
+              )}
+            </div>
+
+            {placement?.status === 'issued' && (
+              <div style={{ marginTop:14, padding:14, borderRadius:10, background:'#f8fffc', border:'1px solid #b7ead0' }}>
+                <strong>Current issued terms</strong>
+                <div style={{ marginTop:6, color:'var(--muted)', fontSize:13 }}>
+                  £{Number(placement.hourly_rate).toFixed(2)}/hour · {Number(placement.weekly_hours).toFixed(2)} hours/week · {placement.principal_work_location}
+                  {' · Effective '}
+                  {dateOnly(placement.effective_from)}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:16 }}>
+              <label style={{ fontSize:13, fontWeight:800 }}>
+                Confirmed principal work location
+                <input value={placementWorkLocation} onChange={e=>setPlacementWorkLocation(e.target.value)} placeholder="Client/site/area or confirmed address" style={{ display:'block', width:'100%', marginTop:5, padding:10, border:'1px solid var(--line)', borderRadius:8, fontWeight:500 }} />
+              </label>
+              <label style={{ fontSize:13, fontWeight:800 }}>
+                Mandatory training location
+                <select value={placementTrainingLocation} onChange={e=>setPlacementTrainingLocation(e.target.value)} style={{ display:'block', width:'100%', marginTop:5, padding:10, border:'1px solid var(--line)', borderRadius:8, fontWeight:500 }}>
+                  <option value="">Not recorded</option>
+                  <option>Birmingham</option><option>London</option><option>Glasgow</option><option>Manchester</option>
+                </select>
+              </label>
+              <label style={{ fontSize:13, fontWeight:800 }}>
+                Effective from
+                <input type="date" value={placementEffectiveFrom} onChange={e=>setPlacementEffectiveFrom(e.target.value)} style={{ display:'block', width:'100%', marginTop:5, padding:10, border:'1px solid var(--line)', borderRadius:8, fontWeight:500 }} />
+              </label>
+              <label style={{ fontSize:13, fontWeight:800 }}>
+                Guaranteed weekly hours
+                <input type="number" min="0.01" max="84" step="0.01" value={placementWeeklyHours} onChange={e=>setPlacementWeeklyHours(e.target.value)} style={{ display:'block', width:'100%', marginTop:5, padding:10, border:'1px solid var(--line)', borderRadius:8, fontWeight:500 }} />
+              </label>
+              <label style={{ fontSize:13, fontWeight:800 }}>
+                Basic hourly rate (£)
+                <input type="number" min="0.01" max="1000" step="0.01" value={placementHourlyRate} onChange={e=>setPlacementHourlyRate(e.target.value)} placeholder="Enter approved rate" style={{ display:'block', width:'100%', marginTop:5, padding:10, border:'1px solid var(--line)', borderRadius:8, fontWeight:500 }} />
+              </label>
+            </div>
+
+            <div style={{ marginTop:12, color:'var(--muted)', fontSize:12, lineHeight:1.55 }}>
+              Only issue this document after confirming the actual placement and approved rate. A preferred location is not itself a guaranteed placement. A new issue creates a new version and supersedes the previous final assignment contract while preserving document history.
+            </div>
+            <button disabled={busy || !placementWorkLocation.trim() || !placementEffectiveFrom || !placementWeeklyHours || !placementHourlyRate} onClick={()=>void issueFinalPlacementContract()} style={{ ...buttonPrimary, marginTop:14 }}>
+              {busy ? 'Issuing…' : placement?.status === 'issued' ? 'Issue updated final contract' : 'Issue final assignment contract'}
+            </button>
           </article>
         </section>
       )}
