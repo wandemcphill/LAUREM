@@ -90,7 +90,10 @@ type PayrollEntry = { id: string; payroll_period_id: string; approved_hours: num
 type Task = { id: string; category: string; title: string; description: string | null; required: boolean; status: string; acknowledgement_required: boolean; acknowledged_at: string | null; completed_at: string | null; notes: string | null };
 type Audit = { id: string; entity_type: string | null; entity_id: string | null; event_type: string; actor: string | null; details: Record<string, unknown> | null; created_at: string };
 
-type Placement = { id:string; version:number; training_location:string|null; principal_work_location:string; hourly_rate:number; weekly_hours:number; effective_from:string; status:string; contract_document_id:string|null; issued_at:string|null; issued_by:string|null };\ntype PlacementPayload = { placement:Placement|null; latestRotaRequest:any|null };\n\ntype OperationalState = {
+type Placement = { id:string; version:number; training_location:string|null; principal_work_location:string; hourly_rate:number; weekly_hours:number; effective_from:string; status:string; contract_document_id:string|null; issued_at:string|null; issued_by:string|null };
+type PlacementPayload = { placement:Placement|null; latestRotaRequest:any|null };
+
+type OperationalState = {
   level: 'clear' | 'active' | 'attention' | 'blocked';
   status: string;
   label: string;
@@ -124,7 +127,15 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [photoFailed, setPhotoFailed] = useState(false);\n\n  const [placement, setPlacement] = useState<Placement|null>(null);\n  const [latestRotaRequest, setLatestRotaRequest] = useState<any|null>(null);\n  const [placementWorkLocation, setPlacementWorkLocation] = useState('');\n  const [placementTrainingLocation, setPlacementTrainingLocation] = useState('');\n  const [placementEffectiveFrom, setPlacementEffectiveFrom] = useState('');\n  const [placementWeeklyHours, setPlacementWeeklyHours] = useState('37.5');\n  const [placementHourlyRate, setPlacementHourlyRate] = useState('');
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  const [placement, setPlacement] = useState<Placement|null>(null);
+  const [latestRotaRequest, setLatestRotaRequest] = useState<any|null>(null);
+  const [placementWorkLocation, setPlacementWorkLocation] = useState('');
+  const [placementTrainingLocation, setPlacementTrainingLocation] = useState('');
+  const [placementEffectiveFrom, setPlacementEffectiveFrom] = useState('');
+  const [placementWeeklyHours, setPlacementWeeklyHours] = useState('37.5');
+  const [placementHourlyRate, setPlacementHourlyRate] = useState('');
 
   const [showEditDetails, setShowEditDetails] = useState(false);
   const [editJobTitle, setEditJobTitle] = useState('');
@@ -153,7 +164,18 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       setEditJobTitle(body.staff.job_title || '');
       setEditLocation(body.staff.location || '');
       setEditManagerId(body.staff.manager_id || '');
-      setEditRtwPathway(body.staff.right_to_work_pathway || 'unknown');\n      const placementResponse = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}/placement`, { cache: 'no-store' });\n      if (placementResponse.ok) {\n        const placementBody = await placementResponse.json();\n        setPlacement(placementBody.placement || null);\n        setLatestRotaRequest(placementBody.latestRotaRequest || null);\n        setPlacementWorkLocation(placementBody.placement?.principal_work_location || body.staff.location || '');\n        setPlacementTrainingLocation(placementBody.placement?.training_location || placementBody.latestRotaRequest?.preferred_training_location || '');\n        setPlacementEffectiveFrom(placementBody.placement?.effective_from || new Date().toISOString().slice(0,10));\n        setPlacementWeeklyHours(String(placementBody.placement?.weekly_hours || '37.5'));\n        setPlacementHourlyRate(placementBody.placement?.hourly_rate != null ? String(placementBody.placement.hourly_rate) : '');\n      }
+      setEditRtwPathway(body.staff.right_to_work_pathway || 'unknown');
+      const placementResponse = await fetch(`/api/admin/workforce/staff/${encodeURIComponent(staffId)}/placement`, { cache: 'no-store' });
+      if (placementResponse.ok) {
+        const placementBody = await placementResponse.json();
+        setPlacement(placementBody.placement || null);
+        setLatestRotaRequest(placementBody.latestRotaRequest || null);
+        setPlacementWorkLocation(placementBody.placement?.principal_work_location || body.staff.location || '');
+        setPlacementTrainingLocation(placementBody.placement?.training_location || placementBody.latestRotaRequest?.preferred_training_location || '');
+        setPlacementEffectiveFrom(placementBody.placement?.effective_from || new Date().toISOString().slice(0,10));
+        setPlacementWeeklyHours(String(placementBody.placement?.weekly_hours || '37.5'));
+        setPlacementHourlyRate(placementBody.placement?.hourly_rate != null ? String(placementBody.placement.hourly_rate) : '');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load staff record.');
     }
