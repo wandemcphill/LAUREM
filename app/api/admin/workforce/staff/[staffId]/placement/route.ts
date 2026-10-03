@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, context: Context) {
     signature_status: 'pending',
     issuer_name: lauremCompany.documentIssuer.name,
     issuer_title: lauremCompany.documentIssuer.title,
-    employer_name: lauremCompany.employer.legalName,
+    employer_name: lauremCompany.legalName,
     issued_by_actor: session.email,
     issued_at: now,
   }).select('id,staff_id,title,status,requires_signature,signature_status,issued_at').single();
