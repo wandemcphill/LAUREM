@@ -612,9 +612,9 @@ export default function Candidate360Page() {
         <section style={{ ...card, marginTop: 16 }}>
           <div style={row}>
             <div><div style={{ color: '#0f766e', fontSize: 12, fontWeight: 900, letterSpacing: 1.2 }}>LIFECYCLE COCKPIT</div><h2 style={{ margin: '4px 0 4px' }}>{workspace.phase}</h2><div style={muted}>{workspace.phaseDescription}</div></div>
-            <div style={{ ...subcard, minWidth: 260 }}>
+            <div className="admin-lifecycle-gate-card" style={{ ...subcard, minWidth: 0, flex: '1 1 260px' }}>
               <div style={{ ...muted, fontSize: 11, fontWeight: 900, letterSpacing: .7 }}>CANONICAL GATES</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 8 }}>
+              <div className="admin-lifecycle-gates" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginTop: 8 }}>
                 {Object.entries(workspace.gates).map(([gate, status]) => <div key={gate} style={{ padding: '8px 6px', borderRadius: 9, textAlign: 'center', background: status === 'ready' ? '#e8f7ee' : status === 'not_started' ? '#edf2f7' : '#fff4e5' }}><div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}>{gate}</div><div style={{ fontSize: 10, marginTop: 3 }}>{status === 'not_started' ? 'Not started' : status}</div></div>)}
               </div>
             </div>
@@ -716,7 +716,7 @@ export default function Candidate360Page() {
           </div>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) minmax(290px,.7fr)', gap: 16, marginTop: 16 }}>
+        <section className="admin-application-secondary-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) minmax(290px,.7fr)', gap: 16, marginTop: 16 }}>
           <article style={card}>
             <h2 style={{ marginTop: 0 }}>Candidate identity</h2>
             <div style={grid}>
