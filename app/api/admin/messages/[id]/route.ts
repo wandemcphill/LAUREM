@@ -12,11 +12,12 @@ export async function GET(req: NextRequest, context: Context) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
   const { id } = await context.params;
   const client = db();
-  const [{ data: messages, error: messageError }, { data: participants }] = await Promise.all([
+  const [{ data: conversation, error: conversationError }, { data: messages, error: messageError }, { data: participants }] = await Promise.all([
+    client.from('laurem_staff_message_conversations').select('id,inbox_team').eq('id', id).maybeSingle(),
     client.from('laurem_staff_messages').select('id,sender_staff_id,sender_admin_email,body,created_at').eq('conversation_id', id).is('deleted_at', null).order('created_at', { ascending: true }),
     client.from('laurem_staff_message_participants').select('staff_id').eq('conversation_id', id),
   ]);
-  if (messageError) return NextResponse.json({ error: 'Unable to load conversation.' }, { status: 500 });
+  if (conversationError || messageError) return NextResponse.json({ error: 'Unable to load conversation.' }, { status: 500 });
   const ids = (participants || []).map((participant: any) => participant.staff_id);
   if (!ids.length) return NextResponse.json({ error: 'Conversation not found.' }, { status: 404 });
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest, context: Context) {
     return { ...person, address: mailbox ? `${mailbox.handle}@${mailbox.namespace}` : null };
   });
 
-  return NextResponse.json({ conversation: { id, participants: participantProfiles }, messages: messages || [] });
+  return NextResponse.json({ conversation: { id, inbox_team: conversation?.inbox_team || 'admin', participants: participantProfiles }, messages: messages || [] });
 }
 
 export async function POST(req: NextRequest, context: Context) {
