@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getStaffSession, requestIp } from '@/lib/laurem-staff-auth';
-import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, getOrCreateAdminConversation, participantConversationIds } from '@/lib/laurem-messaging';
+import { ensureLauremMailbox, findLauremStaffByAddress, getOrCreateConversation, getOrCreateAdminConversation, participantConversationIds, getLauremMessageTarget, LAUREM_MESSAGE_TEAM_TARGETS } from '@/lib/laurem-messaging';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 import { createLauremStaffNotification } from '@/lib/laurem-staff-notifications';
 import { readLauremIdempotencyKey } from '@/lib/laurem-message-idempotency';
@@ -17,13 +17,13 @@ export async function GET(req: NextRequest) {
   const ids = await participantConversationIds(client, session.staff_id);
   const base = {
     mailbox: { ...mailbox, address: `${mailbox.handle}@${mailbox.namespace}` },
-    adminRecipients: [{ id: '__laurem_admin__', name: 'LAUREM Admin / HR', title: 'Recruitment & Staff Support', portalAddress: '__laurem_admin__' }],
+    messageTargets: LAUREM_MESSAGE_TEAM_TARGETS,
   };
 
   if (!ids.length) return NextResponse.json({ ...base, conversations: [] });
 
   const { data: conversations } = await client.from('laurem_staff_message_conversations')
-    .select('id,updated_at,last_message_at')
+    .select('id,updated_at,last_message_at,inbox_team')
     .in('id', ids)
     .order('last_message_at', { ascending: false, nullsFirst: false });
 
@@ -41,7 +41,17 @@ export async function GET(req: NextRequest) {
 
     out.push({
       ...conversation,
-      other: other ? { ...other, address: otherMailbox ? `${otherMailbox.handle}@${otherMailbox.namespace}` : null } : { display: 'LAUREM Admin / HR', address: '__laurem_admin__' },
+      other: other
+        ? { ...other, address: otherMailbox ? `${otherMailbox.handle}@${otherMailbox.namespace}` : null }
+        : (() => {
+            const target = getLauremMessageTarget(conversation.inbox_team);
+            return {
+              display: target?.label || 'LAUREM Admin',
+              address: target ? `__laurem_${target.key}__` : '__laurem_admin__',
+              team: target?.key || 'admin',
+              description: target?.description || 'LAUREM staff support',
+            };
+          })(),
       isAdminThread,
       latest,
       unread: Boolean(latest && latest.sender_staff_id !== session.staff_id && (!ownParticipant?.last_read_at || new Date(latest.created_at).getTime() > new Date(ownParticipant.last_read_at).getTime())),
@@ -56,8 +66,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const to = typeof body?.to === 'string' ? body.to.trim() : '';
+  const requestedTeam = typeof body?.team === 'string' ? body.team.trim().toLowerCase() : '';
+  const legacyTeamMap: Record<string, 'admin' | 'management' | 'recruitment'> = {
+    __laurem_admin__: 'admin',
+    __laurem_management__: 'management',
+    __laurem_recruitment__: 'recruitment',
+  };
+  const team = (getLauremMessageTarget(requestedTeam)?.key || legacyTeamMap[to] || null) as 'admin' | 'management' | 'recruitment' | null;
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!to || !message || message.length > 10000) return NextResponse.json({ error: 'A LAUREM address and message are required.' }, { status: 400 });
+  if ((!team && !to) || !message || message.length > 10000) return NextResponse.json({ error: 'Choose a LAUREM team and enter a message.' }, { status: 400 });
   const idempotencyKey = readLauremIdempotencyKey(req);
   if (!idempotencyKey) return NextResponse.json({ error: 'A valid Idempotency-Key header is required.' }, { status: 400 });
 
@@ -73,8 +90,8 @@ export async function POST(req: NextRequest) {
 
   let conversation;
   let recipientStaffId: string | null = null;
-  if (to === '__laurem_admin__') {
-    conversation = await getOrCreateAdminConversation(client, session.staff_id);
+  if (team) {
+    conversation = await getOrCreateAdminConversation(client, session.staff_id, team);
   } else {
     const recipient = await findLauremStaffByAddress(client, to);
     if (!recipient || recipient.id === session.staff_id) return NextResponse.json({ error: 'Unable to start a conversation with that LAUREM address.' }, { status: 404 });
@@ -120,12 +137,12 @@ export async function POST(req: NextRequest) {
   if (!created) return NextResponse.json({ error: 'Unable to send message.' }, { status: 500 });
 
   await client.from('laurem_staff_message_conversations').update({ last_message_at: created.created_at, updated_at: created.created_at }).eq('id', conversation.id);
-  await client.from('laurem_staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId } });
+  await client.from('laurem_staff_security_events').insert({ staff_id: session.staff_id, event_type: 'staff.message.sent', actor: session.email, ip_address: ip, user_agent: req.headers.get('user-agent'), details: { conversation_id: conversation.id, recipient_staff_id: recipientStaffId, inbox_team: team } });
 
   await recordLauremAuditEvent({
     lifecycleArea: 'messaging', entityType: 'staff_message', entityId: created.id, staffId: session.staff_id,
     actorType: 'staff', actor: session.email, action: 'message_sent',
-    metadata: { conversationId: conversation.id, recipientStaffId },
+    metadata: { conversationId: conversation.id, recipientStaffId, inboxTeam: team },
   });
 
   if (recipientStaffId) {
