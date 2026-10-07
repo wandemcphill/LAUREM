@@ -83,7 +83,7 @@ export async function getStaffSession(req: NextRequest) {
     .maybeSingle();
   if (
     !staff
-    || staff.employment_status !== 'active'
+    || !['pending', 'active'].includes(staff.employment_status)
     || !staff.activated_at
     || !staff.password_hash
     || staff.session_version !== token.session_version
