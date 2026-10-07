@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashToken, makeToken } from '@/lib/token';
+import { provisionLauremPendingStaffPortalAfterContract } from '@/lib/laurem-staff-provision';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
@@ -115,15 +116,22 @@ export async function POST(request: NextRequest) {
 
     const transition = await loaded.client.rpc('laurem_transition_application_status', {
       p_application_id: application.id,
-      p_to_status: 'Documents',
+      p_to_status: 'Onboarding',
       p_actor: 'candidate.contract.acceptance',
-      p_note: 'Employment contract accepted electronically. Candidate document pack is now due.',
+      p_note: 'Employment contract accepted electronically. Candidate has entered onboarding and Staff Portal provisioning.',
       p_override: false,
       p_override_reason: null,
     });
-    if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED')) {
-      throw transition.error;
-    }
+    if (transition.error) throw transition.error;
+
+    let portalProvisioning: {
+      status: 'sent' | 'not_configured' | 'failed' | 'already_active';
+      deliveryId?: string | null;
+      url?: string | null;
+      expiresAt?: string | null;
+      lauremId?: string | null;
+      error?: string;
+    } | null = null;
 
     // The offer package is normally issued together with the contract. Reuse it after
     // acceptance so the candidate's original document-pack link remains valid and no
@@ -192,11 +200,41 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    try {
+      const portal = await provisionLauremPendingStaffPortalAfterContract(application.id, 'candidate.contract.acceptance');
+      portalProvisioning = {
+        status: portal.activation.status,
+        deliveryId: portal.activation.deliveryId || null,
+        url: portal.activation.url || null,
+        expiresAt: portal.expiresAt,
+        lauremId: portal.staff.laurem_id || portal.staff.employee_number,
+        ...(portal.activation.status === 'failed' ? { error: portal.activation.error } : {}),
+      };
+    } catch (portalError) {
+      console.error(JSON.stringify({
+        level: 'error',
+        event: 'contract.acceptance.staff_portal_provisioning_failed',
+        reason: portalError instanceof Error ? portalError.message : String(portalError),
+        applicationId: application.id,
+        contractId: loaded.contract.id,
+      }));
+      portalProvisioning = {
+        status: 'failed',
+        deliveryId: null,
+        url: null,
+        expiresAt: null,
+        lauremId: null,
+        error: portalError instanceof Error ? portalError.message : String(portalError),
+      };
+    }
+
     return NextResponse.json({
       ok: true,
       status: result.status,
       documentPackUrl,
       documentPackIssued,
+      portalProvisioned: Boolean(portalProvisioning && portalProvisioning.status !== 'failed'),
+      portal: portalProvisioning,
     });
   } catch (error) {
     console.error(JSON.stringify({ level: 'error', event: 'contract.acceptance_failed', reason: error instanceof Error ? error.message : 'unknown' }));
