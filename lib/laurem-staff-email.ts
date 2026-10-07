@@ -7,7 +7,7 @@ function esc(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-export async function sendLauremStaffActivation(client: SupabaseClient, staff: Record<string, any>, token: string) {
+export async function sendLauremStaffActivation(client: SupabaseClient, staff: Record<string, any>, token: string, employmentConfirmed = true) {
   const mailbox = await ensureLauremMailbox(client, { id: staff.id, full_name: staff.full_name, job_title: staff.job_title });
   const address = `${mailbox.handle}@${mailbox.namespace}`;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -18,8 +18,8 @@ export async function sendLauremStaffActivation(client: SupabaseClient, staff: R
     from,
     to: [staff.email],
     subject: 'Activate your LAUREM Care Personal Portal',
-    html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><p style="color:#0f766e;font-weight:800">LAUREM CARE</p><h1>Your Personal Portal is ready</h1><p>Hello ${esc(staff.full_name)},</p><p>Your employment has been confirmed by LAUREM Care. Your private staff portal is ready for activation.</p><p><strong>LAUREM ID:</strong> ${esc(staff.laurem_id || staff.employee_number)}<br><strong>LAUREM address:</strong> ${esc(address)}</p><p>Your employment documents have been issued together and will be ready for electronic signature after you activate the portal.</p><p><a href="${activationUrl}" style="background:#0f766e;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Activate portal</a></p><p>After activation, you will be taken to <strong>My Documents</strong> to review and sign your employment documents online.</p></div>`,
-    text: `Your LAUREM Care Personal Portal is ready. LAUREM ID: ${staff.laurem_id || staff.employee_number}. Address: ${address}. Your employment documents have been issued for online signature. Activate: ${activationUrl}`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto"><p style="color:#0f766e;font-weight:800">LAUREM CARE</p><h1>Your Personal Portal is ready</h1><p>Hello ${esc(staff.full_name)},</p><p>${employmentConfirmed ? 'Your employment has been confirmed by LAUREM Care. Your private staff portal is ready for activation.' : 'Your employment contract has been accepted by LAUREM Care. Your private Staff Portal account is now ready for activation while your onboarding continues.'}</p><p><strong>LAUREM ID:</strong> ${esc(staff.laurem_id || staff.employee_number)}<br><strong>LAUREM address:</strong> ${esc(address)}</p><p>Your Staff Portal provides access to your onboarding and staff documents. Final employment activation remains subject to completion of the LAUREM onboarding and hiring process where applicable.</p><p><a href="${activationUrl}" style="background:#0f766e;color:white;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">Activate portal</a></p><p>After activation, you will be taken to <strong>My Documents</strong> to review documents available to you online.</p></div>`,
+    text: `Your LAUREM Care Staff Portal is ready. LAUREM ID: ${staff.laurem_id || staff.employee_number}. Address: ${address}. ${employmentConfirmed ? 'Your employment has been confirmed.' : 'Your employment contract has been accepted and your portal account is ready while onboarding continues.'} Activate: ${activationUrl}`,
   };
 
   if (!process.env.RESEND_API_KEY) {
