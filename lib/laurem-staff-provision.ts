@@ -235,7 +235,7 @@ export async function provisionLauremPendingStaffPortalAfterContract(
 
   const activation = await sendLauremStaffActivation(
     client,
-    { ...issued, ...preparedStaff, ...mailbox },
+    { ...issued, ...preparedStaff, ...(mailbox || {}) },
     rawToken,
     application.status === 'Hired',
   );
