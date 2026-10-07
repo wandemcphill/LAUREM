@@ -7,6 +7,7 @@ const read = (file: string) => readFileSync(resolve(process.cwd(), file), 'utf8'
 describe('LAUREM bank transfer invoice payment flow', () => {
   it('uses the supplied bank details in the staff portal', () => {
     const source = read('app/staff/visa-sponsorship/page.tsx');
+    const bankDetails = read('lib/laurem-payment-details.ts');
 
     for (const value of [
       'WEBGEEK TECHNOLOGIES LTD',
@@ -18,9 +19,10 @@ describe('LAUREM bank transfer invoice payment flow', () => {
       'CLEARBANK LIMITED',
       'The Broadgate Tower, 20 Primrose Street, London, EC2A 2EW',
     ]) {
-      expect(source).toContain(value);
+      expect(bankDetails).toContain(value);
     }
 
+    expect(source).toContain('LAUREM_PAYMENT_BANK_DETAILS');
     expect(source).toContain('payment_reference');
     expect(source).toContain('data.staff?.laurem_id');
     expect(source).not.toContain('paymentUrl');
