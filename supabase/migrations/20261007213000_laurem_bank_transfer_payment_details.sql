@@ -42,17 +42,11 @@ begin
       );
     end if;
 
-    definition := replace(
+    definition := regexp_replace(
       definition,
-      '    v_payment_url := ''https://www.payssion.com/checkout/live_d5a43be9bff6d1a2'';
-',
-      ''
-    );
-    definition := replace(
-      definition,
-      '    v_payment_url := ''https://buy.stripe.com/4gMcN63sc39823A6OYbAs0m'';
-',
-      ''
+      $re$\\s+v_payment_url\\s*:=\\s*''https?://[^'']+'';\\s*$re$,
+      E'\\n',
+      'g'
     );
 
     definition := replace(
