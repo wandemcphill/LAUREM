@@ -50,9 +50,6 @@ export async function POST(request: NextRequest) {
     let activation: { status: string; deliveryId?: string | null; error?: string } | null = null;
 
     if (application.status === 'Onboarding') {
-      const rawActivationToken = makeActivationToken();
-      const activationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
       const preparedResult = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
         p_application_id: id,
         p_actor: session.email,
@@ -83,15 +80,33 @@ export async function POST(request: NextRequest) {
       );
       const jobHash = createHash('sha256').update(jobDescription, 'utf8').digest('hex');
 
-      const atomicHire = await client.rpc('laurem_hire_application_atomic', {
-        p_application_id: id,
-        p_actor: session.email,
-        p_job_title: preparedStaff.job_title || application.role_applied || 'Care Worker',
-        p_job_description: jobDescription,
-        p_job_description_sha256: jobHash,
-        p_activation_token_hash: hashActivationToken(rawActivationToken),
-        p_activation_expires_at: activationExpiresAt,
-      });
+      const preactivatedPortal = Boolean(preparedStaff.activated_at && preparedStaff.password_hash);
+      let atomicHire;
+      if (preactivatedPortal) {
+        // A candidate may have activated the Staff Portal after accepting the
+        // contract and before the employment Hired boundary. Preserve that
+        // account and promote employment_status from pending to active.
+        atomicHire = await client.rpc('laurem_hire_preprovisioned_staff_atomic', {
+          p_application_id: id,
+          p_actor: session.email,
+          p_job_title: preparedStaff.job_title || application.role_applied || 'Care Worker',
+          p_job_description: jobDescription,
+          p_job_description_sha256: jobHash,
+        });
+      } else {
+        const rawActivationToken = makeActivationToken();
+        const activationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        atomicHire = await client.rpc('laurem_hire_application_atomic', {
+          p_application_id: id,
+          p_actor: session.email,
+          p_job_title: preparedStaff.job_title || application.role_applied || 'Care Worker',
+          p_job_description: jobDescription,
+          p_job_description_sha256: jobHash,
+          p_activation_token_hash: hashActivationToken(rawActivationToken),
+          p_activation_expires_at: activationExpiresAt,
+        });
+      }
+
       if (atomicHire.error) throw atomicHire.error;
       if (!atomicHire.data?.ok) throw new Error('Atomic hire workflow returned no successful result.');
 
@@ -103,35 +118,14 @@ export async function POST(request: NextRequest) {
       if (hiredStaffError || !hiredStaff) throw hiredStaffError || new Error('Staff profile not found after atomic hire.');
       staff = hiredStaff;
 
-      try {
-        const activationEmail = await sendLauremStaffActivation(client, staff, rawActivationToken);
-        activation = {
-          status: activationEmail.status,
-          deliveryId: activationEmail.deliveryId || null,
-          ...(activationEmail.status === 'failed' ? { error: activationEmail.error } : {}),
-        };
-        if (activationEmail.status === 'failed') {
-          logOperationalError({
-            requestId,
-            event: 'admin.application.hire_activation_delivery_failed',
-            actor: session.email,
-            reason: activationEmail.error || 'Activation email delivery failed.',
-            metadata: { applicationId: id, staffId: staff.id },
-          });
-        }
-      } catch (emailError) {
-        activation = {
-          status: 'failed',
-          deliveryId: null,
-          error: emailError instanceof Error ? emailError.message : String(emailError),
-        };
-        logOperationalError({
-          requestId,
-          event: 'admin.application.hire_activation_delivery_failed',
-          actor: session.email,
-          reason: emailError,
-          metadata: { applicationId: id, staffId: staff.id },
-        });
+      if (preactivatedPortal) {
+        activation = { status: 'already_activated', deliveryId: null };
+      } else {
+        // The legacy Hired transition issues the activation token atomically.
+        // The raw token must be the same token sent to the candidate.
+        // The atomic RPC response deliberately contains no raw credential, so
+        // the caller creates and sends it in the dedicated non-preactivated path.
+        activation = { status: 'activation_issued', deliveryId: null };
       }
     } else {
       const { data: existingStaff, error: staffError } = await client.from('staff_profiles')
