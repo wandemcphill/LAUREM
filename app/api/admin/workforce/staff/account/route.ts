@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readAdminSession } from '@/lib/admin-auth';
-import { completePendingLauremHireAndIssueActivation, provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
+import { provisionLauremPendingStaffPortalAfterContract, provisionLauremStaffPortal } from '@/lib/laurem-staff-provision';
 import { recordLauremAuditEvent } from '@/lib/laurem-audit';
 
 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Finish the canonical atomic Hired transition so documents, mailbox,
     // activation credential and employment status remain consistent.
     const portal = application.status === 'Onboarding'
-      ? await completePendingLauremHireAndIssueActivation(staff.application_id, session.email)
+      ? await provisionLauremPendingStaffPortalAfterContract(staff.application_id, session.email)
       : await provisionLauremStaffPortal(staff.application_id, session.email);
 
     await recordLauremAuditEvent({
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         deliveryStatus: portal.activation.status,
         replacementDeliveryId: portal.activation.deliveryId,
-        recoveryMode: application.status === 'Onboarding' ? 'onboarding_to_hired' : 'activation_reissue',
+        recoveryMode: application.status === 'Onboarding' ? 'onboarding_portal_activation_reissue' : 'activation_reissue',
         applicationStatusBefore: application.status,
       },
     });
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         deliveryId: portal.activation.deliveryId,
         expiresAt: portal.expiresAt,
       },
-      recovery: application.status === 'Onboarding' ? 'hire_completed' : 'activation_reissued',
+      recovery: application.status === 'Onboarding' ? 'portal_activation_reissued' : 'activation_reissued',
     });
   } catch (caught) {
     console.error(JSON.stringify({
