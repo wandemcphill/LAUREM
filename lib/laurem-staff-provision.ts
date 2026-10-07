@@ -145,3 +145,105 @@ export async function completePendingLauremHireAndIssueActivation(
     expiresAt: activationExpiresAt,
   };
 }
+
+/**
+ * Provisions a pending Staff Portal identity as soon as the candidate accepts
+ * the employment contract. This deliberately does not mark the application
+ * Hired and does not require canonical onboarding-readiness completion.
+ *
+ * The pending identity can be used for portal onboarding/access. The separate
+ * Hired transition remains responsible for employment activation and readiness.
+ */
+export async function provisionLauremPendingStaffPortalAfterContract(
+  applicationId: string,
+  actor = 'contract_acceptance',
+) {
+  const client = db();
+
+  const { data: application, error: applicationError } = await client
+    .from('recruitment_applications')
+    .select('id,full_name,email,phone,role_applied,start_date,living_in_uk,nmc_number,application_data,status')
+    .eq('id', applicationId)
+    .maybeSingle();
+
+  if (applicationError || !application) {
+    throw applicationError || new Error('Application not found.');
+  }
+
+  if (!['Offer', 'Onboarding', 'Hired'].includes(String(application.status))) {
+    throw new Error(`Application status ${application.status} cannot receive Staff Portal provisioning.`);
+  }
+
+  const { data: contract, error: contractError } = await client
+    .from('recruitment_contracts')
+    .select('id,status,accepted_at,job_title,start_date')
+    .eq('application_id', applicationId)
+    .eq('status', 'accepted')
+    .not('accepted_at', 'is', null)
+    .order('accepted_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (contractError || !contract || !contract.accepted_at) {
+    throw contractError || new Error('Accepted employment contract required.');
+  }
+
+  const applicationRole = lauremRoleSlug(application.role_applied);
+  const contractRole = lauremRoleSlug(contract.job_title);
+  if (!applicationRole || !contractRole || applicationRole !== contractRole) {
+    throw new Error('Application and contract roles must match.');
+  }
+
+  const { data: prepared, error: prepareError } = await client.rpc(
+    'laurem_prepare_staff_portal_after_contract_atomic',
+    {
+      p_application_id: applicationId,
+      p_actor: actor,
+    },
+  );
+  if (prepareError) throw prepareError;
+
+  const preparedRow = Array.isArray(prepared) ? prepared[0] : prepared;
+  if (!preparedRow?.staff_id) {
+    throw new Error('Unable to prepare the Staff Portal identity.');
+  }
+
+  const { data: preparedStaff, error: preparedStaffError } = await client
+    .from('staff_profiles')
+    .select('*')
+    .eq('id', preparedRow.staff_id)
+    .single();
+
+  if (preparedStaffError || !preparedStaff) {
+    throw preparedStaffError || new Error('Staff profile not found after portal preparation.');
+  }
+
+  const mailbox = await ensureLauremMailbox(client, preparedStaff);
+  const rawToken = makeActivationToken();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: issued, error: issueError } = await client.rpc('laurem_issue_staff_activation_token', {
+    p_staff_id: preparedStaff.id,
+    p_token_hash: hashActivationToken(rawToken),
+    p_expires_at: expiresAt,
+    p_actor: actor,
+  });
+
+  if (issueError || !issued) {
+    throw issueError || new Error('Unable to issue the Staff Portal activation token.');
+  }
+
+  const activation = await sendLauremStaffActivation(
+    client,
+    { ...issued, ...preparedStaff, ...mailbox },
+    rawToken,
+    application.status === 'Hired',
+  );
+
+  return {
+    staff: issued,
+    mailbox,
+    activation,
+    expiresAt,
+  };
+}
