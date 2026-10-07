@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     let staff: any = null;
     let activation: { status: string; deliveryId?: string | null; error?: string } | null = null;
 
+    let rawActivationToken: string | null = null;
+    let activationExpiresAt: string | null = null;
+
     if (application.status === 'Onboarding') {
       const preparedResult = await client.rpc('laurem_prepare_staff_onboarding_atomic', {
         p_application_id: id,
@@ -94,8 +97,8 @@ export async function POST(request: NextRequest) {
           p_job_description_sha256: jobHash,
         });
       } else {
-        const rawActivationToken = makeActivationToken();
-        const activationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        rawActivationToken = makeActivationToken();
+        activationExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
         atomicHire = await client.rpc('laurem_hire_application_atomic', {
           p_application_id: id,
           p_actor: session.email,
@@ -121,11 +124,37 @@ export async function POST(request: NextRequest) {
       if (preactivatedPortal) {
         activation = { status: 'already_activated', deliveryId: null };
       } else {
-        // The legacy Hired transition issues the activation token atomically.
-        // The raw token must be the same token sent to the candidate.
-        // The atomic RPC response deliberately contains no raw credential, so
-        // the caller creates and sends it in the dedicated non-preactivated path.
-        activation = { status: 'activation_issued', deliveryId: null };
+        if (!rawActivationToken) throw new Error('Activation token was not prepared for the new staff account.');
+        try {
+          const activationEmail = await sendLauremStaffActivation(client, staff, rawActivationToken);
+          activation = {
+            status: activationEmail.status,
+            deliveryId: activationEmail.deliveryId || null,
+            ...(activationEmail.status === 'failed' ? { error: activationEmail.error } : {}),
+          };
+          if (activationEmail.status === 'failed') {
+            logOperationalError({
+              requestId,
+              event: 'admin.application.hire_activation_delivery_failed',
+              actor: session.email,
+              reason: activationEmail.error || 'Activation email delivery failed.',
+              metadata: { applicationId: id, staffId: staff.id },
+            });
+          }
+        } catch (emailError) {
+          activation = {
+            status: 'failed',
+            deliveryId: null,
+            error: emailError instanceof Error ? emailError.message : String(emailError),
+          };
+          logOperationalError({
+            requestId,
+            event: 'admin.application.hire_activation_delivery_failed',
+            actor: session.email,
+            reason: emailError,
+            metadata: { applicationId: id, staffId: staff.id },
+          });
+        }
       }
     } else {
       const { data: existingStaff, error: staffError } = await client.from('staff_profiles')
