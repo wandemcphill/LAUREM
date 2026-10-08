@@ -45,7 +45,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const sponsorshipOccupation = getLauremSponsorshipOccupation(application?.role_applied || staff.job_title);
     const readiness = visaCase ? buildLauremVisaReadiness({ pathway: visaCase.pathway, staff: staff as Record<string, unknown>, application: application as Record<string, unknown>, additionalInformation: (visaCase.additional_information || {}) as Record<string, unknown>, invoiceStatus: invoice?.status || null }) : null;
-    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], readiness, sponsorshipOccupation, smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
+    const { data: paymentAccount, error: paymentAccountError } = await client.from('laurem_payment_accounts')
+      .select('account_name,bank_name,account_number,sort_code,iban,bic_swift,bank_address,currency')
+      .eq('account_key','primary_gbp').eq('is_active',true).maybeSingle();
+    if (paymentAccountError) throw paymentAccountError;
+
+    const paymentBankDetails = paymentAccount ? {
+      accountName: paymentAccount.account_name,
+      bankName: paymentAccount.bank_name,
+      accountNumber: paymentAccount.account_number || '',
+      sortCode: paymentAccount.sort_code || '',
+      iban: paymentAccount.iban || '',
+      swiftBic: paymentAccount.bic_swift || '',
+      bankAddress: paymentAccount.bank_address || '',
+      currency: paymentAccount.currency || 'GBP',
+    } : null;
+
+    return NextResponse.json({ staff, application, case: visaCase, invoice, events, visaDocuments: visaDocuments || [], readiness, sponsorshipOccupation, paymentBankDetails, smsUrl: 'https://www.gov.uk/sponsor-management-system', actor: session.email });
   } catch (error) {
     console.error(JSON.stringify({ level:'error', event:'admin.staff.visa.load_failed', reason:error instanceof Error?error.message:String(error) }));
     return NextResponse.json({ error: 'Unable to load the visa sponsorship case.' }, { status: 500 });
