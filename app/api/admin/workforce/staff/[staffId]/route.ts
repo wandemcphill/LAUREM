@@ -148,6 +148,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   return NextResponse.json({
     staff: { ...staff, profile_photo_url: profilePhotoUrl, manager, employment_pathway: employmentPathway },
+    application: staff.application_id ? {
+      id: staff.application_id,
+      status: (await client.from('recruitment_applications').select('status').eq('id', staff.application_id).maybeSingle()).data?.status || null,
+    } : null,
     compliance,
     assignments: assignmentsResult.data || [],
     timesheets: timesheetsResult.data || [],
