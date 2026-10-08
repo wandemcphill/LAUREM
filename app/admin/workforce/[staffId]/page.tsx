@@ -103,6 +103,7 @@ type OperationalState = {
 
 type StaffPayload = {
   staff: Staff;
+  application: { id: string; status: string | null } | null;
   compliance: ComplianceSnapshot;
   documents: Document[];
   assignments: Assignment[];
@@ -226,6 +227,36 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
       setNotice(`Staff activation link issued for ${data?.staff.full_name || 'the staff member'}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to issue the staff activation link.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markApplicationHired() {
+    if (!data?.application?.id || data.application.status !== 'Onboarding') return;
+    const reason = window.prompt('Reason for marking this candidate as Hired?')?.trim() || '';
+    if (reason.length < 5) {
+      setError('A reason of at least 5 characters is required.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/admin/applications/hire?id=${encodeURIComponent(data.application.id)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Unable to complete the Hired transition.');
+      await load();
+      setNotice(
+        body.activation?.status === 'already_activated'
+          ? 'Candidate is now Hired and the previously activated Staff Portal account has been promoted to active employment.'
+          : 'Candidate is now Hired and the Staff Portal employment package is ready.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to complete the Hired transition.');
     } finally {
       setBusy(false);
     }
@@ -643,7 +674,18 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
 
       {tab === 'Onboarding' && (
         <section style={{ marginTop: 20 }}>
-          <h2>Onboarding Package & Progress</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div><h2 style={{ margin: 0 }}>Onboarding Package & Progress</h2><p style={{ margin: '5px 0 0', color: 'var(--muted)', fontSize: 13 }}>Complete the staff onboarding tasks here. The Hired transition remains governed by the same contract, readiness and staff-identity gates.</p></div>
+            {data.application?.status === 'Onboarding' && (
+              <button
+                disabled={busy}
+                onClick={() => void markApplicationHired()}
+                style={buttonPrimary}
+              >
+                {busy ? 'Processing…' : 'Mark Hired'}
+              </button>
+            )}
+          </div>
           <div style={{ display: 'grid', gap: 10 }}>
             {(data.onboarding?.tasks || []).map((task) => (
               <article key={task.id} className="card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
