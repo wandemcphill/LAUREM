@@ -656,7 +656,7 @@ export default function Candidate360Page() {
           <Metric label="Approved documents" value={approvedDocs} />
           <Metric label="First interviews" value={data.interviews.length} />
           <Metric label="Round 1" value={round1Assessment?.status || 'Not started'} />
-          <Metric label="Round 2" value={round2Assessment?.status || 'Locked'} />
+          <Metric label="Round 2" value={round2Assessment?.status || (activeSecondInvitation ? 'Awaiting candidate' : 'Locked')} />
           <Metric label="Second interviews" value={data.secondInterviews.length} />
           <Metric label="Contracts" value={data.contracts.length} />
         </section>
