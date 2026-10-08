@@ -11,7 +11,7 @@ describe('LAUREM staff activation form', () => {
     expect(form).toContain('onChange={(event) => setEmail(event.target.value.trimStart())}');
     expect(form).not.toContain('readOnly value={email}');
     expect(form).toContain('body: JSON.stringify({ token, email, password })');
-    expect(form).toContain("fetch('/api/staff/auth/activate?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email)");
+    expect(form).toContain("fetch('/api/staff/auth/activate?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(emailFromUrl)");
     expect(form).toContain('disabled={checking || busy || !token || !email.trim()}');
   });
 });
