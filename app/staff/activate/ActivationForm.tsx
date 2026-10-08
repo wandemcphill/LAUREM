@@ -23,14 +23,14 @@ export default function ActivationForm() {
     setChecking(true);
     setError('');
 
-    if (!token || !email) {
+    if (!token || !emailFromUrl) {
       setChecking(false);
       return () => {
         active = false;
       };
     }
 
-    fetch('/api/staff/auth/activate?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email), { cache: 'no-store' })
+    fetch('/api/staff/auth/activate?token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(emailFromUrl), { cache: 'no-store' })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!active) return;
@@ -50,7 +50,7 @@ export default function ActivationForm() {
     return () => {
       active = false;
     };
-  }, [token, email, router]);
+  }, [token, emailFromUrl, router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
