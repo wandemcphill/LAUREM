@@ -82,7 +82,7 @@ export default function ActivationForm() {
       <form onSubmit={submit} style={{ background: '#fff', padding: 28, border: '1px solid #e5eaf0', borderRadius: 18, width: 'min(440px,100%)' }}>
         <div style={{ color: '#0f766e', fontSize: 12, fontWeight: 900, letterSpacing: 1.4 }}>LAUREM CARE</div>
         <h1>Activate your personal portal</h1>
-        <p style={{ color: '#627d98' }}>Enter your email address, create a password, and your staff account will be activated.</p>
+        <p style={{ color: '#627d98' }}>Use the email address linked to your LAUREM Staff Portal account, then create your password.</p>
         {checking && <p style={{ color: '#627d98' }}>Checking your secure activation link…</p>}
         <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 700 }} htmlFor="activation-email">Email address</label>
         <input
@@ -92,7 +92,7 @@ export default function ActivationForm() {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value.trimStart())}
-          placeholder="Enter your LAUREM account email"
+          placeholder="Enter the email address linked to your Staff Portal account"
           aria-label="Email"
           style={{ width: '100%', boxSizing: 'border-box', padding: 11, border: '1px solid #cbd5e1', borderRadius: 10, marginBottom: 10 }}
         />
