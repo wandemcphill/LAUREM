@@ -656,7 +656,7 @@ export default function Candidate360Page() {
           <Metric label="Approved documents" value={approvedDocs} />
           <Metric label="First interviews" value={data.interviews.length} />
           <Metric label="Round 1" value={round1Assessment?.status || 'Not started'} />
-          <Metric label="Round 2" value={round2Assessment?.status || (activeSecondInvitation ? 'Awaiting candidate' : 'Locked')} />
+          <Metric label="Round 2" value={round2Assessment?.status || 'Not required'} />
           <Metric label="Second interviews" value={data.secondInterviews.length} />
           <Metric label="Contracts" value={data.contracts.length} />
         </section>
@@ -687,14 +687,14 @@ export default function Candidate360Page() {
                 <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>20 role-specific objective questions are assigned to this candidate.</div>
               </div>
             )}
-            {round1Assessment?.status === 'passed' && activeSecondInvitation && (
+            {round1Assessment?.status === 'passed' && activeSecondInvitation && !['Offer', 'Onboarding', 'Hired'].includes(application.status) && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
                 <div style={{ fontWeight: 800 }}>Second stage issued</div>
                 <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Round 1 passed at {round1Assessment.percent}% and the second-stage link is active.</div>
               </div>
             )}
-            {round1Assessment?.status === 'passed' && !activeSecondInvitation && (
-              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Reissue second stage</button>
+            {round1Assessment?.status === 'passed' && !activeSecondInvitation && !['Offer', 'Onboarding', 'Hired'].includes(application.status) && (
+              <button disabled={busy} onClick={() => void sendSecondInterview()} style={primary}>Issue second stage</button>
             )}
             {round1Assessment?.status === 'failed' && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
@@ -702,7 +702,7 @@ export default function Candidate360Page() {
                 <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Score {round1Assessment.percent}% against the configured {round1Assessment.pass_percent || 80}% pass mark.</div>
               </div>
             )}
-            {round2Assessment?.status === 'submitted' && (
+            {round2Assessment?.status === 'submitted' && !['Offer', 'Onboarding', 'Hired'].includes(application.status) && (
               <div style={{ ...subcard, flex: '1 1 320px' }}>
                 <div style={{ fontWeight: 800 }}>Second stage completed</div>
                 <div style={{ ...muted, fontSize: 13, marginTop: 4 }}>Round 2 has been submitted and is ready for recruiter review.</div>
