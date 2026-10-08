@@ -234,11 +234,6 @@ export default function StaffRecordPage({ params }: { params: Promise<{ staffId:
 
   async function markApplicationHired() {
     if (!data?.application?.id || data.application.status !== 'Onboarding') return;
-    const reason = window.prompt('Reason for marking this candidate as Hired?')?.trim() || '';
-    if (reason.length < 5) {
-      setError('A reason of at least 5 characters is required.');
-      return;
-    }
     setBusy(true);
     setError('');
     setNotice('');
