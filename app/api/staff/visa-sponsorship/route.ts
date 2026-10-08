@@ -74,6 +74,15 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
 
   const rolePathway = roleBasedPathway(staff.job_title || application.role_applied, application);
 
+  const paymentAccountResult = await client.from('laurem_payment_accounts')
+    .select('account_name,bank_name,account_number,sort_code,bank_address')
+    .eq('account_key','primary_gbp')
+    .eq('is_active',true)
+    .maybeSingle();
+  if (paymentAccountResult.error) throw paymentAccountResult.error;
+  if (!paymentAccountResult.data) throw new Error('PAYMENT_ACCOUNT_NOT_CONFIGURED');
+
+
   const { data: visaCase, error: caseError } = await client.from('laurem_staff_visa_cases')
     .select('*')
     .eq('staff_id', staffId)
@@ -126,6 +135,13 @@ async function loadStaffVisa(client: ReturnType<typeof db>, staffId: string) {
   return {
     staff,
     application: applicationForStaff,
+    paymentBankDetails: {
+      accountName: paymentAccountResult.data.account_name,
+      bankName: paymentAccountResult.data.bank_name,
+      accountNumber: paymentAccountResult.data.account_number,
+      sortCode: paymentAccountResult.data.sort_code,
+      bankAddress: paymentAccountResult.data.bank_address,
+    },
     applicationAddresses,
     recommendation: {
       ...recommendation,
