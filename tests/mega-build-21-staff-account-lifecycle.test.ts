@@ -35,15 +35,18 @@ describe('Mega-Build 21 staff account lifecycle', () => {
     expect(route).not.toContain("employment_status = 'active'");
   });
 
-  it('provides a controlled activation recovery path with a mandatory reason', () => {
+  it('provides a controlled activation recovery path for an activated pending Onboarding account', () => {
     const route = readFileSync('app/api/admin/workforce/staff/account/route.ts', 'utf8');
     expect(route).toContain("action !== 'reissue_activation'");
     expect(route).toContain('reason.length < 5');
-    expect(route).toContain('completePendingLauremHireAndIssueActivation');
     expect(route).toContain('provisionLauremStaffPortal');
-    expect(route).toContain('application.status === \'Onboarding\'');
+    expect(route).toContain('laurem_recover_activated_pending_onboarding_staff_portal');
+    expect(route).toContain("application.status !== 'Onboarding'");
+    expect(route).toContain('previousActivationRevoked: true');
+    expect(route).toContain("employmentStatusPreserved: 'pending'");
     expect(route).toContain('activation_reissued');
-    expect(route).not.toContain('rawToken');
+    expect(route).toContain('p_token_hash: hashActivationToken(rawToken)');
+    expect(route).not.toContain('activation: { url:');
   });
 
   it('repairs a stale Onboarding pending account through the canonical atomic hire boundary', () => {
