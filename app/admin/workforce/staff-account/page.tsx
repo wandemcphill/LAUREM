@@ -15,7 +15,7 @@ type Staff = {
   activated_at: string | null;
   activation_expires_at: string | null;
   activation_used_at: string | null;
-  account_state: 'active' | 'suspended' | 'leaver' | 'activation_pending' | 'activation_needed' | 'state_review';
+  account_state: 'active' | 'suspended' | 'leaver' | 'activation_pending' | 'activation_needed' | 'activation_recovery_needed' | 'state_review';
 };
 
 const stateLabels: Record<Staff['account_state'], string> = {
@@ -24,6 +24,7 @@ const stateLabels: Record<Staff['account_state'], string> = {
   leaver: 'Portal access ended',
   activation_pending: 'Activation link active',
   activation_needed: 'Activation required',
+  activation_recovery_needed: 'Activation recovery required',
   state_review: 'Review state',
 };
 
@@ -57,7 +58,12 @@ export default function StaffAccountLifecyclePage() {
   useEffect(() => { void load(); }, []);
 
   async function reissue(staffMember: Staff) {
-    const reason = window.prompt('Why are you reissuing the activation link for ' + staffMember.full_name + '?')?.trim() || '';
+    const recovery = staffMember.account_state === 'activation_recovery_needed';
+    const reason = window.prompt(
+      recovery
+        ? 'Why are you revoking the previous activation and issuing a new link for ' + staffMember.full_name + '?'
+        : 'Why are you reissuing the activation link for ' + staffMember.full_name + '?',
+    )?.trim() || '';
     if (reason.length < 5) return;
 
     setBusyId(staffMember.id);
@@ -71,7 +77,14 @@ export default function StaffAccountLifecyclePage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || 'Unable to reissue activation.');
-      setNotice('Activation reissued for ' + staffMember.full_name + '. Email status: ' + (body.activation?.status || 'unknown') + '.');
+      const deliveryStatus = body.activation?.status || 'unknown';
+      if (deliveryStatus === 'sent') {
+        setNotice('A new activation email was sent to ' + (body.staff?.email || staffMember.email) + '.');
+      } else if (deliveryStatus === 'not_configured') {
+        setNotice('The previous activation has been revoked, but email delivery is not configured. Check LAUREM email settings before asking the staff member to activate.');
+      } else {
+        setNotice('The previous activation has been revoked, but the replacement email was not confirmed as sent. Email status: ' + deliveryStatus + '.');
+      }
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to reissue activation.');
@@ -98,7 +111,7 @@ export default function StaffAccountLifecyclePage() {
       {notice && <div role="status" className="card" style={{ padding: 14, marginTop: 16, color: '#176b4f' }}>{notice}</div>}
 
       <section className="card" style={{ padding: 12, marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(['all', 'activation_needed', 'activation_pending', 'active', 'suspended', 'leaver', 'state_review'] as const).map((item) => (
+        {(['all', 'activation_needed', 'activation_pending', 'activation_recovery_needed', 'active', 'suspended', 'leaver', 'state_review'] as const).map((item) => (
           <button key={item} onClick={() => setFilter(item)} style={{ ...buttonSecondary, background: filter === item ? 'var(--soft)' : '#fff' }}>
             {item === 'all' ? 'All' : stateLabels[item as Staff['account_state']]}
           </button>
@@ -113,7 +126,7 @@ export default function StaffAccountLifecyclePage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ ...badge, background: item.account_state === 'active' ? '#e8f7ee' : item.account_state === 'state_review' ? '#fdecec' : '#edf2f7' }}>{stateLabels[item.account_state]}</span>
+                  <span style={{ ...badge, background: item.account_state === 'active' ? '#e8f7ee' : item.account_state === 'state_review' ? '#fdecec' : item.account_state === 'activation_recovery_needed' ? '#fff1d6' : '#edf2f7' }}>{stateLabels[item.account_state]}</span>
                   <span style={badge}>{item.employment_status}</span>
                 </div>
                 <h2 style={{ margin: '9px 0 4px' }}>{item.full_name}</h2>
@@ -121,11 +134,12 @@ export default function StaffAccountLifecyclePage() {
                 {item.laurem_id && <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>LAUREM ID: {item.laurem_id}</div>}
                 {item.account_state === 'activation_pending' && <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 7 }}>Activation expires {dateTime(item.activation_expires_at)}</div>}
                 {item.account_state === 'activation_needed' && <div style={{ color: '#9a3412', fontSize: 12, marginTop: 7 }}>No active activation link. Use recovery only after confirming the staff member needs a new invitation.</div>}
+                {item.account_state === 'activation_recovery_needed' && <div style={{ color: '#92400e', fontSize: 12, marginTop: 7 }}>This account was activated while employment is still pending. Recovery revokes its existing sessions and credentials, then issues a fresh one-time activation. The application and employment status remain unchanged.</div>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <Link href="/admin/workforce" style={buttonSecondary}>Workforce</Link>
-                {(item.account_state === 'activation_needed' || item.account_state === 'activation_pending') &&
-                  <button disabled={busyId === item.id} onClick={() => void reissue(item)} style={buttonPrimary}>{busyId === item.id ? 'Reissuing…' : 'Reissue activation'}</button>}
+                {(item.account_state === 'activation_needed' || item.account_state === 'activation_pending' || item.account_state === 'activation_recovery_needed') &&
+                  <button disabled={busyId === item.id} onClick={() => void reissue(item)} style={buttonPrimary}>{busyId === item.id ? 'Reissuing…' : item.account_state === 'activation_recovery_needed' ? 'Revoke & reissue activation' : 'Reissue activation'}</button>}
               </div>
             </div>
           </article>
