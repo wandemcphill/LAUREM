@@ -10,7 +10,7 @@ function esc(value: string) {
 export async function sendLauremStaffActivation(client: SupabaseClient, staff: Record<string, any>, token: string, employmentConfirmed = true) {
   const mailbox = await ensureLauremMailbox(client, { id: staff.id, full_name: staff.full_name, job_title: staff.job_title });
   const address = `${mailbox.handle}@${mailbox.namespace}`;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com').replace(/\/$/, '');
   const activationUrl = `${appUrl}/staff/activate?token=${encodeURIComponent(token)}&email=${encodeURIComponent(staff.email)}`;
 
   const from = process.env.RESEND_FROM_EMAIL || 'LAUREM Care <onboarding@resend.dev>';
