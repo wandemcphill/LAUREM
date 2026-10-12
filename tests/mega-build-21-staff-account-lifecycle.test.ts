@@ -17,17 +17,25 @@ describe('Mega-Build 21 staff account lifecycle', () => {
     expect(migration).not.toContain('activation_token_hash = null');
   });
 
-  it('requires active staff accounts for portal sessions and login', () => {
+  it('allows activated pending and active staff accounts to use the portal', () => {
     const auth = readFileSync('lib/laurem-staff-auth.ts', 'utf8');
     const login = readFileSync('app/api/staff/auth/login/route.ts', 'utf8');
-    // An activated pending employee may access onboarding, but only active staff can sign in.
+    // Activated pending candidates must be able to sign in to complete onboarding; hiring remains separate.
     expect(auth).toContain("!['pending', 'active'].includes(staff.employment_status)");
     expect(auth).toContain('!staff.activated_at');
     expect(auth).toContain('!staff.password_hash');
-    expect(login).toContain("staff.employment_status !== 'active'");
+    expect(login).toContain("!['pending', 'active'].includes(staff.employment_status)");
+    expect(login).not.toContain("staff.employment_status !== 'active'");
     expect(login).toContain('!staff.activated_at');
     expect(login).toContain('!staff.password_hash');
   });
+
+  it('uses the production portal URL as the activation-email fallback', () => {
+    const email = readFileSync('lib/laurem-staff-email.ts', 'utf8');
+    expect(email).toContain("process.env.NEXT_PUBLIC_APP_URL || 'https://recruitment.lauremcare.com'");
+    expect(email).not.toContain("process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'");
+  });
+
 
   it('prevents admin promotion of a never-activated pending account', () => {
     const route = readFileSync('app/api/admin/workforce/staff/route.ts', 'utf8');
