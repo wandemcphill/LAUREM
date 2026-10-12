@@ -1,7 +1,7 @@
 # Laurem Caregroup
 # Overseas Nurse Welcome Package: Scotland & the UK
 
-**Audience:** Overseas Registered Nurses recruited by Laurem Caregroup Ltd.
+**Audience:** Overseas Registered Nurses recruited by Laurem Care Group Limited.
 
 This pack is intended to be issued after a nurse accepts the offer and again shortly before travel. It is designed as a practical companion to the employment contract and Overseas Nurse Handbook.
 
@@ -9,7 +9,7 @@ This pack is intended to be issued after a nurse accepts the offer and again sho
 
 ## 1. Your Laurem arrival contact
 
-**Employer:** Laurem Caregroup Ltd
+**Employer:** Laurem Care Group Limited
 
 **Recruitment contact:** recruitment@lauremcare.com
 

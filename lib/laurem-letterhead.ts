@@ -1,12 +1,14 @@
+import { lauremCompany } from '@/lib/laurem-company-config';
+
 export const LAUREM_LETTERHEAD = {
-  legalName: 'LAUREM CARE GROUP LIMITED',
-  tradingName: 'LAUREM CAREGROUP',
+  legalName: lauremCompany.legalName.toUpperCase(),
+  tradingName: lauremCompany.tradingName.toUpperCase(),
   strapline: 'Care & Support Services',
-  companyNumber: 'SC490520',
-  registration: 'Registered in Scotland',
-  registeredOffice: '557 Parkhouse Road, Barrhead, Glasgow, Scotland, G78 1TE',
-  email: 'recruitment@lauremcare.com',
-  website: 'lauremcare.com',
+  companyNumber: lauremCompany.companyNumber,
+  registration: lauremCompany.registration,
+  registeredOffice: lauremCompany.registeredOffice,
+  email: lauremCompany.publicEmails.recruitment,
+  website: lauremCompany.website.replace('https://', '').replace('http://', ''),
 } as const;
 
 function escapeHtml(value: string): string {

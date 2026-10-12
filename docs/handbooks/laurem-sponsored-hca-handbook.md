@@ -1,7 +1,7 @@
 # Laurem Caregroup
 ## Sponsored Healthcare Assistant Handbook
 
-**Audience:** Healthcare Assistants employed by Laurem Caregroup Ltd under a sponsored or other lawful UK work route.
+**Audience:** Healthcare Assistants employed by Laurem Care Group Limited under a sponsored or other lawful UK work route.
 
 **Document status:** Operational handbook template. It is not immigration or legal advice and must be kept aligned with the worker's actual immigration permission, employment contract, Laurem policies and current UK/Scottish guidance.
 

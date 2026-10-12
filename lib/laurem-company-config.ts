@@ -1,5 +1,7 @@
+const LAUREM_LEGAL_NAME = 'Laurem Care Group Limited';
+
 export const lauremCompany = {
-  legalName: 'Laurem Care Group Limited',
+  legalName: LAUREM_LEGAL_NAME,
   tradingName: 'Laurem Caregroup',
   companyNumber: 'SC490520',
   registration: 'Registered in Scotland',
@@ -15,7 +17,7 @@ export const lauremCompany = {
   documentIssuer: {
     name: 'Dezou Maurice',
     title: 'Manager',
-    employer: 'Laurem Caregroup Ltd',
+    employer: LAUREM_LEGAL_NAME,
   },
   portalNotifications: {
     internalRecipient: 'info@lauremcare.com',

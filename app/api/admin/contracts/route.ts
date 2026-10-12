@@ -6,6 +6,7 @@ import { hashToken, makeToken } from '@/lib/token';
 import { normalizeLauremRole } from '@/lib/laurem-role-policy';
 import { renderLauremContract } from '@/lib/laurem-contract';
 import { renderLauremInternationalNurseContract } from '@/lib/laurem-international-nurse-contract';
+import { validateLauremContractCompleteness } from '@/lib/laurem-contract-validator';
 import { lauremCompany } from '@/lib/laurem-company-config';
 import { sendLauremEmail } from '@/lib/laurem-email';
 import { getLauremRecruitmentDocumentPack } from '@/lib/laurem-recruitment-documents';
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
           contractEndDate,
           minimumWeeklyHours: weeklyHours,
           hourlyRate,
+          annualSalary,
           workLocations,
           clientOrAssignmentDetails: typeof body?.clientOrAssignmentDetails === 'string' ? body.clientOrAssignmentDetails : null,
           noticePeriodEmployee,
@@ -232,7 +234,7 @@ export async function PATCH(request: NextRequest) {
   const client = db();
   const { data: current, error: readError } = await client
     .from('recruitment_contracts')
-    .select('id,application_id,status,accepted_at,job_title,contract_type')
+    .select('*')
     .eq('id', id)
     .maybeSingle();
   if (readError) return NextResponse.json({ error: 'Unable to load contract.' }, { status: 500 });
@@ -242,11 +244,45 @@ export async function PATCH(request: NextRequest) {
 
   const { data: app, error: appError } = await client
     .from('recruitment_applications')
-    .select('id,full_name,email,role_applied,living_in_uk')
+    .select('id,full_name,email,role_applied,living_in_uk,address,start_date')
     .eq('id', current.application_id)
     .maybeSingle();
   if (appError) return NextResponse.json({ error: 'Unable to load contract application.' }, { status: 500 });
   if (!app || !normalizeLauremRole(app.role_applied || '')) return NextResponse.json({ error: 'Contract is not eligible for issue.' }, { status: 409 });
+
+  const completeness = validateLauremContractCompleteness({
+    employeeName: app.full_name,
+    employeeAddress: app.address,
+    jobTitle: current.job_title || app.role_applied,
+    startDate: current.start_date || app.start_date,
+    minimumWeeklyHours: current.minimum_weekly_hours ?? current.weekly_hours,
+    weeklyHours: current.weekly_hours ?? current.minimum_weekly_hours,
+    hourlyRate: current.hourly_rate,
+    annualSalary: current.annual_salary,
+    workLocations: Array.isArray(current.work_locations) ? current.work_locations : [],
+    noticePeriodEmployee: current.notice_period_employee,
+    noticePeriodEmployer: current.notice_period_employer,
+    holidayEntitlement: current.holiday_entitlement,
+    pensionScheme: current.pension_scheme,
+    contractType: current.contract_type,
+    visaRoute: current.visa_route,
+    sponsorshipOccupationCode: current.sponsorship_occupation_code,
+    nmcStatus: current.nmc_status,
+    registrationDeadline: current.registration_deadline,
+    preRegistrationSalary: current.pre_registration_salary,
+    postRegistrationSalary: current.post_registration_salary,
+    repayableCosts: current.repayable_costs,
+    repaymentSchedule: current.repayment_schedule,
+    contractContent: current.contract_content,
+  });
+  if (!completeness.valid) {
+    return NextResponse.json({
+      error: 'Cannot issue contract: material employment particulars are missing or unresolved.',
+      code: 'CONTRACT_INCOMPLETE',
+      validationErrors: completeness.errors,
+      missingFields: completeness.missingFields,
+    }, { status: 422 });
+  }
 
   const token = makeToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
