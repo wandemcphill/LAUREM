@@ -8,7 +8,7 @@ export const LAUREM_LETTERHEAD = {
   registration: lauremCompany.registration,
   registeredOffice: lauremCompany.registeredOffice,
   email: lauremCompany.publicEmails.recruitment,
-  website: lauremCompany.website.replace(/^https?:\\/\\//, ''),
+  website: lauremCompany.website.replace('https://', '').replace('http://', ''),
 } as const;
 
 function escapeHtml(value: string): string {
