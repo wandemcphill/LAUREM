@@ -1,6 +1,8 @@
+import { lauremCompany } from '@/lib/laurem-company-config';
+
 export const lauremEmploymentContract = {
   title: 'Contract of Employment (Guaranteed Minimum Hours)',
-  employerName: 'Laurem Caregroup Ltd',
+  employerName: lauremCompany.legalName,
   platformName: 'Laurem Recruitment & Workforce Platform',
   sections: [
     'Commencement of Employment',
