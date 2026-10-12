@@ -73,7 +73,7 @@ describe('LAUREM modern staff portal foundation',()=>{
     const messages=source('app/staff/messages/page.tsx');
     const notifications=source('app/staff/notifications/page.tsx');
     expect(messages).toContain('/api/staff/messages');
-    expect(messages).toContain('Message LAUREM');
+    expect(messages).toContain('Message a LAUREM team');
     expect(messages).toContain('Send message');
     expect(messages).toContain('staff-message-stream');
     expect(notifications).toContain('/api/staff/notifications');

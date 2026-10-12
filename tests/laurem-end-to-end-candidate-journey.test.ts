@@ -35,7 +35,7 @@ describe('LAUREM end-to-end candidate journey', () => {
     expect(contractAdminApi).toContain('Your LAUREM employment offer package is ready');
     expect(acceptanceApi).toContain("eq('status', 'pending')");
     expect(acceptanceApi).toContain('normally issued together with the contract');
-    expect(acceptanceApi).toContain("p_to_status: 'Documents'");
+    expect(acceptanceApi).toContain("p_to_status: 'Onboarding'");
     expect(documentApi).toContain('laurem_sign_candidate_document');
     expect(documentApi).toContain('readiness: readiness.items');
     expect(migration).toContain('laurem_issue_candidate_document_pack');

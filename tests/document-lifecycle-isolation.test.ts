@@ -45,7 +45,9 @@ describe('LAUREM document lifecycle isolation', () => {
     const route = readFileSync('app/api/contracts/accept/route.ts', 'utf8');
     expect(route).toContain('contractAlreadyAccepted: true');
     expect(route).toContain('documentPackIssued');
-    expect(route).toContain("if (transition.error && !String(transition.error.message || '').includes('STATUS_TRANSITION_BLOCKED'))");
+    // Acceptance now transitions directly to Onboarding; document-pack delivery is best-effort afterwards.
+    expect(route).toContain("p_to_status: 'Onboarding'");
+    expect(route).toContain("event: 'contract.acceptance.document_pack_failed'");
     expect(route).toContain('if (packResult.error) throw packResult.error;');
     expect(route).toContain('catch (documentPackError)');
     expect(route).toContain('contractAlreadyAccepted: true');

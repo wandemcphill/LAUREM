@@ -231,14 +231,20 @@ describe('LAUREM £500 visa-switch invoice payment link', () => {
     expect(migration).toContain('payment_url');
   });
 
-  it('shows the £500 payment action in both staff and admin invoice views', () => {
+  it('shows invoice details and bank-transfer payment instructions in staff and admin views', () => {
     const staff = readFileSync('app/staff/visa-sponsorship/page.tsx', 'utf8');
     const admin = readFileSync('app/admin/workforce/[staffId]/visa-sponsorship/page.tsx', 'utf8');
-    expect(staff).toContain('Pay £500 invoice securely');
-    expect(admin).toContain('Pay £500 invoice');
-    expect(staff).toContain('invoice?.payment_url');
-    expect(admin).toContain('invoice?.payment_url');
+
+    // The current payment flow uses bank transfer, not a hosted Stripe checkout link.
+    expect(staff).toContain('<BankTransferInstructions');
+    expect(staff).toContain('paymentReference={paymentReference} bankDetails={data.paymentBankDetails}');
+    expect(staff).toContain('Pay by bank transfer');
+    expect(staff).toContain('No hosted card-payment link is required.');
     expect(staff).toContain('within 3 days of the invoice issue date');
-    expect(admin).toContain('due within 3 days of the invoice issue date');
+
+    expect(admin).toContain('<strong>Bank transfer payment</strong>');
+    expect(admin).toContain('data.paymentBankDetails?.accountNumber');
+    expect(admin).toContain('invoice?.due_date');
+    expect(admin).toContain('£500 due within 3 days of the invoice issue date');
   });
 });
