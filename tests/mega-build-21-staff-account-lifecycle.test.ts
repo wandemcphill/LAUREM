@@ -20,11 +20,13 @@ describe('Mega-Build 21 staff account lifecycle', () => {
   it('requires active staff accounts for portal sessions and login', () => {
     const auth = readFileSync('lib/laurem-staff-auth.ts', 'utf8');
     const login = readFileSync('app/api/staff/auth/login/route.ts', 'utf8');
-    expect(auth).toContain("staff.employment_status !== 'active'");
-    expect(auth).toContain('staff.activated_at');
-    expect(auth).toContain('staff.password_hash');
+    // An activated pending employee may access onboarding, but only active staff can sign in.
+    expect(auth).toContain("!['pending', 'active'].includes(staff.employment_status)");
+    expect(auth).toContain('!staff.activated_at');
+    expect(auth).toContain('!staff.password_hash');
     expect(login).toContain("staff.employment_status !== 'active'");
-    expect(login).toContain('staff.activated_at');
+    expect(login).toContain('!staff.activated_at');
+    expect(login).toContain('!staff.password_hash');
   });
 
   it('prevents admin promotion of a never-activated pending account', () => {
