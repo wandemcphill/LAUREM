@@ -10,7 +10,8 @@ describe('LAUREM final placement contract workflow', () => {
     expect(migration).toContain('alter table public.laurem_staff_placement_terms enable row level security');
     expect(migration).toContain('revoke all on public.laurem_staff_placement_terms from anon,authenticated');
     expect(api).toContain("from('laurem_staff_placement_terms')");
-    expect(api).toContain("category,'contract'");
+    expect(api).toContain(".eq('category','contract')");
+    expect(api).toContain("category: 'contract'");
   });
 
   it('requires concrete placement terms before issue', () => {
