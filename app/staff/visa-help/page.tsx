@@ -1,5 +1,7 @@
 'use client';
 
+import VisaHelpApplicationTrackingPanel from '@/components/VisaHelpApplicationTrackingPanel';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StaffAction, StaffBadge, StaffLoading, StaffNotice, StaffPage, StaffPageHeader, StaffPageInner, StaffPanel, StaffSectionHeader } from '@/components/StaffPortalUI';
@@ -341,6 +343,7 @@ export default function StaffVisaHelpPage(){
     </div>
   </StaffPanel>}
 
+ {data?.case?.id&&<VisaHelpApplicationTrackingPanel mode="staff" caseId={data.case.id}/>} 
  </StaffPageInner></StaffPage>;
 }
 
