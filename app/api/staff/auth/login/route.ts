@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     !staff
     || !staff.password_hash
     || !staff.activated_at
-    || staff.employment_status !== 'active'
+    || !['pending', 'active'].includes(staff.employment_status)
     || !verifyPassword(password, staff.password_hash)
   ) {
     await client.from('laurem_staff_security_events').insert({
