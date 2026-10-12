@@ -36,28 +36,46 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'A task id and acknowledge action are required.' }, { status: 400 });
   }
 
-  const { data, error } = await db().rpc('laurem_acknowledge_staff_onboarding_task', {
-    p_staff_id: session.staff_id,
-    p_task_id: taskId,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
 
-  if (error || !data) {
-    const message = error?.message || '';
-    const known: Record<string, { status: number; error: string }> = {
-      STAFF_NOT_ELIGIBLE: { status: 403, error: 'Your Staff Portal account is not eligible for onboarding updates.' },
-      ONBOARDING_PACKAGE_NOT_FOUND: { status: 404, error: 'Onboarding package not found.' },
-      ONBOARDING_TASK_NOT_FOUND: { status: 404, error: 'Onboarding task not found.' },
-      ACKNOWLEDGEMENT_NOT_REQUIRED: { status: 409, error: 'This onboarding task does not require employee acknowledgement.' },
-      TASK_ALREADY_ACKNOWLEDGED: { status: 409, error: 'This task has already been acknowledged.' },
-      ONBOARDING_PACKAGE_UPDATE_FAILED: { status: 409, error: 'Unable to update onboarding package state.' },
-    };
-    const key = Object.keys(known).find((item) => message.includes(item));
-    if (key) return NextResponse.json({ error: known[key].error }, { status: known[key].status });
-    return NextResponse.json({ error: 'Unable to acknowledge onboarding task.' }, { status: 409 });
+  try {
+    const { data, error } = await db()
+      .rpc('laurem_acknowledge_staff_onboarding_task', {
+        p_staff_id: session.staff_id,
+        p_task_id: taskId,
+      })
+      .abortSignal(controller.signal);
+
+    if (error || !data) {
+      const message = error?.message || '';
+      const known: Record<string, { status: number; error: string }> = {
+        STAFF_NOT_ELIGIBLE: { status: 403, error: 'Your Staff Portal account is not eligible for onboarding updates.' },
+        ONBOARDING_PACKAGE_NOT_FOUND: { status: 404, error: 'Onboarding package not found.' },
+        ONBOARDING_TASK_NOT_FOUND: { status: 404, error: 'Onboarding task not found.' },
+        ACKNOWLEDGEMENT_NOT_REQUIRED: { status: 409, error: 'This onboarding task does not require employee acknowledgement.' },
+        TASK_ALREADY_ACKNOWLEDGED: { status: 409, error: 'This task has already been acknowledged.' },
+        TASK_ALREADY_COMPLETED: { status: 409, error: 'This onboarding task has already been completed or waived.' },
+        ONBOARDING_PACKAGE_UPDATE_FAILED: { status: 409, error: 'Unable to update onboarding package state.' },
+        ONBOARDING_TASK_UPDATE_FAILED: { status: 409, error: 'Unable to update onboarding task state.' },
+      };
+      const key = Object.keys(known).find((item) => message.includes(item));
+      if (key) return NextResponse.json({ error: known[key].error }, { status: known[key].status });
+      return NextResponse.json({ error: 'Unable to acknowledge onboarding task.' }, { status: 409 });
+    }
+
+    return NextResponse.json({
+      task: data.task,
+      package: data.package,
+    });
+  } catch {
+    if (controller.signal.aborted) {
+      return NextResponse.json({
+        error: 'The acknowledgement request timed out. Refresh onboarding to check whether it was saved before retrying.',
+      }, { status: 504 });
+    }
+    return NextResponse.json({ error: 'Unable to acknowledge onboarding task.' }, { status: 500 });
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return NextResponse.json({
-    task: data.task,
-    package: data.package,
-  });
 }
