@@ -15,18 +15,23 @@ function StaffLoginPage() {
     event.preventDefault();
     setBusy(true);
     setError('');
-    const response = await fetch('/api/staff/auth/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ laurem_id: id, password }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(data.error || 'Unable to sign in.');
+    try {
+      const response = await fetch('/api/staff/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ laurem_id: id.trim().toUpperCase(), password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error || 'Unable to sign in.');
+        return;
+      }
+      router.replace('/staff');
+    } catch {
+      setError('We could not reach the LAUREM portal. Please check your connection and try again.');
+    } finally {
       setBusy(false);
-      return;
     }
-    router.replace('/staff');
   }
 
   return (
